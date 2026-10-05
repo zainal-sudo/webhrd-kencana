@@ -62,11 +62,12 @@ export const getKaryawanList = async (req, res, next) => {
         const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
         const offset = (page - 1) * perPage
 
-        let where = ''
+        // Helper filter menambahkan AND; awali WHERE agar predicate tidak masuk ke JOIN.
+        let where = ' WHERE 1 = 1'
         let params = []
 
         if (req.query.search) {
-            where = ` WHERE (k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR k.kar_bagian LIKE ? OR k.kar_kode_absensi LIKE ?)`
+            where += ` AND (k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR k.kar_bagian LIKE ? OR k.kar_kode_absensi LIKE ?)`
             params = ['%s', '%s', '%s', '%s'].map(() => `%${req.query.search}%`)
         }
         if (req.query.status_aktif !== undefined && req.query.status_aktif !== '') {
@@ -428,6 +429,8 @@ export const deleteKaryawan = async (req, res, next) => {
 /** Opsi form karyawan (dropdown di form master). */
 export const getFormOptions = async (req, res, next) => {
     try {
+        // Pertahankan nama atasan existing pada form edit, termasuk bila sudah nonaktif.
+        const atasanNik = String(req.query.atasan_nik || '')
         const [[pabrik], [jabatan], [departemen], [statusKerja], [statusKaryawan], [pekerjaan], [pendidikan], [jadwal], [bagian], [atasan]] =
             await Promise.all([
                 pool.query('SELECT pab_kode AS Kode, pab_nama AS Nama FROM tpabrik ORDER BY pab_kode'),
@@ -439,7 +442,7 @@ export const getFormOptions = async (req, res, next) => {
                 pool.query('SELECT pd_id AS Kode, pd_keterangan AS Nama FROM tpendidikan ORDER BY pd_id'),
                 pool.query('SELECT jd_id AS Kode, jd_nama_shift AS Nama, jd_jamawal AS JamAwal, jd_jamakhir AS JamAkhir FROM tjadwal ORDER BY jd_id'),
                 pool.query('SELECT DISTINCT kar_bagian AS Nama FROM tkaryawan WHERE kar_bagian <> "" ORDER BY kar_bagian'),
-                pool.query("SELECT kar_Nik AS Nik, kar_nama AS Nama FROM tkaryawan WHERE kar_status_aktif = 1 ORDER BY kar_nama"),
+                pool.query("SELECT kar_Nik AS Nik, kar_nama AS Nama FROM tkaryawan WHERE kar_status_aktif = 1 OR kar_Nik = ? ORDER BY kar_nama", [atasanNik]),
             ])
         success(res, { pabrik, jabatan, departemen, statusKerja, statusKaryawan, pekerjaan, pendidikan, jadwal, bagian, atasan })
     } catch (err) {

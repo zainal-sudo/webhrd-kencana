@@ -43,6 +43,11 @@ interface OptRow {
   JamAkhir?: string;
 }
 
+interface AtasanRow {
+  Nik: string;
+  Nama: string;
+}
+
 const opt = reactive<Record<string, OptRow[]>>({
   pabrik: [],
   jabatan: [],
@@ -51,9 +56,9 @@ const opt = reactive<Record<string, OptRow[]>>({
   pekerjaan: [],
   pendidikan: [],
   jadwal: [],
-  bagian: [],
-  atasan: [],
 });
+const bagian = ref<{ Nama: string }[]>([]);
+const atasan = ref<AtasanRow[]>([]);
 
 const toOptions = (rows: OptRow[] | undefined) =>
   (rows || []).map((r) => ({ label: r.Nama, value: r.Kode }));
@@ -64,18 +69,11 @@ const opsiDepartemen = computed(() => toOptions(opt.departemen));
 const opsiStatusKerja = computed(() => toOptions(opt.statusKerja));
 const opsiPekerjaan = computed(() => toOptions(opt.pekerjaan));
 const opsiPendidikan = computed(() => toOptions(opt.pendidikan));
-const opsiBagian = computed(() => toOptions(opt.bagian));
-const opsiAtasan = computed(() => toOptions(opt.atasan));
+const opsiBagian = computed(() => bagian.value.map((r) => ({ label: r.Nama, value: r.Nama })));
+const opsiAtasan = computed(() => atasan.value.map((r) => ({ label: r.Nama, value: r.Nik })));
 
 onMounted(async () => {
   memuat.value = true;
-  try {
-    const { data } = await api.get("/master/karyawan/form-options");
-    Object.assign(opt, data.data);
-  } catch (e) {
-    toast.error(getErrorMessage(e, "Gagal memuat opsi form"));
-  }
-
   if (isEdit.value) {
     try {
       const { data } = await api.get(`/master/karyawan/${encodeURIComponent(nik.value)}`);
@@ -90,6 +88,17 @@ onMounted(async () => {
     } catch (e) {
       toast.error(getErrorMessage(e, "Gagal memuat data karyawan"));
     }
+  }
+  try {
+    const { data } = await api.get("/master/karyawan/form-options", {
+      params: { atasan_nik: values.kar_nik_atasan || undefined },
+    });
+    const { bagian: daftarBagian, atasan: daftarAtasan, ...opsiLain } = data.data;
+    Object.assign(opt, opsiLain);
+    bagian.value = daftarBagian || [];
+    atasan.value = daftarAtasan || [];
+  } catch (e) {
+    toast.error(getErrorMessage(e, "Gagal memuat opsi form"));
   }
   memuat.value = false;
 });

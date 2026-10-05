@@ -16,9 +16,12 @@ const columns: BrowseColumn[] = [
   { key: "Nik", label: "NIK", width: "120px" },
   { key: "Kd_Abs", label: "Kode Absensi", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },
+  { key: "Nama Pabrik", label: "Nama Pabrik", width: "130px" },
   { key: "Jabatan", label: "Jabatan", width: "150px" },
   { key: "Departemen", label: "Departemen", width: "150px" },
   { key: "Bagian", label: "Bagian", width: "120px" },
+  { key: "Sistem", label: "Sistem Gaji", width: "100px" },
+  { key: "Status Karyawan", label: "Status Kerja", width: "110px" },
   { key: "JenisKelamin", label: "L/P", width: "90px", align: "center" },
   { key: "TglMasuk", label: "Tgl Masuk", type: "date", width: "105px" },
   { key: "MasaKerja", label: "Masa Kerja", width: "95px", align: "center", type: "align-right" },
@@ -99,13 +102,25 @@ const pengalaman = ref<DetailPengalaman[]>([]);
 const keahlian = ref<DetailKeahlian[]>([]);
 const jadwal = ref<DetailJadwal[]>([]);
 const pkwt = ref<DetailPkwt[]>([]);
+const tabAktif = ref("anak");
+let detailRequest = 0;
 
 async function lihatDetail(nik: string) {
+  const request = ++detailRequest;
   nikAktif.value = nik;
+  tabAktif.value = "anak";
+  k.value = null;
+  anak.value = [];
+  pendidikan.value = [];
+  pengalaman.value = [];
+  keahlian.value = [];
+  jadwal.value = [];
+  pkwt.value = [];
   memuat.value = true;
   dialog.value = true;
   try {
     const { data } = await api.get(`/master/karyawan/${encodeURIComponent(nik)}`);
+    if (request !== detailRequest) return;
     const d = data.data;
     k.value = d.karyawan;
     anak.value = d.anak || [];
@@ -115,9 +130,10 @@ async function lihatDetail(nik: string) {
     jadwal.value = d.jadwal || [];
     pkwt.value = d.pkwt || [];
   } catch (e) {
+    if (request !== detailRequest) return;
     toast.error(getErrorMessage(e, "Gagal memuat detail karyawan"));
   } finally {
-    memuat.value = false;
+    if (request === detailRequest) memuat.value = false;
   }
 }
 </script>
@@ -135,7 +151,7 @@ async function lihatDetail(nik: string) {
     search-placeholder="Cari NIK / nama / kode absensi..."
     :per-page="25"
   >
-    <template #default="{ row }">
+    <template #row-actions="{ row }">
       <div class="row-actions">
         <button class="lnk" title="Lihat detail" @click.stop="lihatDetail(row.Nik)">Detail</button>
       </div>
@@ -164,12 +180,13 @@ async function lihatDetail(nik: string) {
               <div class="row"><span>Pabrik</span><b>{{ k.pab_nama || "-" }}</b></div>
               <div class="row"><span>Bagian</span><b>{{ k.kar_bagian || "-" }}</b></div>
               <div class="row"><span>Tanggal Masuk</span><b>{{ formatTanggal(k.kar_tgl_masuk) }}</b></div>
-              <div class="row"><span>Status</span><b>{{ k.sk_keterangan || (k.kar_status_aktif ? "Aktif" : "Non Aktif") }}</b></div>
+              <div class="row"><span>Status Aktif</span><b>{{ Number(k.kar_status_aktif) === 1 ? "Aktif" : "Non Aktif" }}</b></div>
+              <div class="row"><span>Status Kerja</span><b>{{ k.sk_keterangan || "-" }}</b></div>
               <div class="row"><span>Jadwal</span><b>{{ k.daftar_jadwal || "-" }}</b></div>
             </div>
           </div>
 
-          <v-tabs density="compact" class="mt-3">
+          <v-tabs v-model="tabAktif" density="compact" class="mt-3">
             <v-tab value="anak">Anak ({{ anak.length }})</v-tab>
             <v-tab value="didik">Pendidikan ({{ pendidikan.length }})</v-tab>
             <v-tab value="peng">Pengalaman ({{ pengalaman.length }})</v-tab>
@@ -177,7 +194,7 @@ async function lihatDetail(nik: string) {
             <v-tab value="pkwt">PKWT ({{ pkwt.length }})</v-tab>
           </v-tabs>
           <v-divider />
-          <v-window>
+          <v-window v-model="tabAktif">
             <v-window-item value="anak">
               <table class="mini">
                 <thead>
