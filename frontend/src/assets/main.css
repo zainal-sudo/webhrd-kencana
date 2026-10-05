@@ -1,0 +1,147 @@
+/* ── Global reset & base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--ds-bg, #E8ECF1);
+  overflow: hidden;
+}
+
+body {
+  font-family:
+    var(--ds-font, "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif);
+  font-size: 11px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ds-text, #1B2D4A);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  background-color: var(--ds-bg, #E8ECF1);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ds-surface-inset, #E0E4EA);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ds-border, #A0AAB8);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ds-text-muted, #8494A7);
+}
+
+/* ── Vuetify overrides ── */
+.v-application {
+  font-family: inherit !important;
+}
+
+.kencana-drawer .v-list-item {
+  min-height: 36px !important;
+}
+.kencana-drawer .v-list-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Toast */
+.kencana-toast {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif !important;
+  font-size: 11px !important;
+  border-radius: 0 !important;
+}
+
+.v-data-table.base-table .v-data-table__wrapper {
+  overflow: auto;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(59, 89, 152, 0.2);
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ds-primary, #3B5998);
+  outline-offset: 1px;
+}
+
+/* Smooth transitions on interactive elements */
+button, a, input, select, textarea {
+  transition: border-color 0.1s ease, background 0.1s ease;
+}
+
+.v-application,
+.v-app {
+  background-color: var(--ds-bg, #E8ECF1) !important;
+  min-height: 100% !important;
+}
+
+.v-btn {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  font-weight: 600 !important;
+  border-radius: 0 !important;
+}
+
+.v-card {
+  border: 1px solid var(--ds-border, #A0AAB8) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ── Dialog backdrop blur ── */
+.v-overlay {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+/* ── Ketebalan font: naikkan bobot teks satu tingkat ── */
+body {
+  font-weight: 500;
+}
+
+/* Utility bobot Vuetify: +100, maksimal 900 */
+.font-weight-thin {
+  font-weight: 200 !important;
+}
+.font-weight-light {
+  font-weight: 400 !important;
+}
+.font-weight-regular {
+  font-weight: 500 !important;
+}
+.font-weight-medium {
+  font-weight: 600 !important;
+}
+.font-weight-semibold {
+  font-weight: 700 !important;
+}
+.font-weight-bold {
+  font-weight: 800 !important;
+}
+.font-weight-black {
+  font-weight: 900 !important;
+}
+
+/* Typografi Vuetify yang umum dipakai: naik satu tingkat */
+.text-subtitle-1,
+.text-subtitle-2,
+.text-body-1,
+.text-body-2,
+.text-caption,
+.text-overline {
+  font-weight: 500 !important;
+}
