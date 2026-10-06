@@ -61,7 +61,9 @@ async function hapus() {
   if (!target.value) return;
   menghapus.value = true;
   try {
-    await api.delete(endpoint, { params: target.value });
+    await api.delete(endpoint, {
+      params: { nik: target.value.Nik, tanggal: target.value.Tanggal },
+    });
     toast.success("Absensi berhasil dihapus");
     dialog.value = false;
   } catch (e) {
@@ -78,6 +80,7 @@ async function hapus() {
     module-subtitle="Rekap hasil scan mesin absensi per karyawan dan tanggal"
     :endpoint="endpoint"
     :columns="columns"
+    :add-form-path="formPath"
     primary-key="Nik"
     has-period
     :default-start="firstDayOfMonth()"
