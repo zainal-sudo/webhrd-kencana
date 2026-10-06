@@ -26,8 +26,7 @@ export interface GrupDef {
 
 export const GRUP: Record<string, GrupDef> = {
   master: { key: "master", label: "Master", icon: "inventory_2", order: 1 },
-  absensi: { key: "absensi", label: "Absensi", icon: "how_to_reg", order: 2 },
-  transaksi: { key: "transaksi", label: "Transaksi", icon: "swap_horiz", order: 3 },
+  transaksi: { key: "transaksi", label: "Transaksi", icon: "swap_horiz", order: 2 },
   laporan: { key: "laporan", label: "Laporan", icon: "assessment", order: 4 },
   setting: { key: "setting", label: "Otorisasi", icon: "admin_panel_settings", order: 5 },
 };
@@ -48,11 +47,11 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmUser: { grup: "setting", path: "/setting/user", label: "Master User", icon: "manage_accounts", ready: true },
 
   /* ── Absensi ── */
-  frmAbsensi: { grup: "absensi", path: "/absensi/browse", label: "Browse Absensi", icon: "fact_check", ready: true },
-  frmImportAbsensi: { grup: "absensi", path: "/absensi/import", label: "Import Absensi", icon: "upload_file", ready: true },
+  frmAbsensi: { grup: "transaksi", path: "/absensi/browse", label: "Absensi", icon: "fact_check", ready: true },
+  frmImportAbsensi: { grup: "transaksi", path: "/absensi/import", label: "Import Absensi", icon: "upload_file", ready: true },
 
   /* ── Transaksi ── */
-  frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: false },
+  frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: true },
   frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2", label: "Ijin v2", icon: "event_available", ready: false },
   frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: false },
   frmLembur: { grup: "transaksi", path: "/transaksi/lembur", label: "Lembur", icon: "overtime", ready: false },

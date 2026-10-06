@@ -69,6 +69,9 @@ const routes = [
   { path: "/absensi/form", component: () => import("@/views/absensi/AbsensiForm.vue"), meta: { requiresAuth: true, title: "Form Absensi", form: "frmAbsensi" } },
   { path: "/absensi/import", component: () => import("@/views/absensi/ImportAbsensiView.vue"), meta: { requiresAuth: true, title: "Import Absensi", form: "frmImportAbsensi" } },
 
+  /* ── Transaksi Ijin (Tahap A: browse + dialog detail read-only) ── */
+  { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
+
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
   { path: "/setting/user/form", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Tambah User", form: "frmUser" } },

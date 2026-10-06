@@ -59,6 +59,14 @@ export const usePermissionStore = defineStore("permission", {
         });
       }
 
+      // Urutan transaksi di sidebar tidak bergantung pada men_id database.
+      const transactionOrder = ["frmAbsensi", "frmImportAbsensi", "frmIjin"];
+      const rank = (key: string) => {
+        const index = transactionOrder.indexOf(key);
+        return index === -1 ? transactionOrder.length : index;
+      };
+      byKey.get("transaksi")?.children?.sort((a, b) => rank(a.key) - rank(b.key));
+
       this.menuTree = groups.filter((g) => g.children && g.children.length > 0);
       this.loaded = true;
     },
