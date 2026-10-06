@@ -39,7 +39,7 @@ function bukaPerNik() {
 <template>
   <BaseBrowse
     module-title="Lembur"
-    module-subtitle="Surat perintah lembur (SPL) per tanggal dan bagian"
+    module-subtitle="Surat perintah lembur (SPL)"
     endpoint="/transaksi/lembur"
     :columns="columns"
     primary-key="Nomor"

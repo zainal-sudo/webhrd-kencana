@@ -2,6 +2,7 @@ import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { nomorNik, nomorKodeAbsensi } from '../../helpers/nomor.js'
+import { sendExcel } from '../../helpers/excel.js'
 
 /**
  * Master Karyawan — cerminan unit Delphi `ufrmKaryawan` + `ufrmBrowseKaryawan`.
@@ -98,6 +99,11 @@ export const getKaryawanList = async (req, res, next) => {
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY k.kar_Nik')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Karyawan', Object.keys(LIST_COLUMNS), all)
+        }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
         const total = cnt[0].total
@@ -468,6 +474,15 @@ export const getHistoryKaryawan = async (req, res, next) => {
              FROM tkaryawanold${where} ORDER BY kar_Nik LIMIT ? OFFSET ?`,
             [...params, perPage, (page - 1) * perPage]
         )
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(
+                `SELECT kar_Nik AS Nik, kar_nama AS Nama, kar_pab_kode AS Pabrik, kar_bagian AS Bagian,
+                        kar_jab_kode AS Jabatan, kar_status_aktif AS Aktif, kar_tgl_masuk AS TglMasuk
+                 FROM tkaryawanold${where} ORDER BY kar_Nik LIMIT 50000`,
+                params
+            )
+            return sendExcel(res, 'History-Karyawan', ['Nik', 'Nama', 'Pabrik', 'Bagian', 'Jabatan', 'Aktif', 'TglMasuk'], all)
+        }
         const [cnt] = await pool.query(`SELECT COUNT(*) AS c FROM tkaryawanold${where}`, params)
         paginated(res, rows, { page, per_page: perPage, total: cnt[0].c, last_page: Math.ceil(cnt[0].c / perPage) })
     } catch (err) {

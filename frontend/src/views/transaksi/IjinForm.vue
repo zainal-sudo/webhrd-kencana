@@ -228,7 +228,19 @@ async function lanjutDuplikat() {
 onMounted(async () => {
   await muatJenis();
   await muatEdit();
-  if (!isEdit.value) await muatNomor();
+  if (isEdit.value) return;
+  // Prefill dari menu popup laporan (tidak masuk / keterlambatan / pulang dulu):
+  // ?nik=...&tanggal=...&jenis_id=... (Delphi: ransaksiIjin1Click).
+  const qNik = String(route.query.nik ?? "").trim();
+  const qTanggal = String(route.query.tanggal ?? "").slice(0, 10);
+  const qJenis = String(route.query.jenis_id ?? "").trim();
+  if (qNik) values.nik = qNik;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(qTanggal)) {
+    values.tanggal = qTanggal;
+    values.tanggal2 = qTanggal;
+  }
+  if (qJenis) values.jenis_id = qJenis;
+  await muatNomor();
 });
 
 watch(

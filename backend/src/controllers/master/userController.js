@@ -1,6 +1,7 @@
 import pool from '../../config/database.js'
 import { success, error } from '../../helpers/response.js'
 import { clearHakAksesCache } from '../../middleware/permission.js'
+import { sendExcel } from '../../helpers/excel.js'
 
 /**
  * Master User & Otorisasi — cerminan `ufrmUser` di program Delphi.
@@ -16,6 +17,9 @@ export const getUserList = async (req, res, next) => {
         const [rows] = await pool.query(
             'SELECT user_kode AS Kode, user_nama AS Nama, user_akses AS Cabang, user_edit AS Edit, date_create AS Dibuat FROM tuser ORDER BY user_kode'
         )
+        if (req.query.export === 'xlsx') {
+            return sendExcel(res, 'User', ['Kode', 'Nama', 'Cabang', 'Edit', 'Dibuat'], rows)
+        }
         success(res, rows)
     } catch (err) {
         next(err)

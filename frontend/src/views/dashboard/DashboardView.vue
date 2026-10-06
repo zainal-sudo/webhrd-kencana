@@ -8,6 +8,7 @@ import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { pickError, safeGet } from "@/api";
 import { formatNumber } from "@/utils/format";
+import { normalizeIcon } from "@/utils/icon";
 
 const router = useRouter();
 const toast = useToast();
@@ -118,7 +119,7 @@ onMounted(load);
     <div class="modul-grid">
       <div v-for="g in groups" :key="g.key" class="modul-group">
         <div class="modul-group-head">
-          <MsIcon :name="g.icon" :size="16" />
+          <MsIcon :name="normalizeIcon(g.icon)" :size="16" />
           <span>{{ g.label }}</span>
         </div>
         <button
@@ -127,7 +128,7 @@ onMounted(load);
           class="modul-item"
           @click="open(c)"
         >
-          <MsIcon :name="c.icon || 'chevron_right'" :size="14" />
+          <MsIcon :name="normalizeIcon(c.icon) || 'chevron_right'" :size="14" />
           <span>{{ c.label }}</span>
           <MsIcon name="chevron_right" :size="14" class="chev" />
         </button>

@@ -68,6 +68,7 @@ const MAPPING: Record<string, string> = {
 const ALIAS: Record<string, string> = {
   building_columns: "apartment",
   building_column: "apartment",
+  overtime: "more_time",
   ing_columns: "apartment",
   columns: "view_column",
   pi_pi_building_columns: "apartment",

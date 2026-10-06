@@ -1,6 +1,7 @@
 import pool from '../config/database.js'
 import { success, error, paginated } from './response.js'
 import { buildOrderBy, applyAllColumnFilters } from './browse.js'
+import { sendExcel } from './excel.js'
 
 /**
  * Pabrik CRUD generik untuk tabel master sederhana (tjabatan, tdepartemen,
@@ -66,6 +67,11 @@ export function makeMasterController(cfg) {
             where = f.clause
             params = f.params
             const orderBy = buildOrderBy(req.query, alias, order)
+
+            if (req.query.export === 'xlsx') {
+                const [all] = await pool.query(`${selectSql}${where} ${orderBy} LIMIT 50000`, params)
+                return sendExcel(res, label, Object.values(alias), all)
+            }
 
             const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM \`${table}\`${where}`, params)
             const total = cnt[0].total

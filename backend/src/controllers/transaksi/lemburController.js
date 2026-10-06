@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
+import { sendExcel } from '../../helpers/excel.js'
 import { normJam, toTime, cekTanggal } from './ijinController.js'
 
 /**
@@ -146,6 +147,11 @@ export const getLemburList = async (req, res, next) => {
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, HDR_COLUMNS, 'ORDER BY h.lem_tanggal DESC, h.lem_nomor DESC')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${HDR_SELECT}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Lembur', Object.keys(HDR_COLUMNS), all)
+        }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${HDR_FROM}${where}`, params)
         const total = cnt[0].total

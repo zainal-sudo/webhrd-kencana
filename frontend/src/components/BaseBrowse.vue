@@ -30,6 +30,12 @@ const props = withDefaults(
     defaultStart?: string;
     /** Jumlah baris per halaman. Naikkan turunkan sesuai kepadatan tabel. */
     perPage?: number;
+    /** tampilkan tombol Export Excel (GET endpoint + ?export=xlsx) */
+    exportable?: boolean;
+    /** nama file export (default = judul modul) */
+    exportName?: string;
+    /** parameter query tambahan yang selalu dikirim (mis. { detail: 1 }) */
+    extraQuery?: Record<string, any>;
   }>(),
   {
     moduleSubtitle: "",
@@ -41,6 +47,9 @@ const props = withDefaults(
     canDelete: true,
     printable: false,
     perPage: 25,
+    exportable: true,
+    exportName: "",
+    extraQuery: () => ({}),
   }
 );
 
@@ -155,20 +164,7 @@ const deletingLabel = ref("");
 async function fetchData() {
   loading.value = true;
   try {
-    const params: Record<string, any> = { page: page.value, per_page: perPage.value };
-    if (search.value.trim()) params.search = search.value.trim();
-    if (sortBy.value && sortDir.value) {
-      params.sort_by = sortBy.value;
-      params.sort_dir = sortDir.value;
-    }
-    for (const [k, arr] of Object.entries(filterSets)) {
-      if (Array.isArray(arr) && arr.length > 0) params[`filterSet_${k}`] = arr;
-    }
-    if (props.hasPeriod && startDate.value && endDate.value) {
-      params[props.periodStartKey] = startDate.value;
-      params[props.periodEndKey] = endDate.value;
-    }
-    const { data } = await api.get(props.endpoint, { params });
+    const { data } = await api.get(props.endpoint, { params: buildParams(true) });
     rows.value = data.data || [];
     // Foto yang sebelumnya gagal dimuat dicoba ulang — berkasnya bisa saja
     // baru saja diunggah/diperbaiki di server bukti.
@@ -198,6 +194,64 @@ function onSearch() {
 
 function refresh() {
   fetchData();
+}
+
+/** Parameter query bersama: pencarian, periode, sort & filter kolom. */
+function buildParams(includePaging: boolean): Record<string, any> {
+  const params: Record<string, any> = {};
+  if (includePaging) {
+    params.page = page.value;
+    params.per_page = perPage.value;
+  }
+  if (search.value.trim()) params.search = search.value.trim();
+  if (sortBy.value && sortDir.value) {
+    params.sort_by = sortBy.value;
+    params.sort_dir = sortDir.value;
+  }
+  for (const [k, arr] of Object.entries(filterSets)) {
+    if (Array.isArray(arr) && arr.length > 0) params[`filterSet_${k}`] = arr;
+  }
+  if (props.hasPeriod && startDate.value && endDate.value) {
+    params[props.periodStartKey] = startDate.value;
+    params[props.periodEndKey] = endDate.value;
+  }
+  for (const [k, v] of Object.entries(props.extraQuery || {})) {
+    if (v !== undefined && v !== null && v !== "") params[k] = v;
+  }
+  return params;
+}
+
+const exporting = ref(false);
+
+/**
+ * Unduh seluruh data (maks 50 ribu baris) sesuai filter aktif sebagai
+ * berkas .xlsx — lewat endpoint yang sama + `?export=xlsx`.
+ */
+async function exportExcel() {
+  exporting.value = true;
+  try {
+    const params = { ...buildParams(false), export: "xlsx" };
+    const res = await api.get(props.endpoint, { params, responseType: "blob", timeout: 300000 });
+    const nama =
+      (props.exportName || props.moduleTitle || "data")
+        .replace(/[\\/:*?"<>|]/g, "")
+        .trim()
+        .replace(/\s+/g, "-") || "data";
+    const tanggal = new Date().toISOString().slice(0, 10);
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nama}_${tanggal}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    toast.success("Berkas Excel berhasil diunduh");
+  } catch (e: any) {
+    toast.error(getErrorMessage(e, "Gagal mengunduh Excel"));
+  } finally {
+    exporting.value = false;
+  }
 }
 
 function goToPage(p: number) {
@@ -354,6 +408,17 @@ onMounted(() => {
 
         <button class="tool-btn ghost" title="Muat ulang" @click="refresh">
           <MsIcon name="refresh" :size="15" />
+        </button>
+
+        <button
+          v-if="exportable"
+          class="tool-btn ghost"
+          title="Unduh data (sesuai filter aktif) sebagai Excel"
+          :disabled="exporting"
+          @click="exportExcel"
+        >
+          <MsIcon :name="exporting ? 'progress_activity' : 'download'" :size="15" />
+          <span>{{ exporting ? "Menyiapkan..." : "Excel" }}</span>
         </button>
 
         <button v-if="addFormPath" class="tool-btn primary" @click="addNew">

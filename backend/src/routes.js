@@ -4,6 +4,7 @@ import { login, me, logout, changePassword, cekHakAkses } from './controllers/au
 import masterRoutes from './routes/masterRoutes.js'
 import absensiRoutes from './routes/absensiRoutes.js'
 import transaksiRoutes from './routes/transaksiRoutes.js'
+import laporanRoutes from './routes/laporanRoutes.js'
 
 const r = Router()
 
@@ -21,5 +22,6 @@ r.get('/cek-hak', cekHakAkses)
 r.use('/master', masterRoutes)
 r.use('/absensi', absensiRoutes)
 r.use('/transaksi', transaksiRoutes)
+r.use('/laporan', laporanRoutes)
 
 export default r

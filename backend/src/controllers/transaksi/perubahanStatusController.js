@@ -1,6 +1,7 @@
 import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
+import { sendExcel } from '../../helpers/excel.js'
 
 /**
  * Modul Perubahan Status — cerminan unit Delphi:
@@ -95,6 +96,11 @@ export const getPerubahanStatusList = async (req, res, next) => {
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY a.ps_tanggal DESC, a.ps_nomor DESC')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Perubahan-Status', Object.keys(LIST_COLUMNS), all)
+        }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
         const total = cnt[0].total

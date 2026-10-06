@@ -320,7 +320,7 @@ watch(
   <BaseForm
     :title="isEdit ? `Ubah Lembur ${nomorEdit}` : 'Tambah Lembur (SPL)'"
     subtitle="Nomor LEM.YYYYMM.NNNN dibuat otomatis per bulan"
-    icon="overtime"
+    icon="more_time"
     :crumbs="[{ label: 'Lembur', path: '/transaksi/lembur' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
     return-path="/transaksi/lembur"

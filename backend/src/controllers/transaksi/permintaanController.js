@@ -1,5 +1,6 @@
 import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
+import { sendExcel } from '../../helpers/excel.js'
 
 /**
  * Modul Permintaan Karyawan — cerminan unit Delphi:
@@ -139,6 +140,13 @@ export const getPermintaanList = async (req, res, next) => {
             [...params, ...extraParams]
         )
         const total = cntRows[0].total
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(
+                `SELECT *, IF(Jumlah_Minta > IFNULL(Jml_Realisasi, 0), 'Belum', 'Sudah') AS Closed FROM (${INNER_SQL}${inner}) AS Final${extraWhere} ${orderBy} LIMIT 50000`,
+                [...params, ...extraParams]
+            )
+            return sendExcel(res, 'Permintaan-Karyawan', Object.keys(LIST_COLUMNS), all)
+        }
         const [rows] = await pool.query(
             `SELECT *, IF(Jumlah_Minta > IFNULL(Jml_Realisasi, 0), 'Belum', 'Sudah') AS Closed FROM (${INNER_SQL}${inner}) AS Final${extraWhere} ${orderBy} LIMIT ? OFFSET ?`,
             [...params, ...extraParams, perPage, offset]

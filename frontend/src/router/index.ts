@@ -87,6 +87,15 @@ const routes = [
   { path: "/transaksi/sp", component: () => import("@/views/transaksi/SPView.vue"), meta: { requiresAuth: true, title: "Surat Peringatan", form: "frmSP" } },
   { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
 
+  /* ── Laporan kehadiran (duplikat Delphi) ── */
+  { path: "/laporan/tidak-masuk", component: () => import("@/views/laporan/TidakMasukView.vue"), meta: { requiresAuth: true, title: "Laporan Tidak Masuk", form: "frmLapTidakMasuk" } },
+  { path: "/laporan/keterlambatan", component: () => import("@/views/laporan/KeterlambatanView.vue"), meta: { requiresAuth: true, title: "Laporan Keterlambatan", form: "frmLapKeterlambatan" } },
+  { path: "/laporan/pulang-dulu", component: () => import("@/views/laporan/PulangDuluView.vue"), meta: { requiresAuth: true, title: "Laporan Pulang Mendahului", form: "frmLapPulangdulu" } },
+  { path: "/laporan/tidak-keluar", component: () => import("@/views/laporan/TidakKeluarView.vue"), meta: { requiresAuth: true, title: "Absen Tidak Lengkap", form: "frmLapTidakKeluar" } },
+  { path: "/laporan/absensi", component: () => import("@/views/laporan/AbsensiRekapView.vue"), meta: { requiresAuth: true, title: "Laporan Absensi", form: "frmLapAbsensi" } },
+  { path: "/laporan/lembur", component: () => import("@/views/laporan/LaporanLemburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur", form: "frmLapLembur" } },
+  { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
+
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
   { path: "/setting/user/form", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Tambah User", form: "frmUser" } },
