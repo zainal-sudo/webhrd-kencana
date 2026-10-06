@@ -17,9 +17,9 @@ const openGroups = ref<Record<string, boolean>>({});
 const tree = computed(() => permissionStore.menuTree);
 
 watch(
-  () => route.path,
-  (path) => {
-    for (const g of permissionStore.menuTree) {
+  () => [route.path, tree.value] as const,
+  ([path, groups]) => {
+    for (const g of groups) {
       if (g.children?.some((c) => c.route === path)) {
         openGroups.value[g.key] = true;
       }
