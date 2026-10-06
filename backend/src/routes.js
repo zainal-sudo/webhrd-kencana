@@ -3,11 +3,7 @@ import { verifyToken } from './middleware/auth.js'
 import { login, me, logout, changePassword, cekHakAkses } from './controllers/auth/authController.js'
 import masterRoutes from './routes/masterRoutes.js'
 import absensiRoutes from './routes/absensiRoutes.js'
-<<<<<<< HEAD
 import transaksiRoutes from './routes/transaksiRoutes.js'
-=======
-import ijinRoutes from './routes/ijinRoutes.js'
->>>>>>> 737489d0e1f7cb7413e96f96516bf731f89f62d5
 
 const r = Router()
 
@@ -24,10 +20,6 @@ r.get('/cek-hak', cekHakAkses)
 
 r.use('/master', masterRoutes)
 r.use('/absensi', absensiRoutes)
-<<<<<<< HEAD
 r.use('/transaksi', transaksiRoutes)
-=======
-r.use('/transaksi/ijin', ijinRoutes)
->>>>>>> 737489d0e1f7cb7413e96f96516bf731f89f62d5
 
 export default r

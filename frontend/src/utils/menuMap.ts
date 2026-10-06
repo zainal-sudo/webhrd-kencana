@@ -52,11 +52,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
 
   /* ── Transaksi ── */
   frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: true },
-<<<<<<< HEAD
   frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2/form", label: "Ijin Kolektif (V2)", icon: "group_add", ready: false },
-=======
-  frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2", label: "Ijin v2", icon: "event_available", ready: false },
->>>>>>> 737489d0e1f7cb7413e96f96516bf731f89f62d5
   frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: false },
   frmLembur: { grup: "transaksi", path: "/transaksi/lembur", label: "Lembur", icon: "overtime", ready: true },
   frmLembur2: { grup: "transaksi", path: "/transaksi/lembur-v2/form", label: "Lembur Per NIK (V2)", icon: "person_add", ready: false },

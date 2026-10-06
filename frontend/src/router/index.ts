@@ -69,7 +69,6 @@ const routes = [
   { path: "/absensi/form", component: () => import("@/views/absensi/AbsensiForm.vue"), meta: { requiresAuth: true, title: "Form Absensi", form: "frmAbsensi" } },
   { path: "/absensi/import", component: () => import("@/views/absensi/ImportAbsensiView.vue"), meta: { requiresAuth: true, title: "Import Absensi", form: "frmImportAbsensi" } },
 
-<<<<<<< HEAD
   /* ── Transaksi: Ijin / Mutasi / Lembur (duplikat Delphi) ── */
   { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
   { path: "/transaksi/ijin/form", component: () => import("@/views/transaksi/IjinForm.vue"), meta: { requiresAuth: true, title: "Form Ijin", form: "frmIjin" } },
@@ -87,10 +86,6 @@ const routes = [
   { path: "/transaksi/penilaian-3-bulan/form", component: () => import("@/views/transaksi/PenilaianForm.vue"), meta: { requiresAuth: true, title: "Form Penilaian 3 Bulan", form: "frmPenilaian3Bulan" } },
   { path: "/transaksi/sp", component: () => import("@/views/transaksi/SPView.vue"), meta: { requiresAuth: true, title: "Surat Peringatan", form: "frmSP" } },
   { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
-=======
-  /* ── Transaksi Ijin (Tahap A: browse + dialog detail read-only) ── */
-  { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
->>>>>>> 737489d0e1f7cb7413e96f96516bf731f89f62d5
 
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
