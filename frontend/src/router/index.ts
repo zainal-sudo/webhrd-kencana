@@ -69,6 +69,24 @@ const routes = [
   { path: "/absensi/form", component: () => import("@/views/absensi/AbsensiForm.vue"), meta: { requiresAuth: true, title: "Form Absensi", form: "frmAbsensi" } },
   { path: "/absensi/import", component: () => import("@/views/absensi/ImportAbsensiView.vue"), meta: { requiresAuth: true, title: "Import Absensi", form: "frmImportAbsensi" } },
 
+  /* ── Transaksi: Ijin / Mutasi / Lembur (duplikat Delphi) ── */
+  { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
+  { path: "/transaksi/ijin/form", component: () => import("@/views/transaksi/IjinForm.vue"), meta: { requiresAuth: true, title: "Form Ijin", form: "frmIjin" } },
+  { path: "/transaksi/ijin-v2/form", component: () => import("@/views/transaksi/Ijin2Form.vue"), meta: { requiresAuth: true, title: "Form Ijin Kolektif", form: "frmIjin2" } },
+  { path: "/transaksi/mutasi", component: () => import("@/views/transaksi/MutasiView.vue"), meta: { requiresAuth: true, title: "Mutasi Karyawan", form: "frmMutasiKaryawan" } },
+  { path: "/transaksi/mutasi/form", component: () => import("@/views/transaksi/MutasiForm.vue"), meta: { requiresAuth: true, title: "Form Mutasi", form: "frmMutasiKaryawan" } },
+  { path: "/transaksi/lembur", component: () => import("@/views/transaksi/LemburView.vue"), meta: { requiresAuth: true, title: "Lembur", form: "frmLembur" } },
+  { path: "/transaksi/lembur/form", component: () => import("@/views/transaksi/LemburForm.vue"), meta: { requiresAuth: true, title: "Form Lembur", form: "frmLembur" } },
+  { path: "/transaksi/lembur-v2/form", component: () => import("@/views/transaksi/Lembur2Form.vue"), meta: { requiresAuth: true, title: "Form Lembur Per NIK", form: "frmLembur2" } },
+  { path: "/transaksi/perubahan-status", component: () => import("@/views/transaksi/PerubahanStatusView.vue"), meta: { requiresAuth: true, title: "Perubahan Status", form: "frmPerubahanStatus" } },
+  { path: "/transaksi/perubahan-status/form", component: () => import("@/views/transaksi/PerubahanStatusForm.vue"), meta: { requiresAuth: true, title: "Form Perubahan Status", form: "frmPerubahanStatus" } },
+  { path: "/transaksi/permintaan-karyawan", component: () => import("@/views/transaksi/PermintaanView.vue"), meta: { requiresAuth: true, title: "Permintaan Karyawan", form: "frmPermintaanKaryawan" } },
+  { path: "/transaksi/permintaan-karyawan/form", component: () => import("@/views/transaksi/PermintaanForm.vue"), meta: { requiresAuth: true, title: "Form Permintaan Karyawan", form: "frmPermintaanKaryawan" } },
+  { path: "/transaksi/penilaian-3-bulan", component: () => import("@/views/transaksi/PenilaianView.vue"), meta: { requiresAuth: true, title: "Penilaian 3 Bulan", form: "frmPenilaian3Bulan" } },
+  { path: "/transaksi/penilaian-3-bulan/form", component: () => import("@/views/transaksi/PenilaianForm.vue"), meta: { requiresAuth: true, title: "Form Penilaian 3 Bulan", form: "frmPenilaian3Bulan" } },
+  { path: "/transaksi/sp", component: () => import("@/views/transaksi/SPView.vue"), meta: { requiresAuth: true, title: "Surat Peringatan", form: "frmSP" } },
+  { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
+
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
   { path: "/setting/user/form", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Tambah User", form: "frmUser" } },

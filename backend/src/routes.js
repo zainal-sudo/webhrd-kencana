@@ -3,6 +3,7 @@ import { verifyToken } from './middleware/auth.js'
 import { login, me, logout, changePassword, cekHakAkses } from './controllers/auth/authController.js'
 import masterRoutes from './routes/masterRoutes.js'
 import absensiRoutes from './routes/absensiRoutes.js'
+import transaksiRoutes from './routes/transaksiRoutes.js'
 
 const r = Router()
 
@@ -19,5 +20,6 @@ r.get('/cek-hak', cekHakAkses)
 
 r.use('/master', masterRoutes)
 r.use('/absensi', absensiRoutes)
+r.use('/transaksi', transaksiRoutes)
 
 export default r

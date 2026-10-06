@@ -360,6 +360,9 @@ onMounted(() => {
           <MsIcon name="add" :size="15" />
           <span>{{ addLabel }}</span>
         </button>
+
+        <!-- Tombol tambahan modul (mis. Ijin: tombol Kolektif V2 ala Delphi) -->
+        <slot name="toolbar-extra"></slot>
       </div>
     </div>
 

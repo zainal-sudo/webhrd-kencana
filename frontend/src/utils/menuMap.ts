@@ -52,19 +52,19 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmImportAbsensi: { grup: "absensi", path: "/absensi/import", label: "Import Absensi", icon: "upload_file", ready: true },
 
   /* ── Transaksi ── */
-  frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: false },
-  frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2", label: "Ijin v2", icon: "event_available", ready: false },
+  frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: true },
+  frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2/form", label: "Ijin Kolektif (V2)", icon: "group_add", ready: false },
   frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: false },
-  frmLembur: { grup: "transaksi", path: "/transaksi/lembur", label: "Lembur", icon: "overtime", ready: false },
-  frmLembur2: { grup: "transaksi", path: "/transaksi/lembur-v2", label: "Lembur v2", icon: "overtime", ready: false },
-  frmSP: { grup: "transaksi", path: "/transaksi/sp", label: "SP / SPL", icon: "description", ready: false },
-  frmMutasiKaryawan: { grup: "transaksi", path: "/transaksi/mutasi", label: "Mutasi Karyawan", icon: "swap_vert", ready: false },
-  frmPerubahanStatus: { grup: "transaksi", path: "/transaksi/perubahan-status", label: "Perubahan Status", icon: "published_with_changes", ready: false },
+  frmLembur: { grup: "transaksi", path: "/transaksi/lembur", label: "Lembur", icon: "overtime", ready: true },
+  frmLembur2: { grup: "transaksi", path: "/transaksi/lembur-v2/form", label: "Lembur Per NIK (V2)", icon: "person_add", ready: false },
+  frmSP: { grup: "transaksi", path: "/transaksi/sp", label: "SP / SPL", icon: "description", ready: true },
+  frmMutasiKaryawan: { grup: "transaksi", path: "/transaksi/mutasi", label: "Mutasi Karyawan", icon: "swap_vert", ready: true },
+  frmPerubahanStatus: { grup: "transaksi", path: "/transaksi/perubahan-status", label: "Perubahan Status", icon: "published_with_changes", ready: true },
   frmRekruitmen: { grup: "transaksi", path: "/transaksi/bank-pelamar", label: "Bank Pelamar", icon: "contact_page", ready: false },
   frmCalonKaryawan: { grup: "transaksi", path: "/transaksi/rekrutmen", label: "Rekrutmen", icon: "person_add", ready: false },
-  frmPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/permintaan-karyawan", label: "Permintaan Karyawan", icon: "request_quote", ready: false },
+  frmPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/permintaan-karyawan", label: "Permintaan Karyawan", icon: "request_quote", ready: true },
   frmRiilPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/realisasi-permintaan", label: "Realisasi Permintaan", icon: "task_alt", ready: false },
-  frmPenilaian3Bulan: { grup: "transaksi", path: "/transaksi/penilaian-3-bulan", label: "Penilaian 3 Bulanan", icon: "reviews", ready: false },
+  frmPenilaian3Bulan: { grup: "transaksi", path: "/transaksi/penilaian-3-bulan", label: "Penilaian 3 Bulanan", icon: "reviews", ready: true },
 
   /* ── Laporan ── */
   frmLapAbsensi: { grup: "laporan", path: "/laporan/absensi", label: "Laporan Absensi", icon: "summarize", ready: false },
