@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { wajibHak } from '../middleware/permission.js'
+import { getLemburHariLiburList } from '../controllers/laporan/lemburHariLiburController.js'
 import {
     getTidakMasukList,
     alphaOtomatis,
@@ -43,6 +44,7 @@ r.get('/detail-lembur', wajibHak('frmLapDetailLembur'), getDetailLemburList)
 
 /* ── Laporan Lembur per SPL (ufrmLapLembur, `frmLapLembur`) ── */
 r.get('/lembur', wajibHak('frmLapLembur'), getLemburList)
+r.get('/lembur-hari-libur', wajibHak('frmLapLemburHariLibur'), getLemburHariLiburList)
 
 /* ── Lembur Tanpa SPL (ufrmLapLemburTanpaSPL, `frmLapLemburTanpaSPL`) ── */
 r.get('/lembur-tanpa-spl', wajibHak('frmLapLemburTanpaSPL'), getLemburTanpaSplList)

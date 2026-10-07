@@ -42,7 +42,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmHariLibur: { grup: "master", path: "/master/hari-libur", label: "Master Hari Libur", icon: "event_busy", ready: true },
   frmJadwal: { grup: "master", path: "/master/jadwal", label: "Jadwal / Shift", icon: "schedule", ready: true },
   frmPerusahaan: { grup: "master", path: "/master/perusahaan", label: "Identitas Perusahaan", icon: "apartment", ready: true },
-  frmHistoryKaryawan: { grup: "master", path: "/master/history-karyawan", label: "History Karyawan", icon: "history", ready: true },
+  frmHistoryKaryawan: { grup: "laporan", path: "/master/history-karyawan", label: "History Karyawan", icon: "history", ready: true },
 
   /* ── Setting / Otorisasi ── */
   frmUser: { grup: "setting", path: "/setting/user", label: "Master User", icon: "manage_accounts", ready: true },
@@ -54,7 +54,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   /* ── Transaksi ── */
   frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: true },
   frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2/form", label: "Ijin Kolektif (V2)", icon: "group_add", ready: false },
-  frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: false },
+  frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: true },
   frmLembur: { grup: "transaksi", path: "/transaksi/lembur", label: "Lembur", icon: "overtime", ready: true },
   frmLembur2: { grup: "transaksi", path: "/transaksi/lembur-v2/form", label: "Lembur Per NIK (V2)", icon: "person_add", ready: false },
   frmSP: { grup: "transaksi", path: "/transaksi/sp", label: "SP / SPL", icon: "description", ready: true },
@@ -78,7 +78,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmLapLemburTanpaSPL: { grup: "laporan", path: "/laporan/lembur-tanpa-spl", label: "Lembur Tanpa SPL", icon: "report_problem", ready: true },
   frmLapDetailLembur: { grup: "laporan", path: "/laporan/detail-lembur", label: "Detail Lembur", icon: "receipt_long", ready: true },
   frmLapLemburTahunan: { grup: "laporan", path: "/laporan/lembur-tahunan", label: "Lembur Tahunan", icon: "calendar_month", ready: false },
-  frmLapLemburHariLibur: { grup: "laporan", path: "/laporan/lembur-hari-libur", label: "Lembur Hari Libur", icon: "weekend", ready: false },
+  frmLapLemburHariLibur: { grup: "laporan", path: "/laporan/lembur-hari-libur", label: "Lembur Hari Libur", icon: "weekend", ready: true },
   frmLapAbsensiMingguan: { grup: "laporan", path: "/laporan/absensi-mingguan", label: "Absensi Mingguan", icon: "date_range", ready: false },
   frmLapAbsensiPeriode: { grup: "laporan", path: "/laporan/absensi-periode", label: "Absensi Periode", icon: "date_range", ready: true },
   frmLapKeterlambatanBagian: { grup: "laporan", path: "/laporan/keterlambatan-bagian", label: "Keterlambatan per Bagian", icon: "groups", ready: false },

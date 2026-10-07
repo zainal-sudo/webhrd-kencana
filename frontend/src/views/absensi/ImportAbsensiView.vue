@@ -181,10 +181,12 @@ async function bersihkan() {
           <legend>Tahap 1 — Ambil Data Mesin Absensi</legend>
           <p class="note">
             Daftar di bawah adalah folder mesin absensi tiap pabrik (dari Master Pabrik) sebagai panduan
-            saat mengambil berkas ekspor. Unggah hasil ekspor (Excel atau CSV) yang kolomnya memuat
+            saat mengambil berkas ekspor. Unggah hasil ekspor (Excel .xls/.xlsx atau CSV) yang kolomnya memuat
             <strong>NIK karyawan</strong> (<code>kar_Nik</code>), tanggal, jam scan, dan tipe
             <code>I</code>/<code>O</code>; isinya masuk ke tabel staging <code>tabsensi2</code>. Pada tahap
             proses, NIK dipetakan ke Kode Absensi sesuai Master Karyawan.
+            Jika berkas memakai header, kolom dipetakan berdasarkan namanya. Tanpa header, gunakan
+            urutan NIK, tanggal, jam scan, tipe I/O. Simpan NIK sebagai teks agar angkanya tidak berubah.
           </p>
 
           <table class="mini">

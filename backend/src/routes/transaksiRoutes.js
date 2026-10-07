@@ -1,6 +1,10 @@
 import { Router } from 'express'
 import { wajibHak } from '../middleware/permission.js'
 import {
+    getKeluarList, getKeluar, getNomorKeluar, getAlasanKeluar,
+    lookupKaryawanKeluar, infoKaryawanKeluar, saveKeluar, deleteKeluar,
+} from '../controllers/transaksi/keluarController.js'
+import {
     getIjinList,
     getIjin,
     getNomor as getNomorIjin,
@@ -94,6 +98,17 @@ import {
 } from '../controllers/transaksi/lembur2Controller.js'
 
 const r = Router()
+
+/* Karyawan Keluar — hak form frmKeluar, tanggal keluar master ditangani trigger. */
+r.get('/keluar', wajibHak('frmKeluar'), getKeluarList)
+r.get('/keluar/nomor', wajibHak('frmKeluar'), getNomorKeluar)
+r.get('/keluar/alasan', wajibHak('frmKeluar'), getAlasanKeluar)
+r.get('/keluar/karyawan', wajibHak('frmKeluar'), lookupKaryawanKeluar)
+r.get('/keluar/karyawan-info', wajibHak('frmKeluar'), infoKaryawanKeluar)
+r.get('/keluar/form', wajibHak('frmKeluar'), getKeluar)
+r.post('/keluar', wajibHak('frmKeluar', 'insert'), saveKeluar)
+r.put('/keluar/:nomor', wajibHak('frmKeluar', 'edit'), saveKeluar)
+r.delete('/keluar/:nomor', wajibHak('frmKeluar', 'delete'), deleteKeluar)
 
 /* ── Ijin (ufrmBrowseIjin + ufrmIjin, hak form `frmIjin`) ── */
 r.get('/ijin', wajibHak('frmIjin'), getIjinList)

@@ -75,6 +75,8 @@ const routes = [
   { path: "/transaksi/ijin-v2/form", component: () => import("@/views/transaksi/Ijin2Form.vue"), meta: { requiresAuth: true, title: "Form Ijin Kolektif", form: "frmIjin2" } },
   { path: "/transaksi/mutasi", component: () => import("@/views/transaksi/MutasiView.vue"), meta: { requiresAuth: true, title: "Mutasi Karyawan", form: "frmMutasiKaryawan" } },
   { path: "/transaksi/mutasi/form", component: () => import("@/views/transaksi/MutasiForm.vue"), meta: { requiresAuth: true, title: "Form Mutasi", form: "frmMutasiKaryawan" } },
+  { path: "/transaksi/keluar", component: () => import("@/views/transaksi/KeluarView.vue"), meta: { requiresAuth: true, title: "Karyawan Keluar", form: "frmKeluar" } },
+  { path: "/transaksi/keluar/form", component: () => import("@/views/transaksi/KeluarForm.vue"), meta: { requiresAuth: true, title: "Form Karyawan Keluar", form: "frmKeluar" } },
   { path: "/transaksi/lembur", component: () => import("@/views/transaksi/LemburView.vue"), meta: { requiresAuth: true, title: "Lembur", form: "frmLembur" } },
   { path: "/transaksi/lembur/form", component: () => import("@/views/transaksi/LemburForm.vue"), meta: { requiresAuth: true, title: "Form Lembur", form: "frmLembur" } },
   { path: "/transaksi/lembur-v2/form", component: () => import("@/views/transaksi/Lembur2Form.vue"), meta: { requiresAuth: true, title: "Form Lembur Per NIK", form: "frmLembur2" } },
@@ -97,6 +99,8 @@ const routes = [
   { path: "/laporan/absensi", component: () => import("@/views/laporan/AbsensiRekapView.vue"), meta: { requiresAuth: true, title: "Laporan Absensi", form: "frmLapAbsensi" } },
   { path: "/laporan/absensi-periode", component: () => import("@/views/laporan/AbsensiPeriodeView.vue"), meta: { requiresAuth: true, title: "Absensi Periode", form: "frmLapAbsensiPeriode" } },
   { path: "/laporan/lembur", component: () => import("@/views/laporan/LaporanLemburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur", form: "frmLapLembur" } },
+  // Hari libur mengikuti tanggal pada Master Hari Libur (aturan pengguna).
+  { path: "/laporan/lembur-hari-libur", component: () => import("@/views/laporan/LemburHariLiburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur Hari Libur", form: "frmLapLemburHariLibur" } },
   { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
   { path: "/laporan/detail-lembur", component: () => import("@/views/laporan/DetailLemburView.vue"), meta: { requiresAuth: true, title: "Detail Lembur", form: "frmLapDetailLembur" } },
 

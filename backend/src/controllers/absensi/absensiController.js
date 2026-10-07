@@ -1,9 +1,9 @@
-import ExcelJS from 'exceljs'
 import jwt from 'jsonwebtoken'
 import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { bacaBerkasAbsensi, simpanScanStaging, jamExcelKeTeks, HEADER_NIK, HEADER_TANGGAL, HEADER_JAM, HEADER_TIPE } from '../../helpers/absensiImport.js'
 
 /**
  * Modul Absensi — cerminan unit Delphi:
@@ -463,26 +463,6 @@ export const getStaging = async (req, res, next) => {
     }
 }
 
-/** Nama header yang dikenali per kolom (sudah lowercase). */
-const HEADER_NIK = ['nik', 'kode', 'kode_absensi', 'code', 'userid', 'user id', 'badge']
-const HEADER_TANGGAL = ['tanggal', 'tgl', 'date', 'tanggal scan', 'tanggal_absen']
-const HEADER_JAM = ['scan', 'checktime', 'check time', 'waktu', 'time', 'jam', 'jam scan']
-const HEADER_TIPE = ['tipe', 'type', 'checktype', 'check type', 'status']
-
-/**
- * Petakan nama header (lowercase) -> indeks kolom. Baris pertama berkas
- * dianggap header hanya bila memuat salah satu nama kolom yang dikenali.
- */
-function petakanHeader(values) {
-    const map = {}
-    values.forEach((h, i) => {
-        const key = String(h ?? '').trim().toLowerCase()
-        if (key && !(key in map)) map[key] = i
-    })
-    const ada = (nama) => nama.find((n) => map[n] !== undefined)
-    return ada(HEADER_NIK) === undefined ? null : map
-}
-
 /**
  * Baca satu baris hasil ekspor mesin absensi memakai peta header, mis.
  *   NIK / kode / userid  |  tanggal / tgl / date  |  scan / checktime  |  tipe / type
@@ -515,48 +495,13 @@ function parseBaris(values, path, header) {
     return {
         nik: String(nik).trim(),
         tanggal: normTanggal(tgl),
-        jam: normJam(jam),
+        jam: normJam(jamExcelKeTeks(jam)),
         keluar: t === 'O' || t === 'OUT' || t === 'KELUAR',
         path: path || '',
     }
 }
 
 const at = (values, i) => (i === undefined ? undefined : values[i])
-
-/**
- * Pecah teks CSV menjadi array baris. Mendukung pemisah `,` `;` `tab` dan
- * `\t`, serta nilai bertanda kutip. Dipakai untuk berkas ekspor yang dikirim
- * sebagai CSV (ExcelJS hanya bisa membaca CSV lewat stream).
- */
-function csvKeBaris(teks) {
-    const baris = []
-    let sel = []
-    let nilai = ''
-    let dalamKutip = false
-
-    const pemisah = (() => {
-        const barisPertama = teks.split(/\r?\n/)[0] || ''
-        const kandidat = [';', ',', '\t']
-        return kandidat.find((c) => barisPertama.includes(c)) || ','
-    })()
-
-    for (let i = 0; i < teks.length; i += 1) {
-        const c = teks[i]
-        if (dalamKutip) {
-            if (c === '"') {
-                if (teks[i + 1] === '"') { nilai += '"'; i += 1 } else dalamKutip = false
-            } else nilai += c
-            continue
-        }
-        if (c === '"') { dalamKutip = true; continue }
-        if (c === pemisah) { sel.push(nilai); nilai = ''; continue }
-        if (c === '\r') continue
-        if (c === '\n') { sel.push(nilai); baris.push(sel); sel = []; nilai = ''; continue }
-        nilai += c
-    }
-    if (nilai !== '' || sel.length) { sel.push(nilai); baris.push(sel) }
-    return baris.filter((r) => r.some((v) => String(v).trim() !== ''))
-}
 
 /** Terima tanggal Excel (nomor seri), "YYYY-MM-DD", "DD/MM/YYYY", atau Date. */
 function normTanggal(v) {
@@ -579,8 +524,8 @@ function normTanggal(v) {
 
 /**
  * Tahap 1: unggah hasil ekspor mesin absensi -> `tabsensi2` (staging).
- * Baris "I"/tipe kosong menjadi scan1, baris "O" menjadi scan2 dengan
- * `ON DUPLICATE KEY UPDATE` — sama seperti Delphi.
+ * Baris "I"/tipe kosong mengambil MIN scan1; "O" mengambil MAX scan2.
+ * Upsert membandingkan staging lama juga; jam kosong tidak mengganti jam valid.
  *
  * `tabsensi2` berengine MyISAM sehingga TIDAK mendukung transaksi: `rollback()`
  * tidak akan membatalkan apa pun. Karena itu setiap baris dicoba sendiri dan
@@ -595,28 +540,16 @@ export const importStaging = async (req, res, next) => {
 
         const namaBerkas = String(req.file.originalname ?? req.file.originalName ?? '')
 
-        // Kumpulkan seluruh baris dari semua sheet; baris pertama menentukan
-        // apakah berkas memakai baris header atau urutan kolom tetap.
-        const semua = []
-        if (/\.csv$/i.test(namaBerkas) || /\.txt$/i.test(namaBerkas)) {
-            semua.push(...csvKeBaris(req.file.buffer.toString('utf8')))
-        } else {
-            const wb = new ExcelJS.Workbook()
-            await wb.xlsx.load(req.file.buffer)
-            wb.eachSheet((sheet) => {
-                sheet.eachRow((row, rowNo) => {
-                    if (rowNo === 1) return
-                    const values = row.values.slice(1)
-                    if (!values.some((v) => v !== null && v !== undefined && String(v).trim() !== '')) return
-                    semua.push(values)
-                })
-            })
+        let semua
+        try {
+            semua = await bacaBerkasAbsensi(req.file.buffer, namaBerkas)
+        } catch (err) {
+            return error(res, `Berkas tidak dapat dibaca: ${err.message}`, 400)
         }
         if (semua.length === 0) return error(res, 'Berkas tidak memuat data sama sekali', 400)
 
-        const header = petakanHeader(semua[0])
         const hasil = []
-        for (const values of semua) {
+        for (const { values, header } of semua) {
             const b = parseBaris(values, path, header)
             if (!b || !b.tanggal) continue
             if (mulai && b.tanggal < mulai) continue
@@ -632,18 +565,7 @@ export const importStaging = async (req, res, next) => {
         let contohGagal = ''
         for (const b of hasil) {
             try {
-                if (b.keluar) {
-                    await pool.query(
-                        `INSERT INTO tabsensi2 (nik, tanggal, scan1, scan2) VALUES (?, ?, '00:00:00', ?)
-                         ON DUPLICATE KEY UPDATE scan2 = VALUES(scan2)`,
-                        [b.nik, b.tanggal, b.jam]
-                    )
-                } else {
-                    await pool.query(
-                        `INSERT IGNORE INTO tabsensi2 (nik, tanggal, scan1, scan2) VALUES (?, ?, ?, '00:00:00')`,
-                        [b.nik, b.tanggal, b.jam]
-                    )
-                }
+                await simpanScanStaging(pool, b)
             } catch (e) {
                 gagal += 1
                 if (!contohGagal) contohGagal = e.message

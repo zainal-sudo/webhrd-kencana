@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, onActivated, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -29,6 +29,8 @@ const props = withDefaults(
     addFormPath?: string;
     editFormPath?: string;
     canDelete?: boolean;
+    /** Sembunyikan seluruh kolom Aksi untuk laporan read-only. */
+    showActions?: boolean;
     /** tampilkan tombol print di tiap baris (emit 'print' dengan data baris) */
     printable?: boolean;
     defaultStart?: string;
@@ -40,6 +42,8 @@ const props = withDefaults(
     exportName?: string;
     /** parameter query tambahan yang selalu dikirim (mis. { detail: 1 }) */
     extraQuery?: Record<string, any>;
+    /** Muat ulang saat kembali ke browse yang disimpan keep-alive (opt-in). */
+    refreshOnActivate?: boolean;
   }>(),
   {
     moduleSubtitle: "",
@@ -50,11 +54,13 @@ const props = withDefaults(
     columns: () => [],
     addLabel: "Tambah",
     canDelete: true,
+    showActions: true,
     printable: false,
     perPage: 25,
     exportable: true,
     exportName: "",
     extraQuery: () => ({}),
+    refreshOnActivate: false,
   }
 );
 
@@ -90,7 +96,7 @@ function colWidth(c: BrowseColumn): number {
   return isNaN(n) ? 140 : n + 16;
 }
 const tableMinWidth = computed<string>(
-  () => 42 + 80 + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
+  () => 42 + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
 );
 
 // ── Sort & filter per kolom (server-side, popup checklist di header) ──
@@ -386,6 +392,16 @@ watch(
 onMounted(() => {
   fetchData();
 });
+
+let firstActivation = true;
+onActivated(() => {
+  // Aktivasi pertama sudah mengambil data melalui onMounted.
+  if (firstActivation) {
+    firstActivation = false;
+    return;
+  }
+  if (props.refreshOnActivate) fetchData();
+});
 </script>
 
 <template>
@@ -494,17 +510,17 @@ onMounted(() => {
                 @click.stop
               />
             </th>
-            <th class="action-col">Aksi</th>
+            <th v-if="showActions" class="action-col">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td class="state-cell" :colspan="cols.length + 2">
+            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="state-cell" :colspan="cols.length + 2">
+            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
               <MsIcon name="inbox" :size="20" />
               Tidak ada data ditemukan
             </td>
@@ -544,7 +560,7 @@ onMounted(() => {
               </template>
               <template v-else>{{ cellText(row, col) }}</template>
             </td>
-            <td class="action-col">
+            <td v-if="showActions" class="action-col">
               <div class="row-actions">
                 <slot name="row-actions" :row="row"></slot>
                 <button
