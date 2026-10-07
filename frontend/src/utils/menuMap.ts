@@ -27,6 +27,7 @@ export interface GrupDef {
 export const GRUP: Record<string, GrupDef> = {
   master: { key: "master", label: "Master", icon: "inventory_2", order: 1 },
   transaksi: { key: "transaksi", label: "Transaksi", icon: "swap_horiz", order: 2 },
+  gaji: { key: "gaji", label: "Penggajian", icon: "payments", order: 3 },
   laporan: { key: "laporan", label: "Laporan", icon: "assessment", order: 4 },
   setting: { key: "setting", label: "Otorisasi", icon: "admin_panel_settings", order: 5 },
 };
@@ -86,12 +87,14 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmLapHasilpekerjaan: { grup: "laporan", path: "/laporan/hasil-pekerjaan", label: "Hasil Pekerjaan", icon: "workspace_premium", ready: false },
   frmLapProduktivitas: { grup: "laporan", path: "/laporan/produktivitas", label: "Produktivitas", icon: "trending_up", ready: false },
   frmLapAkhirTahun: { grup: "laporan", path: "/laporan/akhir-tahun", label: "Laporan Akhir Tahun", icon: "celebration", ready: false },
+
+  /* ── Penggajian ── */
+  frmSettingGaji: { grup: "gaji", path: "/gaji/setting", label: "Setting Gaji", icon: "monetization_on", ready: true },
+  frmProsesGaji: { grup: "gaji", path: "/gaji/proses", label: "Proses Gaji", icon: "payments", ready: true },
 };
 
-/** Modul penggajian sengaja tidak dibuat (di luar cakupan). */
+/** Modul lain (penggajian lanjutan, pinjaman, dll.) belum dibuat. */
 export const MENU_DIABAIKAN = [
-  "frmSettingGaji",
-  "frmProsesGaji",
   "frmRekapGaji",
   "frmSettingBudgetMPP",
   "frmprosesMPPBulanan",

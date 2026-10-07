@@ -100,6 +100,10 @@ const routes = [
   { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
   { path: "/laporan/detail-lembur", component: () => import("@/views/laporan/DetailLemburView.vue"), meta: { requiresAuth: true, title: "Detail Lembur", form: "frmLapDetailLembur" } },
 
+  /* ── Penggajian (duplikat Delphi) ── */
+  { path: "/gaji/setting", component: () => import("@/views/gaji/SettingGajiView.vue"), meta: { requiresAuth: true, title: "Setting Gaji", form: "frmSettingGaji" } },
+  { path: "/gaji/proses", component: () => import("@/views/gaji/ProsesGajiView.vue"), meta: { requiresAuth: true, title: "Proses Gaji", form: "frmProsesGaji" } },
+
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
   { path: "/setting/user/form", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Tambah User", form: "frmUser" } },

@@ -5,6 +5,7 @@ import masterRoutes from './routes/masterRoutes.js'
 import absensiRoutes from './routes/absensiRoutes.js'
 import transaksiRoutes from './routes/transaksiRoutes.js'
 import laporanRoutes from './routes/laporanRoutes.js'
+import gajiRoutes from './routes/gajiRoutes.js'
 
 const r = Router()
 
@@ -23,5 +24,6 @@ r.use('/master', masterRoutes)
 r.use('/absensi', absensiRoutes)
 r.use('/transaksi', transaksiRoutes)
 r.use('/laporan', laporanRoutes)
+r.use('/gaji', gajiRoutes)
 
 export default r
