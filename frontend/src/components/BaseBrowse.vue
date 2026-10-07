@@ -15,12 +15,16 @@ const props = withDefaults(
     moduleTitle: string;
     moduleSubtitle?: string;
     endpoint: string;
-    columns: BrowseColumn[];
+    columns?: BrowseColumn[];
     searchPlaceholder?: string;
     hasPeriod?: boolean;
     periodStartKey?: string;
     periodEndKey?: string;
     primaryKey: string;
+    /** Bangun kolom dinamis berdasar periode aktif (mis. tabel kalender
+     *  Absensi Periode yang 1 kolom tiap tanggal). Bila tidak diisi, kolom
+     *  memakai prop `columns` apa adanya. */
+    columnsBuilder?: (start: string, end: string) => BrowseColumn[];
     addLabel?: string;
     addFormPath?: string;
     editFormPath?: string;
@@ -43,6 +47,7 @@ const props = withDefaults(
     hasPeriod: false,
     periodStartKey: "start_date",
     periodEndKey: "end_date",
+    columns: () => [],
     addLabel: "Tambah",
     canDelete: true,
     printable: false,
@@ -72,6 +77,21 @@ const page = ref(1);
 const perPage = ref(props.perPage);
 const total = ref(0);
 const lastPage = ref(1);
+
+// Kolom aktif: dinamis (bila `columnsBuilder` diberikan) atau statis.
+const cols = computed<BrowseColumn[]>(() => {
+  if (props.columnsBuilder) return props.columnsBuilder(startDate.value, endDate.value);
+  return props.columns;
+});
+
+// Lebar minimal tabel mengikuti lebar kolom (kolom hari sempit seperti sel).
+function colWidth(c: BrowseColumn): number {
+  const n = parseInt(c.width || "", 10);
+  return isNaN(n) ? 140 : n + 16;
+}
+const tableMinWidth = computed<string>(
+  () => 42 + 80 + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
+);
 
 // ── Sort & filter per kolom (server-side, popup checklist di header) ──
 const sortBy = ref<string | null>(null);
@@ -286,7 +306,8 @@ function editRow(row: Record<string, any>) {
 
 function confirmDelete(row: Record<string, any>) {
   deletingKey.value = row[props.primaryKey];
-  deletingLabel.value = row[props.columns.find((c) => c.key === "Nama")?.key || props.primaryKey] || "";
+  deletingLabel.value =
+    row[cols.value.find((c) => c.key === "Nama")?.key || props.primaryKey] || "";
   deleteDialog.value = true;
 }
 
@@ -433,12 +454,12 @@ onMounted(() => {
 
     <!-- Table -->
     <div class="table-wrap">
-      <table class="browse-table" :style="{ minWidth: columns.length * 130 + 'px' }">
+      <table class="browse-table" :style="{ minWidth: tableMinWidth }">
         <thead>
           <tr>
             <th class="num-col">No</th>
             <th
-              v-for="(col, idx) in columns"
+              v-for="(col, idx) in cols"
               :key="col.key"
               :style="{ textAlign: col.align || 'left' }"
               :class="{ sortable: isSortable(col), sorted: sortBy === col.key }"
@@ -464,7 +485,7 @@ onMounted(() => {
               </button>
               <ColumnFilterPopup
                 v-if="openFilterKey === col.key"
-                :class="{ 'align-right': idx > columns.length / 2 }"
+                :class="{ 'align-right': idx > cols.length / 2 }"
                 :col-label="col.label"
                 :selected="filterSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
@@ -478,12 +499,12 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td class="state-cell" :colspan="columns.length + 2">
+            <td class="state-cell" :colspan="cols.length + 2">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="state-cell" :colspan="columns.length + 2">
+            <td class="state-cell" :colspan="cols.length + 2">
               <MsIcon name="inbox" :size="20" />
               Tidak ada data ditemukan
             </td>
@@ -495,7 +516,7 @@ onMounted(() => {
           >
             <td class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
             <td
-              v-for="col in columns"
+              v-for="col in cols"
               :key="col.key"
               :class="{ 'foto-cell': col.type === 'image' }"
               :style="{ textAlign: col.align || 'left' }"

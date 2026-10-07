@@ -92,9 +92,13 @@ const routes = [
   { path: "/laporan/keterlambatan", component: () => import("@/views/laporan/KeterlambatanView.vue"), meta: { requiresAuth: true, title: "Laporan Keterlambatan", form: "frmLapKeterlambatan" } },
   { path: "/laporan/pulang-dulu", component: () => import("@/views/laporan/PulangDuluView.vue"), meta: { requiresAuth: true, title: "Laporan Pulang Mendahului", form: "frmLapPulangdulu" } },
   { path: "/laporan/tidak-keluar", component: () => import("@/views/laporan/TidakKeluarView.vue"), meta: { requiresAuth: true, title: "Absen Tidak Lengkap", form: "frmLapTidakKeluar" } },
+  { path: "/laporan/tanpa-ijin", component: () => import("@/views/laporan/TanpaIjinView.vue"), meta: { requiresAuth: true, title: "Laporan Tanpa Ijin", form: "frmLapTanpaIjin" } },
+  { path: "/laporan/setengah-hari-tanpa-ijin", component: () => import("@/views/laporan/SetengahHariTanpaIjinView.vue"), meta: { requiresAuth: true, title: "Setengah Hari Tanpa Ijin", form: "frmLapStHariTanpaIjin" } },
   { path: "/laporan/absensi", component: () => import("@/views/laporan/AbsensiRekapView.vue"), meta: { requiresAuth: true, title: "Laporan Absensi", form: "frmLapAbsensi" } },
+  { path: "/laporan/absensi-periode", component: () => import("@/views/laporan/AbsensiPeriodeView.vue"), meta: { requiresAuth: true, title: "Absensi Periode", form: "frmLapAbsensiPeriode" } },
   { path: "/laporan/lembur", component: () => import("@/views/laporan/LaporanLemburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur", form: "frmLapLembur" } },
   { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
+  { path: "/laporan/detail-lembur", component: () => import("@/views/laporan/DetailLemburView.vue"), meta: { requiresAuth: true, title: "Detail Lembur", form: "frmLapDetailLembur" } },
 
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },

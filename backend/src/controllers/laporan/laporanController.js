@@ -810,3 +810,365 @@ async function tanggalSetengah(start, end, nik) {
     )
     return rows.map((r) => fmtKet(r.ij_tanggal))
 }
+
+/* ── Laporan Tanpa Ijin (ufrmLapTanpaIjin) ──
+ * Kehadiran yang hanya berlangsung 0–5 jam (selisih scan masuk-keluar) dan
+ * TIDAK ada ijin apa pun pada tanggal itu (ij_ji_id IS NULL), bukan Borongan.
+ * Popup Delphi: Buatkan Ijin (jenis 1/Terlambat). */
+const TI_COLUMNS = {
+    Kode: 'a.nik',
+    Nik: 'k.kar_Nik',
+    Nama: 'k.kar_nama',
+    Bagian: 'k.kar_bagian',
+    Jabatan: 'j.jab_nama',
+    Tanggal: 'a.tanggal',
+    Waktu: '(TIME_TO_SEC(TIMEDIFF(a.scan2, a.scan1))) / 3600',
+}
+
+const TI_FROM = `FROM tabsensi a
+    INNER JOIN tkaryawan k ON k.kar_kode_absensi = a.nik
+    INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
+    LEFT JOIN tijin i ON i.ij_nik = k.kar_Nik AND i.ij_tanggal = a.tanggal`
+
+const TI_BASE = ` WHERE (TIME_TO_SEC(TIMEDIFF(a.scan2, a.scan1))) / 3600 > 0
+    AND (TIME_TO_SEC(TIMEDIFF(a.scan2, a.scan1))) / 3600 < 5
+    AND i.ij_ji_id IS NULL
+    AND a.tanggal BETWEEN ? AND ?
+    AND k.kar_sistem_gaji <> 'Borongan'`
+
+const TI_SELECT = `SELECT ${Object.entries(TI_COLUMNS)
+    .map(([alias, expr]) => `${expr} AS \`${alias}\``)
+    .join(', ')} ${TI_FROM}`
+
+/** Daftar kehadiran singkat tanpa ijin per periode. */
+export const getTanpaIjinList = async (req, res, next) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
+        const offset = (page - 1) * perPage
+        const [start, end] = periode(req)
+
+        let where = TI_BASE
+        let params = [start, end]
+        if (req.query.search) {
+            where += ' AND (k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR k.kar_bagian LIKE ?)'
+            params = [...params, ...Array(3).fill(`%${req.query.search}%`)]
+        }
+
+        if (req.query.distinct && TI_COLUMNS[req.query.distinct]) {
+            const dcol = TI_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, TI_COLUMNS, req.query.distinct)
+            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${dcol} AS value ${TI_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                scoped.params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
+        const f = applyAllColumnFilters(where, params, req.query, TI_COLUMNS)
+        where = f.clause
+        params = f.params
+        const orderBy = buildOrderBy(req.query, TI_COLUMNS, 'ORDER BY a.tanggal DESC, k.kar_nama')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${TI_SELECT}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Tanpa-Ijin', Object.keys(TI_COLUMNS), all)
+        }
+
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${TI_FROM}${where}`, params)
+        const total = cnt[0].total
+        const [rows] = await pool.query(`${TI_SELECT}${where} ${orderBy} LIMIT ? OFFSET ?`, [
+            ...params,
+            perPage,
+            offset,
+        ])
+        paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) {
+        next(err)
+    }
+}
+
+/* ── Setengah Hari Tanpa Ijin (ufrmLapStHariTanpaIjin) ──
+ * Kehadiran < 6 jam (> 0) di luar Sabtu tanpa ijin apa pun pada tanggal itu.
+ * Nilai Jam memakai FORMAT(...,2) Delphi; filter jam mengikuti having asli. */
+const SH_COLUMNS = {
+    Kode: 't.Kode',
+    Nik: 't.Nik',
+    Nama: 't.Nama',
+    Sistem: 't.Sistem',
+    Tanggal: 't.Tanggal',
+    Pabrik: 't.Pabrik',
+    Bagian: 't.Bagian',
+    Jabatan: 't.Jabatan',
+    Jam: 't.Jam',
+    Scan1: 't.scan1',
+    Scan2: 't.scan2',
+    Jenis_Ijin: 't.ij_ji_id',
+}
+
+const SH_INNER = `SELECT a.nik AS Kode, k.kar_nik AS Nik, k.kar_nama AS Nama, k.kar_sistem_gaji AS Sistem,
+        a.tanggal AS Tanggal, k.kar_pab_kode AS Pabrik, k.kar_bagian AS Bagian,
+        j.jab_nama AS Jabatan, FORMAT((TIME_TO_SEC(TIMEDIFF(a.scan2, a.scan1)))/3600, 2) AS Jam,
+        a.scan1, a.scan2, i.ij_ji_id
+    FROM tabsensi a
+    INNER JOIN tkaryawan k ON k.kar_kode_absensi = a.nik
+    INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
+    LEFT JOIN tijin i ON i.ij_tanggal = a.tanggal AND i.ij_nik = k.kar_Nik
+    WHERE a.tanggal BETWEEN ? AND ?
+      AND DAYNAME(a.tanggal) <> 'Saturday'`
+
+const SH_CORE = `SELECT ${Object.entries(SH_COLUMNS)
+    .map(([alias, expr]) => `${expr} AS \`${alias}\``)
+    .join(', ')} FROM (${SH_INNER}) t`
+
+const SH_BASE = ` WHERE t.Jam > 0 AND t.Jam < 6 AND t.ij_ji_id IS NULL`
+
+/** Daftar kehadiran singkat tanpa ijin (bukan Sabtu) per periode. */
+export const getStHariTanpaIjinList = async (req, res, next) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
+        const offset = (page - 1) * perPage
+        const [start, end] = periode(req)
+
+        let where = SH_BASE
+        let params = [start, end]
+        if (req.query.search) {
+            where += ' AND (t.Nik LIKE ? OR t.Nama LIKE ? OR t.Bagian LIKE ?)'
+            params = [...params, ...Array(3).fill(`%${req.query.search}%`)]
+        }
+
+        if (req.query.distinct && SH_COLUMNS[req.query.distinct]) {
+            const dcol = SH_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, SH_COLUMNS, req.query.distinct)
+            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${dcol} AS value FROM (${SH_INNER}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                scoped.params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
+        const f = applyAllColumnFilters(where, params, req.query, SH_COLUMNS)
+        where = f.clause
+        params = f.params
+        const orderBy = buildOrderBy(req.query, SH_COLUMNS, 'ORDER BY t.Tanggal DESC, t.Nama')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${SH_CORE}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Setengah-Hari-Tanpa-Ijin', Object.keys(SH_COLUMNS), all)
+        }
+
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${SH_INNER}) t ${where}`, params)
+        const total = cnt[0].total
+        const [rows] = await pool.query(`${SH_CORE}${where} ${orderBy} LIMIT ? OFFSET ?`, [
+            ...params,
+            perPage,
+            offset,
+        ])
+        paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) {
+        next(err)
+    }
+}
+
+/* ── Detail Lembur (ufrmLapDetailLembur) ──
+ * Per NIK + tanggal: `2jam` (2 jam pertama, dikapas sesuai sistem gaji),
+ * `Lembur-2Jam` Lebih2Jam, `Panggilan`, `Lembur` (total), jenis kerja.
+ * Query correlated 3-subquery persis padanan Delphi. */
+const DL_DUR = `if( timediff(lemd_jamakhir, lemd_jammulai) < 0 ,
+    (time_to_sec((timediff('24:00:00', lemd_jammulai))))/3600
+    + (time_to_sec((timediff(lemd_jamakhir, '00:00:00'))))/3600,
+    (time_to_sec((timediff(lemd_jamakhir, lemd_jammulai))))/3600 )`
+
+const DL_INNER = `SELECT y.lem_jeniskerja AS Jenis_Kerja, y.lem_tanggal AS Tanggal, x.lemd_kar_nik AS Nik,
+    IFNULL((SELECT SUM(IF(${DL_DUR} > IF(tk.kar_sistem_gaji = 'Harian', 1, 2), IF(tk.kar_sistem_gaji = 'Harian', 1, 2), ${DL_DUR}))
+        FROM tlembur_dtl a
+        INNER JOIN tlembur_hdr b ON b.lem_nomor = a.lemd_lem_nomor AND a.lemd_panggilan <> 1
+        LEFT JOIN tkaryawan tk ON tk.kar_nik = a.lemd_kar_nik
+        WHERE b.lem_tanggal = y.lem_tanggal
+          AND (b.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1) OR tk.kar_dep_kode = 'MKTR')
+          AND a.lemd_kar_nik = x.lemd_kar_nik AND a.lemd_panggilan = 0), 0) AS \`2jam\`,
+    IFNULL((SELECT SUM(TIME_TO_SEC(TIMEDIFF(a.lemd_jamakhir, a.lemd_jammulai)))/3600
+        FROM tlembur_dtl a
+        INNER JOIN tlembur_hdr b ON b.lem_nomor = a.lemd_lem_nomor
+        WHERE b.lem_tanggal = y.lem_tanggal AND a.lemd_kar_nik = x.lemd_kar_nik AND a.lemd_panggilan = 0), 0) AS lembur,
+    IFNULL((SELECT SUM(TIME_TO_SEC(TIMEDIFF(a.lemd_jamakhir, a.lemd_jammulai)))/3600
+        FROM tlembur_dtl a
+        INNER JOIN tlembur_hdr b ON b.lem_nomor = a.lemd_lem_nomor
+        WHERE b.lem_tanggal = y.lem_tanggal AND a.lemd_kar_nik = x.lemd_kar_nik AND a.lemd_panggilan = 1), 0) AS panggilan
+    FROM tlembur_dtl x
+    INNER JOIN tlembur_hdr y ON y.lem_nomor = x.lemd_lem_nomor
+      AND y.lem_tanggal BETWEEN ? AND ?`
+
+const DL_COLUMNS = {
+    Kode: 't.kar_kode_absensi',
+    Tanggal: 'final.Tanggal',
+    Nik: 'final.Nik',
+    Nama: 't.kar_nama',
+    Pabrik: 't.kar_pab_kode',
+    Bagian: 't.kar_bagian',
+    '2jam': 'final.`2jam`',
+    'Lebih2Jam': '(final.Lembur - final.`2jam`)',
+    Panggilan: 'final.Panggilan',
+    Lembur: 'final.Lembur',
+    Jenis_Kerja: 'final.Jenis_Kerja',
+}
+
+const DL_FROM = ` FROM (${DL_INNER}) final INNER JOIN tkaryawan t ON t.kar_Nik = final.Nik`
+
+const DL_SELECT = `SELECT DISTINCT t.kar_kode_absensi AS \`Kode\`, final.Tanggal, final.Nik,
+    t.kar_nama AS \`Nama\`, t.kar_pab_kode AS \`Pabrik\`, t.kar_bagian AS \`Bagian\`,
+    final.\`2jam\`, (final.Lembur - final.\`2jam\`) AS \`Lebih2Jam\`, final.Panggilan, final.Lembur, final.Jenis_Kerja ${DL_FROM}`
+
+/** Daftar rincian lembur (2 jam pertama / lebih / panggilan / total) per periode. */
+export const getDetailLemburList = async (req, res, next) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
+        const offset = (page - 1) * perPage
+        const [start, end] = periode(req)
+
+        let where = ''
+        let params = [start, end]
+        if (req.query.search) {
+            where += ' WHERE (final.Nik LIKE ? OR t.kar_nama LIKE ? OR t.kar_bagian LIKE ? OR t.kar_pab_kode LIKE ?)'
+            params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
+        }
+
+        if (req.query.distinct && DL_COLUMNS[req.query.distinct]) {
+            const dcol = DL_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, DL_COLUMNS, req.query.distinct)
+            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${dcol} AS value ${DL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                scoped.params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
+        const f = applyAllColumnFilters(where, params, req.query, DL_COLUMNS)
+        where = f.clause
+        params = f.params
+        const orderBy = buildOrderBy(req.query, DL_COLUMNS, 'ORDER BY final.Tanggal DESC, final.Nik')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${DL_SELECT}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Detail-Lembur', Object.keys(DL_COLUMNS), all)
+        }
+
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${DL_SELECT}${where}) x`, params)
+        const total = cnt[0].total
+        const [rows] = await pool.query(`${DL_SELECT}${where} ${orderBy} LIMIT ? OFFSET ?`, [
+            ...params,
+            perPage,
+            offset,
+        ])
+        paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) {
+        next(err)
+    }
+}
+
+/* ── Absensi Periode (ufrmLapAbsensiPeriode) ──
+ * Tabel kalender per karyawan aktif: satu kolom per tanggal dalam periode
+ * berisi '0' (stat=0/tidak hadir), '0.5' (ada ijin 1/2 hari), atau '1'.
+ * `LIMIT 1` ditambahkan pada subquery v_absensi karena kar_kode_absensi ada
+ * yang ganda sehingga subquery scalar semula bisa mengembalikan >1 baris. */
+const AP_STATIC = [
+    ['Nik', 'k.kar_Nik'],
+    ['Nama', 'k.kar_nama'],
+    ['Bagian', 'k.kar_bagian'],
+    ['Status', 'k.kar_sistem_gaji'],
+    ['Jabatan', 'j.jab_nama'],
+    ['Pabrik', 'k.kar_pab_kode'],
+]
+
+/** Daftar tanggal periode dalam enumerasi JS (timezone aman lewat parse manual). */
+function tanggalPeriode(start, end) {
+    const hari = []
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(start || ''))
+    const mm = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(end || ''))
+    if (!m || !mm) return hari
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const stop = new Date(Number(mm[1]), Number(mm[2]) - 1, Number(mm[3]))
+    while (d <= stop) {
+        hari.push({
+            date: `${String(d.getFullYear()).padStart(4, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+            dd: String(d.getDate()).padStart(2, '0'),
+        })
+        d.setDate(d.getDate() + 1)
+    }
+    return hari
+}
+
+/** SELECT kolom kalender: 1 ekspresi per tanggal (algo. asli Delphi). */
+function absensiPeriodeInner(start, end) {
+    const cols = AP_STATIC.map(([alias, expr]) => `${expr} AS \`${alias}\``)
+    for (const h of tanggalPeriode(start, end)) {
+        cols.push(
+            `(SELECT CAST(IF(CAST(x.stat AS CHAR) = '0', '0',
+                (SELECT IF(COUNT(*) > 0, '0.5', '1') FROM tijin WHERE ij_nik = x.kar_nik AND ij_tanggal = '${h.date}' AND ij_ji_id = 2))
+                AS CHAR) FROM v_absensi x WHERE x.tanggal = '${h.date}' AND x.nik = k.kar_kode_absensi LIMIT 1) AS \`${h.dd}\``
+        )
+    }
+    return `SELECT ${cols.join(', ')}
+        FROM tkaryawan k
+        INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
+        WHERE k.kar_status_aktif = 1`
+}
+
+/** Daftar kehadiran (kalender) seluruh karyawan aktif per periode. */
+export const getAbsensiPeriodeList = async (req, res, next) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
+        const offset = (page - 1) * perPage
+        const [start, end] = periode(req)
+
+        const inner = absensiPeriodeInner(start, end)
+        const AP_COLUMNS = {}
+        for (const [alias] of AP_STATIC) AP_COLUMNS[alias] = `t.\`${alias}\``
+        for (const h of tanggalPeriode(start, end)) AP_COLUMNS[h.dd] = `t.\`${h.dd}\``
+
+        let where = ''
+        let params = []
+        if (req.query.search) {
+            where += ' WHERE (t.`Nik` LIKE ? OR t.`Nama` LIKE ? OR t.`Bagian` LIKE ? OR t.`Pabrik` LIKE ?)'
+            params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
+        }
+
+        if (req.query.distinct && AP_COLUMNS[req.query.distinct]) {
+            const dcol = AP_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, AP_COLUMNS, req.query.distinct)
+            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${dcol} AS value FROM (${inner}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                scoped.params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
+        const f = applyAllColumnFilters(where, params, req.query, AP_COLUMNS)
+        where = f.clause
+        params = f.params
+        const orderBy = buildOrderBy(req.query, AP_COLUMNS, 'ORDER BY t.`Nama`')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`SELECT t.* FROM (${inner}) t ${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Absensi-Periode', Object.keys(AP_COLUMNS), all)
+        }
+
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${inner}) t ${where}`, params)
+        const total = cnt[0].total
+        const [rows] = await pool.query(`SELECT t.* FROM (${inner}) t ${where} ${orderBy} LIMIT ? OFFSET ?`, [
+            ...params,
+            perPage,
+            offset,
+        ])
+        paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) {
+        next(err)
+    }
+}

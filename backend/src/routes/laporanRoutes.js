@@ -10,6 +10,10 @@ import {
     getLemburList,
     getLemburTanpaSplList,
     getAbsensiRekapList,
+    getTanpaIjinList,
+    getStHariTanpaIjinList,
+    getDetailLemburList,
+    getAbsensiPeriodeList,
 } from '../controllers/laporan/laporanController.js'
 
 const r = Router()
@@ -28,6 +32,15 @@ r.get('/pulang-dulu', wajibHak('frmLapPulangdulu'), getPulangDuluList)
 /* ── Absen Tidak Lengkap (ufrmLapTidakKeluar, `frmLapTidakKeluar`) ── */
 r.get('/tidak-keluar', wajibHak('frmLapTidakKeluar'), getTidakKeluarList)
 
+/* ── Laporan Tanpa Ijin (ufrmLapTanpaIjin, `frmLapTanpaIjin`) ── */
+r.get('/tanpa-ijin', wajibHak('frmLapTanpaIjin'), getTanpaIjinList)
+
+/* ── Setengah Hari Tanpa Ijin (ufrmLapStHariTanpaIjin, `frmLapStHariTanpaIjin`) ── */
+r.get('/setengah-hari-tanpa-ijin', wajibHak('frmLapStHariTanpaIjin'), getStHariTanpaIjinList)
+
+/* ── Detail Lembur (ufrmLapDetailLembur, `frmLapDetailLembur`) ── */
+r.get('/detail-lembur', wajibHak('frmLapDetailLembur'), getDetailLemburList)
+
 /* ── Laporan Lembur per SPL (ufrmLapLembur, `frmLapLembur`) ── */
 r.get('/lembur', wajibHak('frmLapLembur'), getLemburList)
 
@@ -36,5 +49,8 @@ r.get('/lembur-tanpa-spl', wajibHak('frmLapLemburTanpaSPL'), getLemburTanpaSplLi
 
 /* ── Rekap Absensi (ufrmLapAbsensi, `frmLapAbsensi`) ── */
 r.get('/absensi', wajibHak('frmLapAbsensi'), getAbsensiRekapList)
+
+/* ── Absensi Periode (ufrmLapAbsensiPeriode, `frmLapAbsensiPeriode`) ── */
+r.get('/absensi-periode', wajibHak('frmLapAbsensiPeriode'), getAbsensiPeriodeList)
 
 export default r
