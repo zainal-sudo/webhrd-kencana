@@ -90,7 +90,7 @@ export const usePermissionStore = defineStore("permission", {
         }
       }
 
-      // History Karyawan tepat setelah Absensi Periode jika keduanya diizinkan.
+      // Kelompok laporan: Absensi Periode, Lembur Hari Libur, History Karyawan.
       const laporan = byKey.get("laporan")?.children;
       if (laporan) {
         const historyIndex = laporan.findIndex((m) => m.key === "frmHistoryKaryawan");
@@ -98,6 +98,12 @@ export const usePermissionStore = defineStore("permission", {
           const [history] = laporan.splice(historyIndex, 1);
           const periodeIndex = laporan.findIndex((m) => m.key === "frmLapAbsensiPeriode");
           laporan.splice(periodeIndex + 1, 0, history);
+        }
+        const lemburLiburIndex = laporan.findIndex((m) => m.key === "frmLapLemburHariLibur");
+        if (lemburLiburIndex !== -1 && laporan.some((m) => m.key === "frmHistoryKaryawan")) {
+          const [lemburLibur] = laporan.splice(lemburLiburIndex, 1);
+          const historyPosition = laporan.findIndex((m) => m.key === "frmHistoryKaryawan");
+          laporan.splice(historyPosition, 0, lemburLibur);
         }
       }
 

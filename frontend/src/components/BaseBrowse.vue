@@ -29,6 +29,8 @@ const props = withDefaults(
     addFormPath?: string;
     editFormPath?: string;
     canDelete?: boolean;
+    /** Sembunyikan seluruh kolom Aksi untuk laporan read-only. */
+    showActions?: boolean;
     /** tampilkan tombol print di tiap baris (emit 'print' dengan data baris) */
     printable?: boolean;
     defaultStart?: string;
@@ -52,6 +54,7 @@ const props = withDefaults(
     columns: () => [],
     addLabel: "Tambah",
     canDelete: true,
+    showActions: true,
     printable: false,
     perPage: 25,
     exportable: true,
@@ -93,7 +96,7 @@ function colWidth(c: BrowseColumn): number {
   return isNaN(n) ? 140 : n + 16;
 }
 const tableMinWidth = computed<string>(
-  () => 42 + 80 + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
+  () => 42 + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
 );
 
 // ── Sort & filter per kolom (server-side, popup checklist di header) ──
@@ -507,17 +510,17 @@ onActivated(() => {
                 @click.stop
               />
             </th>
-            <th class="action-col">Aksi</th>
+            <th v-if="showActions" class="action-col">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td class="state-cell" :colspan="cols.length + 2">
+            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="state-cell" :colspan="cols.length + 2">
+            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
               <MsIcon name="inbox" :size="20" />
               Tidak ada data ditemukan
             </td>
@@ -557,7 +560,7 @@ onActivated(() => {
               </template>
               <template v-else>{{ cellText(row, col) }}</template>
             </td>
-            <td class="action-col">
+            <td v-if="showActions" class="action-col">
               <div class="row-actions">
                 <slot name="row-actions" :row="row"></slot>
                 <button

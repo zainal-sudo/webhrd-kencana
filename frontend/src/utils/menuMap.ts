@@ -77,7 +77,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmLapLemburTanpaSPL: { grup: "laporan", path: "/laporan/lembur-tanpa-spl", label: "Lembur Tanpa SPL", icon: "report_problem", ready: true },
   frmLapDetailLembur: { grup: "laporan", path: "/laporan/detail-lembur", label: "Detail Lembur", icon: "receipt_long", ready: true },
   frmLapLemburTahunan: { grup: "laporan", path: "/laporan/lembur-tahunan", label: "Lembur Tahunan", icon: "calendar_month", ready: false },
-  frmLapLemburHariLibur: { grup: "laporan", path: "/laporan/lembur-hari-libur", label: "Lembur Hari Libur", icon: "weekend", ready: false },
+  frmLapLemburHariLibur: { grup: "laporan", path: "/laporan/lembur-hari-libur", label: "Lembur Hari Libur", icon: "weekend", ready: true },
   frmLapAbsensiMingguan: { grup: "laporan", path: "/laporan/absensi-mingguan", label: "Absensi Mingguan", icon: "date_range", ready: false },
   frmLapAbsensiPeriode: { grup: "laporan", path: "/laporan/absensi-periode", label: "Absensi Periode", icon: "date_range", ready: true },
   frmLapKeterlambatanBagian: { grup: "laporan", path: "/laporan/keterlambatan-bagian", label: "Keterlambatan per Bagian", icon: "groups", ready: false },

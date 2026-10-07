@@ -99,6 +99,8 @@ const routes = [
   { path: "/laporan/absensi", component: () => import("@/views/laporan/AbsensiRekapView.vue"), meta: { requiresAuth: true, title: "Laporan Absensi", form: "frmLapAbsensi" } },
   { path: "/laporan/absensi-periode", component: () => import("@/views/laporan/AbsensiPeriodeView.vue"), meta: { requiresAuth: true, title: "Absensi Periode", form: "frmLapAbsensiPeriode" } },
   { path: "/laporan/lembur", component: () => import("@/views/laporan/LaporanLemburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur", form: "frmLapLembur" } },
+  // Hari libur mengikuti tanggal pada Master Hari Libur (aturan pengguna).
+  { path: "/laporan/lembur-hari-libur", component: () => import("@/views/laporan/LemburHariLiburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur Hari Libur", form: "frmLapLemburHariLibur" } },
   { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
   { path: "/laporan/detail-lembur", component: () => import("@/views/laporan/DetailLemburView.vue"), meta: { requiresAuth: true, title: "Detail Lembur", form: "frmLapDetailLembur" } },
 
