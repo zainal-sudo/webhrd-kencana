@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { formatNumber } from "@/utils/format";
 
 /**
@@ -10,6 +10,10 @@ import { formatNumber } from "@/utils/format";
  * seperti di Delphi). Sel yang diedit ditandai kuning dan memicu event
  * `update` — komponen induk memakai ini untuk menyesuaikan kolom turunan
  * (mis. Total pada Proses Gaji).
+ *
+ * Prop opsional:
+ *   sortable  -> klik header mengurutkan baris (klik berulang: naik/turun/mati)
+ *   showTotal -> baris kaki berisi jumlah kolom angka + hitungan baris tampil
  */
 
 export interface GridCol {
@@ -36,8 +40,10 @@ const props = withDefaults(
     loading?: boolean;
     primaryKey?: string;
     maxHeight?: string;
+    sortable?: boolean;
+    showTotal?: boolean;
   }>(),
-  { primaryKey: "nik", maxHeight: "62vh" }
+  { primaryKey: "nik", maxHeight: "62vh", sortable: false, showTotal: false }
 );
 
 const emit = defineEmits<{ (e: "update", payload: GridUpdate): void }>();
@@ -76,6 +82,53 @@ function commitCheck(ev: Event, row: Record<string, any>, col: GridCol) {
   emit("update", { row, col, oldValue, newValue });
 }
 
+/** Urutan tampil: klik header -> naik -> turun -> semula (stabil). */
+const sortKey = ref<string | null>(null);
+const sortDir = ref<1 | -1>(1);
+
+function klikHeader(c: GridCol) {
+  if (!props.sortable) return;
+  if (sortKey.value !== c.key) {
+    sortKey.value = c.key;
+    sortDir.value = 1;
+  } else if (sortDir.value === 1) {
+    sortDir.value = -1;
+  } else {
+    sortKey.value = null;
+    sortDir.value = 1;
+  }
+}
+
+function banding(a: any, b: any): number {
+  const na = Number(a);
+  const nb = Number(b);
+  const angka =
+    a !== "" && a !== null && a !== undefined && Number.isFinite(na) &&
+    b !== "" && b !== null && b !== undefined && Number.isFinite(nb);
+  if (angka) return na - nb;
+  return String(a ?? "").localeCompare(String(b ?? ""), "id");
+}
+
+const tampil = computed(() => {
+  if (!props.sortable || !sortKey.value) return props.rows;
+  const salin = [...props.rows];
+  const kunci = sortKey.value;
+  const arah = sortDir.value;
+  salin.sort((x, y) => banding(x[kunci], y[kunci]) * arah);
+  return salin;
+});
+
+/** Kolom angka (dijumlahkan di kaki): uang, bisa diedit, atau rata kanan. */
+function adalahAngka(c: GridCol): boolean {
+  return !!c.money || !!c.edit || c.align === "right";
+}
+
+function jumlahKol(c: GridCol): number {
+  let total = 0;
+  for (const r of tampil.value) total += Number(r[c.key]) || 0;
+  return total;
+}
+
 defineExpose({
   reset() {
     selDirty.value = new Set();
@@ -91,13 +144,17 @@ defineExpose({
         <tr>
           <template v-for="c in columns" :key="c.key">
             <th
+              :class="{ sortable: props.sortable }"
               :style="{
                 width: c.width || 'auto',
                 textAlign: c.align || (c.edit === 'number' || c.money ? 'right' : 'left'),
               }"
-              :title="c.title"
+              :title="c.title || (props.sortable ? 'Klik untuk mengurutkan' : undefined)"
+              @click="klikHeader(c)"
             >
-              {{ c.label }}
+              {{ c.label }}<span v-if="props.sortable && sortKey === c.key" class="panah">{{
+                sortDir === 1 ? " ▲" : " ▼"
+              }}</span>
             </th>
           </template>
         </tr>
@@ -106,10 +163,10 @@ defineExpose({
         <tr v-if="loading">
           <td class="status" :colspan="columns.length">Memuat data...</td>
         </tr>
-        <tr v-else-if="!rows.length">
+        <tr v-else-if="!tampil.length">
           <td class="status" :colspan="columns.length">Belum ada data.</td>
         </tr>
-        <tr v-for="(row, i) in rows" :key="row[primaryKey] ?? i">
+        <tr v-for="(row, i) in tampil" :key="row[primaryKey] ?? i">
           <template v-for="c in columns" :key="c.key">
             <td
               :class="[
@@ -138,6 +195,19 @@ defineExpose({
           </template>
         </tr>
       </tbody>
+      <tfoot v-if="props.showTotal && !loading">
+        <tr>
+          <template v-for="(c, ci) in columns" :key="c.key">
+            <td
+              :class="[c.align || (c.edit === 'number' || c.money ? 'kanan' : '')]"
+              :style="{ width: c.width || 'auto' }"
+            >
+              <span v-if="ci === 0" class="txt total-label">{{ tampil.length }} baris</span>
+              <span v-else-if="adalahAngka(c)" class="txt">{{ formatNumber(jumlahKol(c)) }}</span>
+            </td>
+          </template>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </template>
@@ -163,6 +233,30 @@ defineExpose({
   padding: 5px 7px;
   font-weight: 800;
   color: var(--ds-on-surface, #1b2d4a);
+}
+.grid th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.grid th.sortable:hover {
+  background: #d3d9e2;
+}
+.grid th .panah {
+  font-size: 10px;
+}
+.grid tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--ds-surface-variant, #e0e4ea);
+  border: 1px solid var(--ds-border, #b0b8c4);
+  border-top: 2px solid var(--ds-primary, #3b5998);
+  padding: 5px 7px;
+  font-weight: 800;
+  color: var(--ds-on-surface, #1b2d4a);
+}
+.grid tfoot .total-label {
+  font-weight: 800;
 }
 .grid td {
   border: 1px solid #d5dbe3;

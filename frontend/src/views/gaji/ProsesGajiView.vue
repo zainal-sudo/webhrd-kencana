@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { useRoute } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
@@ -43,6 +43,24 @@ const menyimpan = ref(false);
 const memuatPotongan = ref(false);
 const filePotongan = ref<File | null>(null);
 const grid = ref<InstanceType<typeof EditableGrid> | null>(null);
+
+/** Filter hasil (client-side; Simpan/Export tetap memakai seluruh baris). */
+const cari = ref("");
+const pabrik = ref("");
+const daftarPabrik = computed(() =>
+  [...new Set(rows.value.map((r) => String(r.pabrik ?? "")))].filter(Boolean).sort()
+);
+const tampilRows = computed(() => {
+  const q = cari.value.trim().toLowerCase();
+  return rows.value.filter((r) => {
+    if (pabrik.value && String(r.pabrik ?? "") !== pabrik.value) return false;
+    if (!q) return true;
+    return (
+      String(r.nik ?? "").toLowerCase().includes(q) ||
+      String(r.nama ?? "").toLowerCase().includes(q)
+    );
+  });
+});
 
 /** Kolom grid = urutan Delphi (BPJSTK tidak berkolom). */
 const columns: GridCol[] = [
@@ -254,6 +272,16 @@ onMounted(() => {
     </div>
 
     <div class="toolbar sub">
+      <label class="fld">Cari
+        <input v-model="cari" class="cari" type="text" placeholder="NIK / nama..." />
+      </label>
+      <label class="fld">Pabrik
+        <select v-model="pabrik">
+          <option value="">Semua</option>
+          <option v-for="p in daftarPabrik" :key="p" :value="p">{{ p }}</option>
+        </select>
+      </label>
+      <span class="count">{{ tampilRows.length }} dari {{ rows.length }} baris</span>
       <button class="btn ghost" title="Muat ulang grid" @click="muat">
         <MsIcon name="refresh" :size="15" /> Refresh
       </button>
@@ -291,10 +319,12 @@ onMounted(() => {
       <EditableGrid
         ref="grid"
         :columns="columns"
-        :rows="rows"
+        :rows="tampilRows"
         :loading="loading"
         primary-key="nik"
         max-height="66vh"
+        sortable
+        show-total
         @update="onUpdate"
       />
       <p v-if="!loading && !rows.length" class="empty">
@@ -366,6 +396,14 @@ onMounted(() => {
   font-family: "Plus Jakarta Sans", sans-serif;
   background: #fff;
   color: var(--ds-on-surface, #1b2d4a);
+}
+.fld .cari {
+  width: 150px;
+}
+.count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #55637a;
 }
 .btn {
   height: 28px;
