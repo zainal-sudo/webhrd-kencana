@@ -3,6 +3,7 @@ import { useRouter } from "vue-router";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { BrowseColumn } from "@/types";
 import { firstDayOfMonth } from "@/utils/format";
 
@@ -18,6 +19,7 @@ import { firstDayOfMonth } from "@/utils/format";
  */
 const router = useRouter();
 const tabsStore = useTabsStore();
+const auth = useAuthStore();
 
 const columns: BrowseColumn[] = [
   { key: "Nomor", label: "Nomor", width: "130px" },
@@ -55,8 +57,9 @@ function bukaKolektif() {
     primary-key="Nomor"
     has-period
     :default-start="firstDayOfMonth()"
-    add-form-path="/transaksi/ijin/form"
-    edit-form-path="/transaksi/ijin/form"
+    :add-form-path="auth.can('frmIjin', 'insert') ? '/transaksi/ijin/form' : undefined"
+    :edit-form-path="auth.can('frmIjin', 'edit') ? '/transaksi/ijin/form' : undefined"
+    :can-delete="auth.can('frmIjin', 'delete')"
     search-placeholder="Cari nomor / NIK / nama / alasan..."
     :per-page="50"
   >

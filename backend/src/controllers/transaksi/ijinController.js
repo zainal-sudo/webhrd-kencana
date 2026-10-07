@@ -54,6 +54,8 @@ export function normJam(v) {
  */
 
 /** Kolom browse — mengikuti `ufrmBrowseIjin.btnRefreshClick`. */
+const BAGIAN_SQL = `TRIM(CONCAT_WS(' ', j.jab_nama, k.kar_bagian))`
+
 const LIST_COLUMNS = {
     Nomor: 'i.ij_nomor',
     Tanggal: 'i.ij_tanggal',
@@ -61,7 +63,7 @@ const LIST_COLUMNS = {
     Nik: 'i.ij_nik',
     Nama: 'k.kar_nama',
     Pabrik: 'k.kar_pab_kode',
-    Bagian: `CONCAT(j.jab_nama, ' ', k.kar_bagian)`,
+    Bagian: BAGIAN_SQL,
     Awal: 'i.ij_jam',
     Akhir: 'i.ij_jam2',
     Alasan: 'i.ij_alasan',
@@ -262,7 +264,8 @@ export const getIjin = async (req, res, next) => {
         if (!nomor) return error(res, 'Nomor ijin wajib diisi', 400)
         const [rows] = await pool.query(
             `SELECT i.ij_nomor, i.ij_ji_id, i.ij_tanggal, i.ij_alasan, i.ij_jam, i.ij_jam2,
-                    i.ij_nik, i.ij_keterangan, k.kar_nama, j.jab_nama, ji.ji_keterangan AS jenis_nama
+                    i.ij_nik, i.ij_keterangan, k.kar_nama, j.jab_nama, ${BAGIAN_SQL} AS bagian,
+                    ji.ji_keterangan AS jenis_nama
              FROM tijin i
              INNER JOIN tkaryawan k ON k.kar_Nik = i.ij_nik
              INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
@@ -281,6 +284,7 @@ export const getIjin = async (req, res, next) => {
             nik: r.ij_nik,
             nama: r.kar_nama,
             jabatan: r.jab_nama,
+            bagian: r.bagian,
             jam: toTime(r.ij_jam),
             jam2: toTime(r.ij_jam2),
             keterangan: r.ij_keterangan,
@@ -335,7 +339,7 @@ export const infoKaryawan = async (req, res, next) => {
         if (!nik) return error(res, 'NIK wajib diisi', 400)
         const [rows] = await pool.query(
             `SELECT k.kar_Nik AS nik, k.kar_nama AS nama, j.jab_nama AS jabatan,
-                    k.kar_bagian AS bagian, k.kar_pab_kode AS pabrik
+                    ${BAGIAN_SQL} AS bagian, k.kar_pab_kode AS pabrik
              FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
              WHERE k.kar_Nik = ?`,
             [nik]
