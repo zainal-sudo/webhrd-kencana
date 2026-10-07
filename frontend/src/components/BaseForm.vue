@@ -110,12 +110,14 @@ function goCrumb(path?: string) {
         </slot>
       </div>
       <div class="footer-actions">
-        <button class="form-btn ghost" @click="showSuccess = false">Reset</button>
-        <button class="form-btn primary" :disabled="saving" @click="doSave">
-          <MsIcon v-if="saving" name="progress_activity" :size="15" />
-          <MsIcon v-else name="save" :size="15" />
-          <span>{{ saving ? "Menyimpan..." : saveLabel }}</span>
-        </button>
+        <slot name="footer-actions">
+          <button class="form-btn ghost" @click="showSuccess = false">Reset</button>
+          <button class="form-btn primary" :disabled="saving" @click="doSave">
+            <MsIcon v-if="saving" name="progress_activity" :size="15" />
+            <MsIcon v-else name="save" :size="15" />
+            <span>{{ saving ? "Menyimpan..." : saveLabel }}</span>
+          </button>
+        </slot>
       </div>
     </div>
 

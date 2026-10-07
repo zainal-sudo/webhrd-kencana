@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, onActivated, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -40,6 +40,8 @@ const props = withDefaults(
     exportName?: string;
     /** parameter query tambahan yang selalu dikirim (mis. { detail: 1 }) */
     extraQuery?: Record<string, any>;
+    /** Muat ulang saat kembali ke browse yang disimpan keep-alive (opt-in). */
+    refreshOnActivate?: boolean;
   }>(),
   {
     moduleSubtitle: "",
@@ -55,6 +57,7 @@ const props = withDefaults(
     exportable: true,
     exportName: "",
     extraQuery: () => ({}),
+    refreshOnActivate: false,
   }
 );
 
@@ -385,6 +388,16 @@ watch(
 
 onMounted(() => {
   fetchData();
+});
+
+let firstActivation = true;
+onActivated(() => {
+  // Aktivasi pertama sudah mengambil data melalui onMounted.
+  if (firstActivation) {
+    firstActivation = false;
+    return;
+  }
+  if (props.refreshOnActivate) fetchData();
 });
 </script>
 
