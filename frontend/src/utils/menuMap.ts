@@ -41,7 +41,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmHariLibur: { grup: "master", path: "/master/hari-libur", label: "Master Hari Libur", icon: "event_busy", ready: true },
   frmJadwal: { grup: "master", path: "/master/jadwal", label: "Jadwal / Shift", icon: "schedule", ready: true },
   frmPerusahaan: { grup: "master", path: "/master/perusahaan", label: "Identitas Perusahaan", icon: "apartment", ready: true },
-  frmHistoryKaryawan: { grup: "master", path: "/master/history-karyawan", label: "History Karyawan", icon: "history", ready: true },
+  frmHistoryKaryawan: { grup: "laporan", path: "/master/history-karyawan", label: "History Karyawan", icon: "history", ready: true },
 
   /* ── Setting / Otorisasi ── */
   frmUser: { grup: "setting", path: "/setting/user", label: "Master User", icon: "manage_accounts", ready: true },

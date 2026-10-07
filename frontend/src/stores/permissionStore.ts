@@ -79,6 +79,28 @@ export const usePermissionStore = defineStore("permission", {
         }
       }
 
+      // Jadwal / Shift tepat sebelum Hari Libur jika keduanya diizinkan.
+      const master = byKey.get("master")?.children;
+      if (master) {
+        const jadwalIndex = master.findIndex((m) => m.key === "frmJadwal");
+        if (jadwalIndex !== -1 && master.some((m) => m.key === "frmHariLibur")) {
+          const [jadwal] = master.splice(jadwalIndex, 1);
+          const hariLiburIndex = master.findIndex((m) => m.key === "frmHariLibur");
+          master.splice(hariLiburIndex, 0, jadwal);
+        }
+      }
+
+      // History Karyawan tepat setelah Absensi Periode jika keduanya diizinkan.
+      const laporan = byKey.get("laporan")?.children;
+      if (laporan) {
+        const historyIndex = laporan.findIndex((m) => m.key === "frmHistoryKaryawan");
+        if (historyIndex !== -1 && laporan.some((m) => m.key === "frmLapAbsensiPeriode")) {
+          const [history] = laporan.splice(historyIndex, 1);
+          const periodeIndex = laporan.findIndex((m) => m.key === "frmLapAbsensiPeriode");
+          laporan.splice(periodeIndex + 1, 0, history);
+        }
+      }
+
       this.menuTree = groups.filter((g) => g.children && g.children.length > 0);
       this.loaded = true;
     },
