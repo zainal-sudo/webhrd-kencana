@@ -62,10 +62,22 @@ export const usePermissionStore = defineStore("permission", {
       // Urutan transaksi di sidebar tidak bergantung pada men_id database.
       const transactionOrder = ["frmAbsensi", "frmImportAbsensi", "frmIjin"];
       const rank = (key: string) => {
+        // SP / SPL selalu terakhir, setelah menu transaksi lainnya.
+        if (key === "frmSP") return transactionOrder.length + 1;
         const index = transactionOrder.indexOf(key);
         return index === -1 ? transactionOrder.length : index;
       };
       byKey.get("transaksi")?.children?.sort((a, b) => rank(a.key) - rank(b.key));
+      const transaksi = byKey.get("transaksi")?.children;
+      if (transaksi) {
+        const keluarIndex = transaksi.findIndex((m) => m.key === "frmKeluar");
+        if (keluarIndex !== -1) {
+          const [keluar] = transaksi.splice(keluarIndex, 1);
+          const mutasiIndex = transaksi.findIndex((m) => m.key === "frmMutasiKaryawan");
+          const spIndex = transaksi.findIndex((m) => m.key === "frmSP");
+          transaksi.splice(mutasiIndex !== -1 ? mutasiIndex + 1 : spIndex !== -1 ? spIndex : transaksi.length, 0, keluar);
+        }
+      }
 
       this.menuTree = groups.filter((g) => g.children && g.children.length > 0);
       this.loaded = true;
