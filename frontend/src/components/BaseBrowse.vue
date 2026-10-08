@@ -824,6 +824,10 @@ onActivated(() => {
   top: 0;
   z-index: 2;
 }
+.browse-table th.num-col,
+.browse-table th.action-col {
+  text-align: center;
+}
 .browse-table th.sortable {
   cursor: pointer;
   user-select: none;

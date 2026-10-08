@@ -312,7 +312,7 @@ watch(
           <legend>Nilai Karyawan ({{ baris.filter((b) => b.nik).length }} orang)</legend>
           <table class="grid-tbl">
             <thead>
-              <tr><th style="width: 30px">No</th><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Bagian</th><th style="width: 70px">Nilai</th><th style="width: 60px">Krit.</th><th>Keterangan</th><th style="width: 50px">Aksi</th></tr>
+              <tr><th style="width: 30px; text-align: center">No</th><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Bagian</th><th style="width: 70px">Nilai</th><th style="width: 60px">Krit.</th><th>Keterangan</th><th style="width: 50px; text-align: center">Aksi</th></tr>
             </thead>
             <tbody>
               <tr v-for="(b, i) in baris" :key="i">

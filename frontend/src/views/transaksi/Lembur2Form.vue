@@ -157,7 +157,7 @@ onMounted(() => {
         <legend>Daftar Tanggal ({{ baris.filter((b) => b.tanggal).length }} SPL)</legend>
         <table class="grid-tbl">
           <thead>
-            <tr><th style="width: 30px">No</th><th style="width: 130px">Tanggal</th><th style="width: 100px">Jam Mulai</th><th style="width: 100px">Jam Akhir</th><th>Keterangan (= Jenis Kerja)</th><th style="width: 70px">Panggil</th><th style="width: 50px">Aksi</th></tr>
+            <tr><th style="width: 30px; text-align: center">No</th><th style="width: 130px">Tanggal</th><th style="width: 100px">Jam Mulai</th><th style="width: 100px">Jam Akhir</th><th>Keterangan (= Jenis Kerja)</th><th style="width: 70px">Panggil</th><th style="width: 50px; text-align: center">Aksi</th></tr>
           </thead>
           <tbody>
             <tr v-for="(b, i) in baris" :key="i">

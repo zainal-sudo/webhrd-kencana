@@ -246,7 +246,7 @@ async function bersihkan() {
 
           <table v-if="perHari.length" class="mini mt">
             <thead>
-              <tr><th>Tanggal</th><th style="width: 110px">Jumlah Scan</th><th style="width: 150px">Aksi</th></tr>
+              <tr><th>Tanggal</th><th style="width: 110px">Jumlah Scan</th><th style="width: 150px; text-align: center">Aksi</th></tr>
             </thead>
             <tbody>
               <tr v-for="d in perHari" :key="d.tanggal">
