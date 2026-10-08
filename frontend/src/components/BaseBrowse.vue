@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onActivated, watch } from "vue";
+import { ref, shallowRef, reactive, computed, onMounted, onActivated, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -112,6 +112,7 @@ const sortBy = ref<string | null>(null);
 const sortDir = ref<"asc" | "desc" | null>(null);
 const filterSets = reactive<Record<string, string[]>>({});
 const openFilterKey = ref<string | null>(null);
+const filterAnchor = shallowRef<HTMLElement | null>(null);
 
 const hasActiveFilters = computed(() =>
   Object.values(filterSets).some((arr) => Array.isArray(arr) && arr.length > 0)
@@ -153,8 +154,9 @@ function clearFilters() {
   fetchData();
 }
 
-function toggleFilterPopup(col: BrowseColumn) {
+function toggleFilterPopup(col: BrowseColumn, event: MouseEvent) {
   if (!isFilterable(col)) return;
+  filterAnchor.value = event.currentTarget as HTMLElement;
   openFilterKey.value = openFilterKey.value === col.key ? null : col.key;
 }
 
@@ -494,7 +496,7 @@ onActivated(() => {
           <tr>
             <th class="num-col">No</th>
             <th
-              v-for="(col, idx) in cols"
+              v-for="col in cols"
               :key="col.key"
               :style="{ textAlign: col.align || 'left' }"
               :class="{ sortable: isSortable(col), sorted: sortBy === col.key }"
@@ -513,14 +515,14 @@ onActivated(() => {
                 class="th-filter"
                 :class="{ active: isFilterActive(col) || openFilterKey === col.key }"
                 title="Filter kolom ini"
-                @click.stop="toggleFilterPopup(col)"
+                @click.stop="toggleFilterPopup(col, $event)"
               >
                 <MsIcon :name="isFilterActive(col) ? 'filter_alt' : 'filter_list'" :size="13" />
                 <span v-if="isFilterActive(col)" class="filter-dot"></span>
               </button>
               <ColumnFilterPopup
-                v-if="openFilterKey === col.key"
-                :class="{ 'align-right': idx > cols.length / 2 }"
+                v-if="openFilterKey === col.key && filterAnchor"
+                :anchor="filterAnchor"
                 :col-label="col.label"
                 :selected="filterSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
