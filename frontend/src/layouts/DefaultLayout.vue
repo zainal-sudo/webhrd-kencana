@@ -99,7 +99,8 @@ function toggleFullscreen() {
         <button class="icon-btn" title="Fullscreen" @click="toggleFullscreen">
           <MsIcon name="fullscreen" :size="19" />
         </button>
-        <button class="icon-btn" :title="dark ? 'Mode Terang' : 'Mode Gelap'" @click="toggle">
+        <button class="icon-btn" :title="dark ? 'Mode Terang' : 'Mode Gelap'"
+          :aria-label="dark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'" :aria-pressed="dark" @click="toggle">
           <MsIcon :name="dark ? 'light_mode' : 'dark_mode'" :size="19" />
         </button>
 

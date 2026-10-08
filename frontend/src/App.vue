@@ -7,12 +7,15 @@ import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import MsIcon from "@/components/MsIcon.vue";
+import { useThemeToggle } from "@/composables/useTheme";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const permissionStore = usePermissionStore();
 const tabsStore = useTabsStore();
+// Terapkan preferensi tema sejak awal, termasuk pada layout Login.
+useThemeToggle();
 
 const layout = computed(() => (route.meta?.layout === "BlankLayout" ? BlankLayout : DefaultLayout));
 

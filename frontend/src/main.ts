@@ -9,6 +9,7 @@ import vuetify from "./plugins/vuetify";
 
 import "./assets/main.css";
 import "./assets/design-system.css";
+import "./assets/theme.css";
 
 const app = createApp(App);
 const pinia = createPinia();

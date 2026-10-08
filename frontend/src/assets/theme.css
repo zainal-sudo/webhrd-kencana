@@ -1,0 +1,182 @@
+/* Light mode mempertahankan warna lama. Dark mode juga berlaku pada overlay
+   yang di-Teleport ke body. !important digunakan untuk warna legacy scoped,
+   bukan untuk mengubah ukuran/layout komponen. */
+:root { color-scheme: light; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ds-primary: #93c5fd;
+  --ds-primary-dark: #29466b;
+  --ds-primary-darker: #dbeafe;
+  --ds-primary-light: #bfdbfe;
+  --ds-primary-50: #1d3451;
+  --ds-primary-100: #29466b;
+  --ds-primary-200: #46648b;
+  --ds-primary-lighten-1: #29466b;
+  --ds-primary-darken-1: #244b89;
+  --ds-bg: #0f1724;
+  --ds-surface: #172334;
+  --ds-surface-raised: #1d2b3e;
+  --ds-surface-inset: #243449;
+  --ds-surface-variant: #243449;
+  --ds-surface-tabbar: #1a293d;
+  --ds-sidebar-bg: #111e30;
+  --ds-sidebar-telemetry: #1a293d;
+  --ds-border: #52647d;
+  --ds-border-light: #34475f;
+  --ds-border-inset-edge: #52647d;
+  --ds-text: #e2e8f0;
+  --ds-on-surface: #e2e8f0;
+  --ds-text-secondary: #bac7d9;
+  --ds-text-muted: #9eafc5;
+  --ds-text-disabled: #7d8ea5;
+  --ds-success: #6ee7b7;
+  --ds-info: #93c5fd;
+  --ds-warning: #fcd34d;
+  --ds-error: #fca5a5;
+  --ds-action: #315ea8;
+  --ds-row-alt: #223248;
+  --ds-row-hover: #2d4665;
+  --ds-table-heading: #243d5b;
+  --ds-dirty-bg: #504120;
+}
+
+/* Card/form utama dan popup. */
+:root[data-theme="dark"] :is(
+  .fs, .card, .card-body, .personal-details, .foto-section, .foto-prev,
+  .grid-wrap, .col-filter-popup, .schedule-menu, .search-box, .period-fields,
+  .periode, .login-card, .dlg, .dlg-body, .lookup-dialog, .stat-card,
+  .karyawan-card, .lookup-panel, .bagian-list, .kpi, .modul-group, .modul-item,
+  .cfp-search, .ds-panel-body
+) {
+  background: var(--ds-surface-raised) !important;
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] .tab-panel:not(.panel-pribadi) {
+  background: var(--ds-surface-raised) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] :is(.panel-karyawan, .panel-keluarga) {
+  background: transparent !important;
+}
+:root[data-theme="dark"] :is(.toolbar, .browse-foot, .form-footer, .crumbs, .page-head, .card-head, .dlg-head, .bar-top) {
+  background: var(--ds-surface-variant) !important;
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border) !important;
+}
+
+/* Native input: checkbox/radio mempertahankan tampilan checked. */
+:root[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background-color: var(--ds-surface-raised) !important;
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+  color: var(--ds-text-muted);
+  opacity: 1;
+}
+:root[data-theme="dark"] :is(input, select, textarea):disabled,
+:root[data-theme="dark"] input[readonly] {
+  background-color: var(--ds-surface-inset) !important;
+  color: var(--ds-text-secondary) !important;
+}
+:root[data-theme="dark"] :is(input, select, textarea):focus {
+  border-color: var(--ds-primary) !important;
+}
+:root[data-theme="dark"] input:is([type="checkbox"], [type="radio"]) {
+  accent-color: var(--ds-primary);
+}
+
+/* Table bersama, table input, detail dan editable grid. */
+:root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) :is(th, td) {
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border-light) !important;
+}
+:root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) th {
+  background: var(--ds-table-heading) !important;
+}
+:root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) tbody td {
+  background: var(--ds-surface-raised) !important;
+}
+:root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) tbody tr:nth-child(even) td {
+  background: var(--ds-row-alt) !important;
+}
+:root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) tbody tr:hover td {
+  background: var(--ds-row-hover) !important;
+}
+:root[data-theme="dark"] table.grid tfoot td {
+  background: var(--ds-table-heading) !important;
+}
+:root[data-theme="dark"] table.grid tbody td.dirty,
+:root[data-theme="dark"] table.grid td.dirty :is(input, .txt) {
+  background: var(--ds-dirty-bg) !important;
+}
+
+/* Controls/labels và navigation. */
+:root[data-theme="dark"] :is(
+  .field label, .fld, .period-fields label, .periode label, .fs legend,
+  .flabel, .schedule-label, .cfp-head, .module-title, .tool-title,
+  .page-head h1, .row span, .stat-value, .stat-title, .section-title
+) { color: var(--ds-primary) !important; }
+:root[data-theme="dark"] :is(
+  .hint, .empty, .loading, .state-cell, .module-sub, .tool-sub, .foot-info,
+  .page-info, .cfp-caption, .cfp-state, .count, .note, .crumb.current,
+  .dd-head small, .login-foot, .foto-placeholder, .schedule-empty, .kpi small,
+  .schedule-option-text small, .page-head p
+) { color: var(--ds-text-secondary) !important; }
+:root[data-theme="dark"] :is(.tab-btn, .page-btn, .tool-btn.ghost, .form-btn.ghost, .btn:not(.primary):not(.danger), .btn-mini:not(.primary):not(.danger), .mini, .add) {
+  background: var(--ds-surface-raised) !important;
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] :is(.tab-btn.active, .page-btn.active, .form-tabs button.active, .btn.primary, .btn-mini.primary, .tool-btn.primary, .form-btn.primary, .cfp-btn.primary, .ds-toolbar-btn.primary, .ds-fbtn.primary) {
+  background: var(--ds-action) !important;
+  color: #fff !important;
+  border-color: var(--ds-action) !important;
+}
+:root[data-theme="dark"] .form-tabs button:not(.active) {
+  background: var(--ds-surface-inset) !important;
+  color: var(--ds-text) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] :is(.tab-action, .tab-close, .pass-toggle, .row-btn.edit, .lnk, .cfp-link) {
+  color: var(--ds-primary) !important;
+}
+:root[data-theme="dark"] :is(.schedule-chip, .tool-btn.active) {
+  background: var(--ds-row-hover) !important;
+  color: var(--ds-text) !important;
+}
+:root[data-theme="dark"] :is(.cfp-item, .schedule-option, .schedule-select) {
+  color: var(--ds-text) !important;
+}
+:root[data-theme="dark"] .schedule-select {
+  background: var(--ds-surface-raised) !important;
+  border-color: var(--ds-border) !important;
+}
+:root[data-theme="dark"] :is(.cfp-item, .schedule-option):hover {
+  background: var(--ds-row-hover) !important;
+}
+:root[data-theme="dark"] .login-error {
+  background: #482a32 !important;
+  color: var(--ds-error) !important;
+  border-color: #9d5867 !important;
+}
+:root[data-theme="dark"] .report-note {
+  background: #403823 !important;
+  color: var(--ds-warning) !important;
+  border-color: #877443 !important;
+}
+:root[data-theme="dark"] .blank-layout {
+  background: var(--ds-bg) !important;
+}
+:root[data-theme="dark"] .modul-item:hover {
+  background: var(--ds-row-hover) !important;
+}
+:root[data-theme="dark"] .ds-tooltip::after {
+  background: var(--ds-surface-inset);
+  color: var(--ds-text);
+}
+:root[data-theme="dark"] :is(.cfp-state.error, .row-btn.del, .mini.clear) {
+  color: var(--ds-error) !important;
+}
