@@ -503,7 +503,9 @@ onActivated(() => {
               :title="isSortable(col) ? 'Klik untuk mengurutkan' : ''"
               @click="toggleSort(col)"
             >
+              <div class="th-content">
               <span class="th-label">{{ col.label }}</span>
+              <span v-if="isSortable(col) || isFilterable(col)" class="th-controls">
               <MsIcon
                 v-if="isSortable(col)"
                 :name="sortIcon(col)"
@@ -520,6 +522,8 @@ onActivated(() => {
                 <MsIcon :name="isFilterActive(col) ? 'filter_alt' : 'filter_list'" :size="13" />
                 <span v-if="isFilterActive(col)" class="filter-dot"></span>
               </button>
+              </span>
+              </div>
               <ColumnFilterPopup
                 v-if="openFilterKey === col.key && filterAnchor"
                 :anchor="filterAnchor"
@@ -840,12 +844,24 @@ onActivated(() => {
 .browse-table th.sorted {
   background: #31496f;
 }
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .th-label {
-  vertical-align: middle;
+  flex: 1;
+  text-align: inherit;
+}
+.th-controls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
 }
 .th-sort {
-  vertical-align: middle;
-  margin-left: 4px;
   opacity: 0.55;
 }
 th.sorted .th-sort {
@@ -857,12 +873,10 @@ th.sorted .th-sort {
   justify-content: center;
   width: 20px;
   height: 20px;
-  margin-left: 2px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  vertical-align: middle;
   position: relative;
   border-radius: 3px;
 }
