@@ -133,7 +133,7 @@ function toggleFullscreen() {
         <TabBar />
         <div class="content-area">
           <router-view v-slot="{ Component }">
-            <keep-alive :max="10">
+            <keep-alive :key="tabsStore.cacheVersion" :max="10">
               <component :is="Component" :key="$route.fullPath" />
             </keep-alive>
           </router-view>

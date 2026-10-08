@@ -2,10 +2,12 @@
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 
 const route = useRoute();
 const router = useRouter();
 const tabsStore = useTabsStore();
+const { closeAllTabs } = useTabNavigation();
 
 function activate(tabId: string) {
   tabsStore.setActiveTab(tabId);
@@ -72,7 +74,7 @@ function refresh() {
       <button class="tab-action" title="Tutup tab lain" @click="tabsStore.closeOtherTabs(tabsStore.activeTabId)">
         <MsIcon name="close_fullscreen" :size="15" />
       </button>
-      <button class="tab-action" title="Tutup semua tab" @click="tabsStore.closeAllTabs()">
+      <button class="tab-action" title="Tutup semua tab" @click="closeAllTabs">
         <MsIcon name="tab_close" :size="15" />
       </button>
     </div>

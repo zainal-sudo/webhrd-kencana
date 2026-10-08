@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
+import { useTabsStore } from "@/stores/tabsStore";
 
 /**
  * Rute web HRD Kencana.
@@ -143,9 +144,25 @@ router.beforeEach(async (to) => {
   return true;
 });
 
-router.afterEach((to) => {
+router.afterEach((to, _from, failure) => {
+  if (failure) return;
   const title = (to.meta.title as string) || "Web HRD Kencana";
   document.title = title === "Web HRD Kencana" ? title : `${title} | Web HRD Kencana`;
+  if (to.meta.layout === "BlankLayout" || to.meta.requiresAuth === false || !useAuthStore().isAuthenticated) return;
+  const tabs = useTabsStore();
+  tabs.initDefaultTabs();
+  const id = tabs.generateTabId(to.path, to.query);
+  if (tabs.tabs.some((tab) => tab.id === id)) {
+    tabs.setActiveTab(id);
+  } else {
+    tabs.openTab({
+      title,
+      path: to.path,
+      query: { ...to.query },
+      icon: "mdi mdi-circle-small",
+      closable: to.path !== "/dashboard",
+    });
+  }
 });
 
 export default router;

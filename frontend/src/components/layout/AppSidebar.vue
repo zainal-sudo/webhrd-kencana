@@ -5,11 +5,13 @@ import MsIcon from "@/components/MsIcon.vue";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { normalizeIcon } from "@/utils/icon";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 
 const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 const tabsStore = useTabsStore();
+const { closeAllTabs } = useTabNavigation();
 
 const collapsed = ref(false);
 const openGroups = ref<Record<string, boolean>>({});
@@ -102,7 +104,7 @@ function go(routePath?: string) {
     </nav>
 
     <div class="sidebar-foot">
-      <button class="foot-item" title="Tutup semua tab" @click="tabsStore.closeAllTabs()">
+      <button class="foot-item" title="Tutup semua tab" @click="closeAllTabs">
         <MsIcon name="tab" :size="16" />
         <span v-if="!collapsed">Tutup Semua Tab</span>
       </button>

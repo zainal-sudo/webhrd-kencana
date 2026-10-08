@@ -14,6 +14,7 @@ export const useTabsStore = defineStore("tabs", {
   state: () => ({
     tabs: [] as TabItem[],
     activeTabId: "" as string,
+    cacheVersion: 0,
   }),
 
   getters: {
@@ -22,10 +23,15 @@ export const useTabsStore = defineStore("tabs", {
 
   actions: {
     generateTabId(path: string, query?: Record<string, any>): string {
-      if (query?.id) {
-        return `${path}?id=${query.id}`;
+      const params = new URLSearchParams();
+      for (const key of Object.keys(query || {}).sort()) {
+        const value = query![key];
+        for (const item of Array.isArray(value) ? value : [value]) {
+          if (item !== undefined) params.append(key, item === null ? "" : String(item));
+        }
       }
-      return path;
+      const suffix = params.toString();
+      return suffix ? `${path}?${suffix}` : path;
     },
 
     openTab(tab: Omit<TabItem, "id" | "timestamp">) {
@@ -69,12 +75,15 @@ export const useTabsStore = defineStore("tabs", {
     },
 
     closeAllTabs() {
-      this.tabs = this.tabs.filter((t) => !t.closable);
-      if (this.tabs.length > 0) {
-        this.activeTabId = this.tabs[0].id;
-      } else {
-        this.activeTabId = "";
-      }
+      const dashboard = this.tabs.find((t) => t.path === "/dashboard");
+      this.tabs = [];
+      this.openTab({
+        title: "Dashboard",
+        path: "/dashboard",
+        icon: dashboard?.icon || "mdi mdi-view-dashboard-outline",
+        closable: false,
+      });
+      this.cacheVersion += 1;
     },
 
     closeOtherTabs(tabId: string) {
@@ -102,6 +111,7 @@ export const useTabsStore = defineStore("tabs", {
     resetTabs() {
       this.tabs = [];
       this.activeTabId = "";
+      this.cacheVersion += 1;
     },
   },
 });
