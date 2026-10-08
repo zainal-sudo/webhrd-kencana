@@ -16,6 +16,9 @@ const props = withDefaults(
     hint?: string;
     returnPath?: string;
     saveLabel?: string;
+    /** Opsional: hanya form yang memasang callback ini memiliki reset data. */
+    resetFn?: () => boolean | void;
+    resetDisabled?: boolean;
   }>(),
   {
     subtitle: "",
@@ -25,6 +28,8 @@ const props = withDefaults(
     hint: "",
     returnPath: "",
     saveLabel: "Simpan",
+    resetFn: undefined,
+    resetDisabled: false,
   }
 );
 
@@ -59,6 +64,13 @@ function closeTab() {
   if (target) {
     router.push(target);
   }
+}
+
+function doReset() {
+  if (props.resetFn) {
+    if (saving.value || props.resetDisabled || props.resetFn() === false) return;
+  }
+  showSuccess.value = false;
 }
 
 function goCrumb(path?: string) {
@@ -111,7 +123,7 @@ function goCrumb(path?: string) {
       </div>
       <div class="footer-actions">
         <slot name="footer-actions">
-          <button class="form-btn ghost" @click="showSuccess = false">Reset</button>
+          <button class="form-btn ghost" :disabled="!!resetFn && (saving || resetDisabled)" @click="doReset">Reset</button>
           <button class="form-btn primary" :disabled="saving" @click="doSave">
             <MsIcon v-if="saving" name="progress_activity" :size="15" />
             <MsIcon v-else name="save" :size="15" />

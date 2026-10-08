@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, shallowRef, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -35,6 +35,64 @@ const keahlian = ref<any[]>([]);
 const jadwalTerpilih = ref<number[]>([]);
 const pkwt = ref<any[]>([]);
 const fotoBase64 = ref("");
+const fotoInput = ref<HTMLInputElement | null>(null);
+let fotoReader: FileReader | null = null;
+
+interface FormSnapshot {
+  values: Record<string, any>;
+  anak: any[];
+  pendidikan: any[];
+  pengalaman: any[];
+  keahlian: any[];
+  jadwal: number[];
+  pkwt: any[];
+  foto: string;
+}
+
+function captureForm(): FormSnapshot {
+  // Data form berasal dari JSON API; clone agar snapshot tidak ikut berubah.
+  return JSON.parse(JSON.stringify({
+    values,
+    anak: anak.value,
+    pendidikan: pendidikan.value,
+    pengalaman: pengalaman.value,
+    keahlian: keahlian.value,
+    jadwal: jadwalTerpilih.value,
+    pkwt: pkwt.value,
+    foto: fotoBase64.value,
+  }));
+}
+
+const resetSnapshot = shallowRef<FormSnapshot | null>(isEdit.value ? null : captureForm());
+
+function resetForm(): boolean {
+  const snapshot = resetSnapshot.value;
+  if (memuat.value || !snapshot) return false;
+  const changed = JSON.stringify(captureForm()) !== JSON.stringify(snapshot)
+    || !!fotoInput.value?.files?.length;
+  if (changed && !window.confirm(isEdit.value
+    ? "Batalkan seluruh perubahan yang belum disimpan dan kembalikan data awal karyawan?"
+    : "Hapus seluruh input dan kembalikan form Tambah Karyawan ke kondisi awal?")) return false;
+
+  // Jangan biarkan pembacaan foto yang belum selesai mengisi preview lagi.
+  const reader = fotoReader;
+  fotoReader = null;
+  reader?.abort();
+  const restored: FormSnapshot = JSON.parse(JSON.stringify(snapshot));
+  for (const key of Object.keys(values)) delete values[key];
+  Object.assign(values, restored.values);
+  anak.value = restored.anak;
+  pendidikan.value = restored.pendidikan;
+  pengalaman.value = restored.pengalaman;
+  keahlian.value = restored.keahlian;
+  jadwalTerpilih.value = restored.jadwal;
+  pkwt.value = restored.pkwt;
+  fotoBase64.value = restored.foto;
+  if (fotoInput.value) fotoInput.value.value = "";
+  jadwalMenu.value = false;
+  cariJadwal.value = "";
+  return true;
+}
 const memuat = ref(false);
 const activeTab = ref("pribadi");
 const tabContent = ref<HTMLElement | null>(null);
@@ -131,6 +189,7 @@ onMounted(async () => {
       keahlian.value = d.keahlian || [];
       jadwalTerpilih.value = (d.jadwal || []).map((j: any) => Number(j.JdId));
       pkwt.value = d.pkwt || [];
+      resetSnapshot.value = captureForm();
     } catch (e) {
       toast.error(getErrorMessage(e, "Gagal memuat data karyawan"));
     }
@@ -199,11 +258,21 @@ function onPilihFoto(ev: Event) {
     return;
   }
   const reader = new FileReader();
+  fotoReader?.abort();
+  fotoReader = reader;
   reader.onload = () => {
-    fotoBase64.value = String(reader.result || "");
+    if (fotoReader === reader) {
+      fotoBase64.value = String(reader.result || "");
+      fotoReader = null;
+    }
   };
   reader.readAsDataURL(file);
 }
+onUnmounted(() => {
+  const reader = fotoReader;
+  fotoReader = null;
+  reader?.abort();
+});
 </script>
 
 <template>
@@ -217,6 +286,8 @@ function onPilihFoto(ev: Event) {
       { label: isEdit ? 'Edit' : 'Tambah' },
     ]"
     :save-fn="simpan"
+    :reset-fn="resetForm"
+    :reset-disabled="memuat || !resetSnapshot"
     return-path="/master/karyawan"
   >
     <template #form-content>
@@ -375,7 +446,7 @@ function onPilihFoto(ev: Event) {
             </div>
             <div class="foto-info">
               <label class="flabel">Upload foto (maks. 300 KB, JPEG)</label>
-              <input type="file" accept="image/*" class="file" @change="onPilihFoto" />
+              <input ref="fotoInput" type="file" accept="image/*" class="file" @change="onPilihFoto" />
               <span class="hint">
                 {{
                   isEdit
