@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onActivated } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -48,6 +48,14 @@ function open(node: { label: string; route?: string; icon?: string }) {
 }
 
 onMounted(load);
+let firstActivation = true;
+onActivated(() => {
+  if (firstActivation) {
+    firstActivation = false;
+    return;
+  }
+  load();
+});
 </script>
 
 <template>

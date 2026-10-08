@@ -42,7 +42,7 @@ const props = withDefaults(
     exportName?: string;
     /** parameter query tambahan yang selalu dikirim (mis. { detail: 1 }) */
     extraQuery?: Record<string, any>;
-    /** Muat ulang saat kembali ke browse yang disimpan keep-alive (opt-in). */
+    /** Muat ulang saat kembali ke browse keep-alive; aktif secara default. */
     refreshOnActivate?: boolean;
   }>(),
   {
@@ -60,7 +60,7 @@ const props = withDefaults(
     exportable: true,
     exportName: "",
     extraQuery: () => ({}),
-    refreshOnActivate: false,
+    refreshOnActivate: true,
   }
 );
 

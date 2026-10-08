@@ -185,6 +185,7 @@ async function simpan() {
       rows: payload,
     });
     toast.success(data.message || `${data.data?.jumlah ?? 0} baris disimpan`);
+    await muat();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan"));
   } finally {
