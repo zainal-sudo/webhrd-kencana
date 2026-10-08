@@ -215,19 +215,20 @@ async function lihatDetail(nik: string) {
             <v-window-item value="didik">
               <table class="mini">
                 <thead>
-                  <tr><th>Jenjang</th><th>Nama Sekolah</th><th>Fakultas</th><th>Jurusan</th><th>Ijazah</th><th>Masuk</th><th>Lulus</th></tr>
+                  <tr><th>Jenjang Pendidikan</th><th>Nama Sekolah</th><th>Jurusan</th><th>Fakultas</th><th>Berijazah</th><th>Tahun Masuk</th><th>Tahun Lulus</th><th>Catatan</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="(d, i) in pendidikan" :key="i">
                     <td>{{ d.kard_jenjang }}</td>
                     <td>{{ d.kard_nama }}</td>
-                    <td>{{ d.kard_fakultas }}</td>
                     <td>{{ d.kard_jurusan }}</td>
+                    <td>{{ d.kard_fakultas }}</td>
                     <td>{{ d.kard_ijazah }}</td>
                     <td>{{ d.kard_tahunmasuk }}</td>
                     <td>{{ d.kard_tahunlulus }}</td>
+                    <td class="education-note">{{ d.kard_catatan || '-' }}</td>
                   </tr>
-                  <tr v-if="!pendidikan.length"><td colspan="7" class="empty">Belum ada riwayat pendidikan</td></tr>
+                  <tr v-if="!pendidikan.length"><td colspan="8" class="empty">Belum ada riwayat pendidikan</td></tr>
                 </tbody>
               </table>
             </v-window-item>
@@ -285,6 +286,10 @@ async function lihatDetail(nik: string) {
 </template>
 
 <style scoped>
+table.mini td.education-note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .row-actions {
   display: flex;
   gap: 6px;
