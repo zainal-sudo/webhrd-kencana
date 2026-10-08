@@ -12,7 +12,6 @@ const endpoint = "/master/karyawan";
 const formPath = "/master/karyawan/form";
 
 const columns: BrowseColumn[] = [
-  { key: "Foto", label: "Foto", type: "image", width: "50px", sortable: false, filterable: false },
   { key: "Nik", label: "NIK", width: "120px" },
   { key: "Kd_Abs", label: "Kode Absensi", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },
