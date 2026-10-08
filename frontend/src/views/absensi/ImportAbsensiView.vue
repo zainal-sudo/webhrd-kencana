@@ -287,10 +287,16 @@ async function bersihkan() {
 
 <style scoped>
 .panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: var(--ds-surface, #f0f3f8);
 }
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -360,6 +366,9 @@ async function bersihkan() {
 }
 .body {
   padding: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .fs {
   border: 1px solid var(--ds-border, #b0b8c4);

@@ -333,9 +333,11 @@ function toggleFullscreen() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 .content-area {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 10px;
   background: var(--ds-bg, #e8ecf1);

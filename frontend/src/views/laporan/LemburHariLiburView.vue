@@ -22,7 +22,7 @@ const columns: BrowseColumn[] = [
 </script>
 
 <template>
-  <div>
+  <div class="report-page">
     <p class="report-note">Tanggal mengikuti Master Hari Libur (tharilibur), hanya absensi yang memiliki scan. Lama = Scan 2 − Scan 1; Lama Lembur = Jam Selesai − Jam Mulai. No Ijin dan Verifikasi sementara kosong.</p>
     <BaseBrowse
       module-title="Laporan Lembur Hari Libur"
@@ -41,5 +41,8 @@ const columns: BrowseColumn[] = [
 </template>
 
 <style scoped>
+.report-page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.report-page :deep(.browse-panel) { flex: 1; height: auto; min-height: 0; }
+.report-note { flex-shrink: 0; }
 .report-note { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--ds-border, #b0b8c4); background: #fffbeb; font-size: 12px; color: #854d0e; }
 </style>

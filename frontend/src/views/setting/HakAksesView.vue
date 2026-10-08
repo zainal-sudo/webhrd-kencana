@@ -115,6 +115,7 @@ async function simpan() {
       </button>
     </div>
 
+    <div class="permission-body">
     <div v-if="memuat" class="loading">Memuat...</div>
 
     <fieldset v-for="g in grup" v-else :key="g.modul" class="fs">
@@ -166,10 +167,14 @@ async function simpan() {
         </tbody>
       </table>
     </fieldset>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.page-head, .bar-top { flex-shrink: 0; }
+.permission-body { flex: 1; min-height: 0; overflow: auto; }
 .bar-top {
   display: flex;
   align-items: flex-end;
@@ -224,6 +229,9 @@ async function simpan() {
   font-size: 11px;
 }
 .tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: var(--ds-surface-variant, #e0e4ea);
   border: 1px solid var(--ds-border, #b0b8c4);
   padding: 4px 7px;

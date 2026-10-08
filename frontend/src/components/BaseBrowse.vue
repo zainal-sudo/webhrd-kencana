@@ -83,6 +83,14 @@ const page = ref(1);
 const perPage = ref(props.perPage);
 const total = ref(0);
 const lastPage = ref(1);
+const tableWrap = ref<HTMLElement | null>(null);
+const pageInput = ref(1);
+const visiblePages = computed(() => {
+  const count = Math.min(5, lastPage.value);
+  const start = Math.max(1, Math.min(page.value - 2, lastPage.value - count + 1));
+  return Array.from({ length: count }, (_, i) => start + i);
+});
+watch(page, (value) => { pageInput.value = value; });
 
 // Kolom aktif: dinamis (bila `columnsBuilder` diberikan) atau statis.
 const cols = computed<BrowseColumn[]>(() => {
@@ -201,6 +209,7 @@ async function fetchData() {
       page.value = p.page;
       perPage.value = p.per_page;
       lastPage.value = p.last_page || 1;
+      pageInput.value = page.value;
     }
   } catch (e: any) {
     toast.error(getErrorMessage(e));
@@ -281,8 +290,18 @@ async function exportExcel() {
 }
 
 function goToPage(p: number) {
-  page.value = p;
+  if (loading.value || !Number.isFinite(p)) return;
+  const target = Math.max(1, Math.min(lastPage.value, Math.trunc(p)));
+  pageInput.value = target;
+  if (target === page.value) return;
+  page.value = target;
+  if (tableWrap.value) tableWrap.value.scrollTop = 0;
   fetchData();
+}
+
+function jumpToPage() {
+  goToPage(Number(pageInput.value));
+  pageInput.value = page.value;
 }
 
 function addNew() {
@@ -469,7 +488,7 @@ onActivated(() => {
     </div>
 
     <!-- Table -->
-    <div class="table-wrap">
+    <div ref="tableWrap" class="table-wrap">
       <table class="browse-table" :style="{ minWidth: tableMinWidth }">
         <thead>
           <tr>
@@ -601,21 +620,42 @@ onActivated(() => {
         <strong>{{ total }}</strong> data
       </div>
       <div class="pager">
+        <button class="page-btn" title="Halaman pertama" aria-label="Halaman pertama"
+          :disabled="loading || page <= 1" @click="goToPage(1)">
+          <MsIcon name="keyboard_double_arrow_left" :size="14" />
+        </button>
         <button
           class="page-btn"
-          :disabled="page <= 1"
+          title="Halaman sebelumnya"
+          aria-label="Halaman sebelumnya"
+          :disabled="loading || page <= 1"
           @click="goToPage(page - 1)"
         >
           <MsIcon name="chevron_left" :size="14" />
         </button>
-        <span class="page-info">Hal {{ page }} / {{ lastPage || 1 }}</span>
+        <button v-for="p in visiblePages" :key="p" class="page-btn page-number"
+          :class="{ active: p === page }" :aria-current="p === page ? 'page' : undefined"
+          :aria-label="`Halaman ${p}`" :disabled="loading" @click="goToPage(p)">{{ p }}</button>
         <button
           class="page-btn"
-          :disabled="page >= lastPage"
+          title="Halaman berikutnya"
+          aria-label="Halaman berikutnya"
+          :disabled="loading || page >= lastPage"
           @click="goToPage(page + 1)"
         >
           <MsIcon name="chevron_right" :size="14" />
         </button>
+        <button class="page-btn" title="Halaman terakhir" aria-label="Halaman terakhir"
+          :disabled="loading || page >= lastPage" @click="goToPage(lastPage)">
+          <MsIcon name="keyboard_double_arrow_right" :size="14" />
+        </button>
+        <label class="page-info page-jump">
+          <span>Hal</span>
+          <input v-model.number="pageInput" type="number" min="1" :max="lastPage"
+            :disabled="loading" aria-label="Lompat ke halaman" @change="jumpToPage"
+            @keydown.enter.prevent="jumpToPage" />
+          <span>/ {{ lastPage || 1 }}</span>
+        </label>
       </div>
     </div>
 
@@ -644,12 +684,16 @@ onActivated(() => {
 
 <style scoped>
 .browse-panel {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: var(--ds-surface, #f0f3f8);
   display: flex;
   flex-direction: column;
 }
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -760,6 +804,8 @@ onActivated(() => {
 .table-wrap {
   overflow: auto;
   flex: 1;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 .browse-table {
   width: 100%;
@@ -988,6 +1034,9 @@ tbody tr:hover td.action-col {
   }
 }
 .browse-foot {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1003,6 +1052,7 @@ tbody tr:hover td.action-col {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .page-btn {
   width: 26px;
@@ -1022,5 +1072,24 @@ tbody tr:hover td.action-col {
 .page-info {
   font-size: 11px;
   color: #55637a;
+}
+.page-btn.active {
+  background: var(--ds-primary, #3b5998);
+  border-color: var(--ds-primary, #3b5998);
+  color: #fff;
+  font-weight: 700;
+}
+.page-jump {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.page-jump input {
+  width: 52px;
+  height: 24px;
+  border: 1px solid var(--ds-border, #b0b8c4);
+  background: #fff;
+  text-align: center;
+  color: var(--ds-on-surface, #1b2d4a);
 }
 </style>

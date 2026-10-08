@@ -322,7 +322,7 @@ onMounted(() => {
         :rows="tampilRows"
         :loading="loading"
         primary-key="nik"
-        max-height="66vh"
+        max-height="100%"
         sortable
         show-total
         @update="onUpdate"
@@ -336,10 +336,16 @@ onMounted(() => {
 
 <style scoped>
 .panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: var(--ds-surface, #f0f3f8);
 }
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -433,6 +439,17 @@ onMounted(() => {
 }
 .body {
   padding: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.body :deep(.grid-wrap) {
+  flex: 1;
+  min-height: 0;
+}
+.empty {
+  flex-shrink: 0;
 }
 .empty {
   text-align: center;

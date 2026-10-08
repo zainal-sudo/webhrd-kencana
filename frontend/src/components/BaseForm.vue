@@ -143,12 +143,16 @@ function goCrumb(path?: string) {
 
 <style scoped>
 .form-panel {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: var(--ds-surface, #f0f3f8);
   display: flex;
   flex-direction: column;
 }
 .crumbs {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -171,6 +175,7 @@ function goCrumb(path?: string) {
   font-weight: 700;
 }
 .form-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -205,8 +210,11 @@ function goCrumb(path?: string) {
 .form-body {
   padding: 14px;
   flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .form-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

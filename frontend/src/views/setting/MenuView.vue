@@ -95,11 +95,16 @@ onMounted(muatDaftar);
 </template>
 
 <style scoped>
+.page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.page-head { flex-shrink: 0; }
 .acts {
   display: flex;
   gap: 6px;
 }
 .fs {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: #fff;
   padding: 8px 12px 12px;
@@ -121,6 +126,9 @@ onMounted(muatDaftar);
   border-collapse: collapse;
 }
 .tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: var(--ds-surface-variant, #e0e4ea);
   border: 1px solid var(--ds-border, #b0b8c4);
   padding: 4px 7px;
