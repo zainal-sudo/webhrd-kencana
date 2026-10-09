@@ -6,11 +6,12 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam, selisihHari } from "@/utils/jam";
+import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 import type { LookupItem } from "@/types";
 
 /**
@@ -262,6 +263,10 @@ async function cekOtorisasi() {
 
 async function simpan(): Promise<string> {
   const terisi = baris.value.filter((b) => String(b.nik || "").trim());
+  terisi.forEach((b, i) => {
+    assertClockTime(b.jam_mulai, `Baris ${i + 1} — Jam Mulai`);
+    assertClockTime(b.jam_akhir, `Baris ${i + 1} — Jam Akhir`);
+  });
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
   if (!values.pabrik) throw new Error("Pabrik wajib dipilih");
   if (!terisi.length) throw new Error("Minimal satu karyawan harus diisi");
@@ -372,8 +377,8 @@ watch(
                   </div>
                 </td>
                 <td><input v-model="b.nama" placeholder="Nama" /></td>
-                <td><input v-model="b.jam_mulai" placeholder="00:00:00" /></td>
-                <td><input v-model="b.jam_akhir" placeholder="00:00:00" /></td>
+                <td><FTime v-model="b.jam_mulai" label="Jam Mulai" compact placeholder="00:00:00" /></td>
+                <td><FTime v-model="b.jam_akhir" label="Jam Akhir" compact placeholder="00:00:00" /></td>
                 <td><input v-model="b.keterangan" placeholder="Keterangan" /></td>
                 <td class="ctr"><input v-model="b.panggilan" type="checkbox" /></td>
                 <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>

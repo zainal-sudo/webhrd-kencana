@@ -4,6 +4,8 @@ import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
+import { assertClockTime } from "@/utils/jam";
 import FSelect from "@/components/fields/FSelect.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FNumber from "@/components/fields/FNumber.vue";
@@ -13,7 +15,7 @@ import { api, getErrorMessage } from "@/api/axios";
 export interface MasterField {
   key: string;
   label: string;
-  type?: "text" | "select" | "date" | "number" | "textarea";
+  type?: "text" | "select" | "date" | "number" | "textarea" | "time";
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -63,6 +65,7 @@ onMounted(async () => {
 
 async function save(): Promise<string> {
   for (const f of props.fields) {
+    if (f.type === "time") assertClockTime(values[f.key], f.label);
     if (f.required && (values[f.key] === null || values[f.key] === undefined || String(values[f.key]).trim() === "")) {
       throw new Error(`${f.label} wajib diisi`);
     }
@@ -108,6 +111,14 @@ const gridCols = computed(() => {
             <div v-for="f in fields" :key="f.key" class="cell" :style="{ gridColumn: `span ${f.span || 1}` }">
               <FText
                 v-if="!f.type || f.type === 'text'"
+                v-model="values[f.key]"
+                :label="f.label"
+                :required="f.required"
+                :disabled="f.disabled || (f.isKey && isEdit)"
+                :placeholder="f.placeholder"
+              />
+              <FTime
+                v-else-if="f.type === 'time'"
                 v-model="values[f.key]"
                 :label="f.label"
                 :required="f.required"

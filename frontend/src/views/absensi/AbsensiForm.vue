@@ -6,10 +6,11 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam, selisihHari } from "@/utils/jam";
+import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 
 /**
  * Form absensi — padanan `ufrmAbsensi`.
@@ -156,6 +157,10 @@ async function cekOtorisasi() {
 }
 
 async function simpan(): Promise<string> {
+  assertClockTime(values.masuk, "Jam Masuk");
+  assertClockTime(values.keluar, "Jam Keluar");
+  assertClockTime(values.scan1, "Scan Masuk");
+  assertClockTime(values.scan2, "Scan Keluar");
   if (!values.nik) throw new Error("Kode absensi wajib diisi");
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
   if (!diformat.value) throw new Error("Otorisasi atasan belum diverifikasi");
@@ -244,16 +249,16 @@ function kembali() {
             menyesuaikan sendiri setelah disimpan.
           </p>
           <div class="grid">
-            <FText v-model="values.masuk" label="Jam Masuk" placeholder="08:00:00" />
-            <FText v-model="values.keluar" label="Jam Keluar" placeholder="16:30:00" />
+            <FTime v-model="values.masuk" label="Jam Masuk" placeholder="08:00:00" />
+            <FTime v-model="values.keluar" label="Jam Keluar" placeholder="16:30:00" />
           </div>
         </fieldset>
 
         <fieldset class="fs">
           <legend>Hasil Scan Mesin</legend>
           <div class="grid">
-            <FText v-model="values.scan1" label="Scan Masuk" placeholder="00:00:00" />
-            <FText v-model="values.scan2" label="Scan Keluar" placeholder="00:00:00" />
+            <FTime v-model="values.scan1" label="Scan Masuk" placeholder="00:00:00" />
+            <FTime v-model="values.scan2" label="Scan Keluar" placeholder="00:00:00" />
             <FText v-model="values.status" label="Status (0/1/2)" type="number" />
             <FText v-model="values.verifikasi" label="Verifikasi (0/1)" type="number" />
           </div>

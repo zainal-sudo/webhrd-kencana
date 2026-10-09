@@ -108,8 +108,8 @@ export const MASTER_DEFS: Record<string, MasterDef> = {
     fields: [
       { key: "jd_id", label: "Kode", type: "number", isKey: true, placeholder: "otomatis" },
       { key: "jd_nama_shift", label: "Nama Shift", required: true },
-      { key: "jd_jamawal", label: "Jam Awal", type: "text", placeholder: "08:00:00" },
-      { key: "jd_jamakhir", label: "Jam Akhir", type: "text", placeholder: "17:00:00" },
+      { key: "jd_jamawal", label: "Jam Awal", type: "time", placeholder: "08:00:00" },
+      { key: "jd_jamakhir", label: "Jam Akhir", type: "time", placeholder: "17:00:00" },
     ],
   },
 

@@ -5,11 +5,12 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam, selisihHari } from "@/utils/jam";
+import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 import type { LookupItem } from "@/types";
 
 /**
@@ -194,6 +195,8 @@ function pilihKaryawan(row: Record<string, any>) {
 }
 
 async function simpan(): Promise<string> {
+  assertClockTime(values.jam, "Jam");
+  if (pakaiJam2.value) assertClockTime(values.jam2, "Jam s/d");
   const niks = baris.value.map((b) => String(b.nik || "").trim()).filter(Boolean);
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
   if (!values.jenis_id) throw new Error("Jenis ijin wajib dipilih");
@@ -290,8 +293,8 @@ watch(
             ]"
           />
           <FText v-model="values.alasan" label="Alasan" placeholder="Alasan ijin" />
-          <FText v-model="values.jam" label="Jam" placeholder="00:00:00" />
-          <FText v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
+          <FTime v-model="values.jam" label="Jam" placeholder="00:00:00" />
+          <FTime v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
         </div>
         <p v-if="!pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
       </fieldset>

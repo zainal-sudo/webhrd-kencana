@@ -5,10 +5,11 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam } from "@/utils/jam";
+import { normJam, assertClockTime } from "@/utils/jam";
 
 /**
  * Form Lembur V2 per NIK — padanan `ufrmLembur2`.
@@ -102,6 +103,10 @@ function hapusBaris(i: number) {
 async function simpan(): Promise<string> {
   const nik = String(values.nik || "").trim();
   const terisi = baris.value.filter((b) => String(b.tanggal || "").trim());
+  terisi.forEach((b, i) => {
+    assertClockTime(b.jam_mulai, `Baris ${i + 1} — Jam Mulai`);
+    assertClockTime(b.jam_akhir, `Baris ${i + 1} — Jam Akhir`);
+  });
   if (!nik) throw new Error("NIK wajib diisi");
   if (!terisi.length) throw new Error("Minimal satu tanggal harus diisi");
 
@@ -162,8 +167,8 @@ onMounted(() => {
             <tr v-for="(b, i) in baris" :key="i">
               <td class="ctr">{{ i + 1 }}</td>
               <td><input v-model="b.tanggal" type="date" /></td>
-              <td><input v-model="b.jam_mulai" placeholder="00:00:00" /></td>
-              <td><input v-model="b.jam_akhir" placeholder="00:00:00" /></td>
+              <td><FTime v-model="b.jam_mulai" label="Jam Mulai" compact placeholder="00:00:00" /></td>
+              <td><FTime v-model="b.jam_akhir" label="Jam Akhir" compact placeholder="00:00:00" /></td>
               <td><input v-model="b.keterangan" placeholder="Uraian pekerjaan lembur" /></td>
               <td class="ctr"><input v-model="b.panggilan" type="checkbox" /></td>
               <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>

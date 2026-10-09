@@ -1,5 +1,28 @@
 /** Utilitas jam — mencerminkan bentuk data di Delphi (TcxTimeEdit) & kolom `time` MySQL. */
 
+/** Mask angka waktu harian; pemisah ditambahkan tanpa mengubah nilai angkanya. */
+export function maskClockTime(value: string): string {
+  return (value.replace(/\D/g, "").slice(0, 6).match(/.{1,2}/g) || []).join(":");
+}
+
+export function clockTimeError(value: unknown, required = false): string {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return required ? "Jam wajib diisi." : "";
+  }
+  const text = String(value).trim();
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(text)) return "Isi jam lengkap dalam format HH:mm:ss.";
+  const [hour, minute, second] = text.split(":").map(Number);
+  return hour! > 23 || minute! > 59 || second! > 59
+    ? "Jam harus 00–23, menit dan detik 00–59."
+    : "";
+}
+
+/** Dipanggil sebelum request Simpan; kosong tetap mengikuti default existing. */
+export function assertClockTime(value: unknown, label: string): void {
+  const error = clockTimeError(value);
+  if (error) throw new Error(`${label}: ${error}`);
+}
+
 /**
  * Normalisasi input jam menjadi "HH:MM:SS".
  * Menerima "8:5", "08:05", "08:05:00", "080500", "0805", atau objek Date.

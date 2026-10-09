@@ -6,11 +6,12 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
+import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam, selisihHari } from "@/utils/jam";
+import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 
 /**
  * Form Ijin — padanan `ufrmIjin`.
@@ -202,6 +203,8 @@ async function kirim(konfirmasiDuplikat: boolean): Promise<string> {
 }
 
 async function simpan(): Promise<string> {
+  assertClockTime(values.jam, "Jam");
+  if (pakaiJam2.value) assertClockTime(values.jam2, "Jam s/d");
   try {
     return await kirim(false);
   } catch (e: any) {
@@ -299,8 +302,8 @@ watch(
         <fieldset class="fs">
           <legend>Waktu & Keterangan</legend>
           <div class="grid">
-            <FText v-model="values.jam" label="Jam" placeholder="00:00:00" />
-            <FText v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
+            <FTime v-model="values.jam" label="Jam" placeholder="00:00:00" />
+            <FTime v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
             <FSelect
               v-model="values.keterangan"
               label="Keterangan"
