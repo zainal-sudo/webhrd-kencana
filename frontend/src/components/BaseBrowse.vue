@@ -308,8 +308,15 @@ function jumpToPage() {
 
 function addNew() {
   if (!props.addFormPath) return;
+  const label = props.addLabel.trim();
+  const routeTitle = router.resolve(props.addFormPath).meta.title;
+  const title = /^Tambah\s+\S/i.test(label)
+    ? label
+    : typeof routeTitle === "string" && routeTitle.trim()
+      ? routeTitle
+      : `Tambah ${label && !/^Tambah$/i.test(label) ? label : props.moduleTitle}`;
   tabsStore.openTab({
-    title: `Tambah ${props.addLabel}`,
+    title,
     path: props.addFormPath,
     icon: "mdi mdi-plus-box-outline",
     closable: true,
