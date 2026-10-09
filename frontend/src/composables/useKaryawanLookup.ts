@@ -12,6 +12,16 @@ export function useKaryawanLookup(endpoint: string) {
     pagination: { page: 1, per_page: 25, total: 0, last_page: 1 } as Pagination,
     sortBy: "",
     sortDir: "asc",
+    clear() {
+      requestId++;
+      context = {};
+      state.rows = [];
+      state.loading = false;
+      state.error = "";
+      state.sortBy = "";
+      state.sortDir = "asc";
+      state.pagination = { page: 1, per_page: 25, total: 0, last_page: 1 };
+    },
     async load(page = 1) {
       const id = ++requestId;
       state.loading = true;

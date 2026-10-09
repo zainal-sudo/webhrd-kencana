@@ -8,7 +8,8 @@ import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import type { LookupItem } from "@/types";
 
@@ -53,6 +54,18 @@ const cariMode = ref<"nik" | "bagian">("nik");
 const hasilCari = ref<any[]>([]);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, lama }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    cariMode.value = "nik";
+    hasilCari.value = [];
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatLookup() {
   try {
@@ -68,6 +81,7 @@ async function muatLookup() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/mutasi/nomor", { params: { tanggal: values.tanggal } });
@@ -93,6 +107,7 @@ async function muatEdit() {
       nama: d.nama, pabrik: d.pabrik_lama, jab_kode: d.jabatan_lama,
       jabatan: d.jabatan_lama_nama, bagian: d.bagian_lama,
     });
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data mutasi"));
   } finally {
@@ -183,6 +198,7 @@ onMounted(async () => {
   await muatLookup();
   await muatEdit();
   if (!isEdit.value) await muatNomor();
+  await resetState.initialize();
 });
 </script>
 
@@ -193,6 +209,8 @@ onMounted(async () => {
     icon="swap_vert"
     :crumbs="[{ label: 'Mutasi Karyawan', path: '/transaksi/mutasi' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/mutasi"
     save-label="Simpan Mutasi"
   >

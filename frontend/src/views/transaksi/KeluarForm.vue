@@ -11,7 +11,8 @@ import FSelect from "@/components/fields/FSelect.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useTabsStore } from "@/stores/tabsStore";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 
 const route = useRoute();
@@ -34,12 +35,25 @@ const cariLoading = ref(false);
 const kataCari = ref("");
 let nomorRequest = 0;
 let infoRequest = 0;
+const resetState = useTransactionReset({ values, info }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || !siap.value || menyimpan.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    ++nomorRequest;
+    ++infoRequest;
+    cariOpen.value = false;
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 function setInfo(data: Record<string, any> = {}) {
   for (const key of Object.keys(info) as (keyof typeof info)[]) info[key] = String(data[key] || "");
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value || !values.tanggal) return;
   const request = ++nomorRequest;
   try {
@@ -54,6 +68,7 @@ async function muatNomor() {
 }
 
 async function muatDokumen() {
+  resetState.invalidate();
   siap.value = false;
   memuat.value = true;
   ++nomorRequest;
@@ -75,11 +90,14 @@ async function muatDokumen() {
       await muatNomor();
     }
     siap.value = true;
+    resetState.capture();
+    await resetState.initialize();
   } catch (e) { toast.error(getErrorMessage(e, "Gagal memuat dokumen")); }
   finally { memuat.value = false; }
 }
 
 async function infoKaryawan() {
+  if (resetState.restoring.value) return;
   const request = ++infoRequest;
   const nik = values.nik.trim();
   setInfo();
@@ -158,6 +176,8 @@ watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
     icon="logout"
     :crumbs="[{ label: 'Karyawan Keluar', path: '/transaksi/keluar' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     return-path="/transaksi/keluar"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
   >
     <template #form-content>
       <div v-if="memuat" class="loading">Memuat data...</div>
@@ -195,6 +215,7 @@ watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
       </template>
     </template>
     <template #footer-actions>
+      <button class="btn-mini" :disabled="resetState.disabled.value" @click="resetState.reset">Reset</button>
       <button v-if="canSave && auth.can('frmKeluar', 'insert')" class="btn-mini primary" :disabled="menyimpan || !siap" @click="simpan(true)">
         <MsIcon name="save" :size="15" /> Simpan & Baru
       </button>

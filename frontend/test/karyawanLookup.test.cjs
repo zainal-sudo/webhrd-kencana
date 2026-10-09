@@ -81,3 +81,17 @@ test('failed requests clear selectable rows and allow retry', async () => {
   assert.equal(lookup.error, '');
   assert.equal(lookup.rows.length, 1);
 });
+
+test('clear resets lookup state and ignores requests started before form reset', async () => {
+  let resolve;
+  const lookup = createLookup(() => new Promise(r => { resolve = r; }));
+  const pending = lookup.search('Ani');
+  lookup.clear();
+  resolve(response(2));
+  await pending;
+  assert.equal(lookup.rows.length, 0);
+  assert.equal(lookup.loading, false);
+  assert.equal(lookup.pagination.page, 1);
+  assert.equal(lookup.pagination.total, 0);
+  assert.equal(lookup.sortBy, '');
+});

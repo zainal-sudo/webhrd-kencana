@@ -8,7 +8,8 @@ import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 import type { LookupItem } from "@/types";
@@ -66,6 +67,16 @@ const cariOpen = ref(false);
 const cariBaris = ref(-1);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, baris, allDep, allJab, allBag, departemenOptions, jabatanOptions, bagianOptions }, {
+  blocked: () => memuatKaryawan.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    cariBaris.value = -1;
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatAwal() {
   try {
@@ -88,6 +99,7 @@ async function muatAwal() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   try {
     const { data } = await api.get("/transaksi/ijin2/nomor", { params: { tanggal: values.tanggal } });
     values.nomor = data.data?.nomor || "";
@@ -97,6 +109,7 @@ async function muatNomor() {
 }
 
 async function muatFilterOptions() {
+  if (resetState.restoring.value) return;
   if (!values.pabrik) return;
   try {
     const [dep, jab, bag] = await Promise.all([
@@ -225,6 +238,7 @@ async function simpan(): Promise<string> {
 onMounted(async () => {
   await muatAwal();
   await muatNomor();
+  await resetState.initialize();
 });
 
 watch(
@@ -245,6 +259,8 @@ watch(
     icon="group_add"
     :crumbs="[{ label: 'Ijin', path: '/transaksi/ijin' }, { label: 'Kolektif (V2)' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/ijin"
     save-label="Simpan Kolektif"
   >

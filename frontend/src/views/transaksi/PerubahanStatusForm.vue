@@ -8,7 +8,8 @@ import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 
 /**
@@ -42,6 +43,16 @@ const memuat = ref(false);
 const cariOpen = ref(false);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, info }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatStatus() {
   try {
@@ -56,6 +67,7 @@ async function muatStatus() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/perubahan-status/nomor", { params: { tanggal: values.tanggal } });
@@ -79,6 +91,7 @@ async function muatEdit() {
     Object.assign(info, {
       nama: d.nama, pabrik: d.pabrik, jab_kode: d.jab_kode, jabatan: d.jabatan, bagian: d.bagian,
     });
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data"));
   } finally {
@@ -154,6 +167,7 @@ onMounted(async () => {
   await muatStatus();
   await muatEdit();
   if (!isEdit.value) await muatNomor();
+  await resetState.initialize();
 });
 </script>
 
@@ -164,6 +178,8 @@ onMounted(async () => {
     icon="published_with_changes"
     :crumbs="[{ label: 'Perubahan Status', path: '/transaksi/perubahan-status' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/perubahan-status"
     save-label="Simpan"
   >

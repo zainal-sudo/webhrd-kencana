@@ -7,7 +7,8 @@ import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import { normJam, assertClockTime } from "@/utils/jam";
 
@@ -37,6 +38,15 @@ const baris = ref<Baris[]>([{ tanggal: todaySql(), jam_mulai: "", jam_akhir: "",
 const cariOpen = ref(false);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, info, baris }, {
+  blocked: () => cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function infoKaryawan() {
   const nik = String(values.nik || "").trim();
@@ -128,8 +138,9 @@ async function simpan(): Promise<string> {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   /* form selalu mode tambah */
+  await resetState.initialize();
 });
 </script>
 
@@ -140,6 +151,8 @@ onMounted(() => {
     icon="person_add"
     :crumbs="[{ label: 'Lembur', path: '/transaksi/lembur' }, { label: 'Per NIK (V2)' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/lembur"
     save-label="Simpan Lembur"
   >

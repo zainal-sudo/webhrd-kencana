@@ -8,7 +8,8 @@ import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import type { LookupItem } from "@/types";
 
@@ -52,6 +53,18 @@ const cariMode = ref<"peminta" | "bagian">("peminta");
 const hasilCari = ref<any[]>([]);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, pemintaNama }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    cariMode.value = "peminta";
+    hasilCari.value = [];
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatLookup() {
   try {
@@ -67,6 +80,7 @@ async function muatLookup() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/permintaan-karyawan/nomor", { params: { tanggal: values.tanggal } });
@@ -90,6 +104,7 @@ async function muatEdit() {
       spesifikasi: [...(d.spesifikasi || []), ...Array(10).fill("")].slice(0, 10),
     });
     pemintaNama.value = d.peminta_nama || "";
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data"));
   } finally {
@@ -159,6 +174,7 @@ onMounted(async () => {
   await muatLookup();
   await muatEdit();
   if (!isEdit.value) await muatNomor();
+  await resetState.initialize();
 });
 </script>
 
@@ -169,6 +185,8 @@ onMounted(async () => {
     icon="request_quote"
     :crumbs="[{ label: 'Permintaan Karyawan', path: '/transaksi/permintaan-karyawan' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/permintaan-karyawan"
     save-label="Simpan Permintaan"
   >

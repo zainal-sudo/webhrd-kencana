@@ -9,7 +9,8 @@ import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import FTextarea from "@/components/fields/FTextarea.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 
 /**
@@ -46,8 +47,19 @@ const memuat = ref(false);
 const cariOpen = ref(false);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, info, spAktif }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    kataCari.value = "";
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/sp/nomor", { params: { tanggal: values.tanggal } });
@@ -71,6 +83,7 @@ async function muatEdit() {
     Object.assign(info, {
       nama: d.nama, pabrik: d.pabrik, jab_kode: d.jab_kode, jabatan: d.jabatan, bagian: d.bagian,
     });
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data SP"));
   } finally {
@@ -96,6 +109,7 @@ async function infoKaryawan() {
 
 /** Live check SP aktif (ambilsp) setiap NIK/tanggal berubah. */
 async function cekAktif() {
+  if (resetState.restoring.value) return;
   spAktif.value = "";
   const nik = String(values.nik || "").trim();
   if (!nik || !values.tanggal) return;
@@ -160,6 +174,7 @@ async function simpan(): Promise<string> {
 onMounted(async () => {
   await muatEdit();
   if (!isEdit.value) await muatNomor();
+  await resetState.initialize();
 });
 
 watch(
@@ -178,6 +193,8 @@ watch(
     icon="description"
     :crumbs="[{ label: 'Surat Peringatan', path: '/transaksi/sp' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/sp"
     save-label="Simpan SP"
   >

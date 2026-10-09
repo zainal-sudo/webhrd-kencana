@@ -9,7 +9,8 @@ import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 
@@ -66,6 +67,22 @@ const kataCari = ref("");
 
 const dialogDuplikat = ref(false);
 const pesanDuplikat = ref("");
+const resetState = useTransactionReset({ values, info }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cariLoading.value || cekOtor.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    kataCari.value = "";
+    karyawanLookup.clear();
+    otorisasi.user_kode = "";
+    otorisasi.user_password = "";
+    otorisasiToken.value = "";
+    otorisasiDiterima.value = false;
+    dialogDuplikat.value = false;
+    pesanDuplikat.value = "";
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatJenis() {
   try {
@@ -80,6 +97,7 @@ async function muatJenis() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/ijin/nomor", { params: { tanggal: values.tanggal } });
@@ -106,6 +124,7 @@ async function muatEdit() {
     values.alasan = d.alasan || "";
     info.nama = d.nama || "";
     info.jabatan = d.jabatan || "";
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data ijin"));
   } finally {
@@ -114,6 +133,7 @@ async function muatEdit() {
 }
 
 async function infoKaryawan() {
+  if (resetState.restoring.value) return;
   const nik = String(values.nik || "").trim();
   if (!nik) return;
   try {
@@ -230,7 +250,7 @@ async function lanjutDuplikat() {
 onMounted(async () => {
   await muatJenis();
   await muatEdit();
-  if (isEdit.value) return;
+  if (isEdit.value) { await resetState.initialize(); return; }
   // Prefill dari menu popup laporan (tidak masuk / keterlambatan / pulang dulu):
   // ?nik=...&tanggal=...&jenis_id=... (Delphi: ransaksiIjin1Click).
   const qNik = String(route.query.nik ?? "").trim();
@@ -243,6 +263,7 @@ onMounted(async () => {
   }
   if (qJenis) values.jenis_id = qJenis;
   await muatNomor();
+  await resetState.initialize();
 });
 
 watch(
@@ -267,6 +288,8 @@ watch(
     icon="event_available"
     :crumbs="[{ label: 'Ijin', path: '/transaksi/ijin' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/ijin"
     save-label="Simpan Ijin"
   >

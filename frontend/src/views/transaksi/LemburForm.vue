@@ -9,7 +9,8 @@ import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
 import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 import type { LookupItem } from "@/types";
@@ -79,6 +80,21 @@ const cariOpen = ref(false);
 const cariBaris = ref(-1);
 const cariLoading = ref(false);
 const kataCari = ref("");
+const resetState = useTransactionReset({ values, baris, allDep, allJab, allBag, departemenOptions, jabatanOptions, bagianOptions }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || memuatKaryawan.value || cariLoading.value || cekOtor.value || karyawanLookup.loading,
+  afterRestore: () => {
+    cariOpen.value = false;
+    cariBaris.value = -1;
+    kataCari.value = "";
+    karyawanLookup.clear();
+    otorisasi.user_kode = "";
+    otorisasi.user_password = "";
+    otorisasiToken.value = "";
+    otorisasiDiterima.value = false;
+  },
+});
+const api = resetState.trackApi(sourceApi);
 
 async function muatLookup() {
   try {
@@ -92,6 +108,7 @@ async function muatLookup() {
 }
 
 async function muatNomor() {
+  if (resetState.restoring.value) return;
   if (isEdit.value) return;
   try {
     const { data } = await api.get("/transaksi/lembur/nomor", { params: { tanggal: values.tanggal } });
@@ -116,6 +133,7 @@ async function muatEdit() {
       jam_akhir: r.jam_akhir || "", keterangan: r.keterangan || "", panggilan: !!r.panggilan,
     }));
     if (!baris.value.length) baris.value.push({ nik: "", nama: "", jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false });
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data lembur"));
   } finally {
@@ -124,6 +142,7 @@ async function muatEdit() {
 }
 
 async function muatFilterOptions() {
+  if (resetState.restoring.value) return;
   if (!values.pabrik) return;
   try {
     const [dep, jab, bag] = await Promise.all([
@@ -303,6 +322,7 @@ onMounted(async () => {
   await muatLookup();
   await muatEdit();
   if (!isEdit.value) await muatNomor();
+  await resetState.initialize();
 });
 
 watch(
@@ -327,6 +347,8 @@ watch(
     icon="more_time"
     :crumbs="[{ label: 'Lembur', path: '/transaksi/lembur' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/lembur"
     save-label="Simpan Lembur"
   >
