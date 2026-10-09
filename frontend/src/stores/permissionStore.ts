@@ -70,6 +70,13 @@ export const usePermissionStore = defineStore("permission", {
       byKey.get("transaksi")?.children?.sort((a, b) => rank(a.key) - rank(b.key));
       const transaksi = byKey.get("transaksi")?.children;
       if (transaksi) {
+        const bayarIndex = transaksi.findIndex(m => m.key === 'frmBayar');
+        if (bayarIndex !== -1) {
+          const [bayar] = transaksi.splice(bayarIndex, 1);
+          const pinjamIndex = transaksi.findIndex(m => m.key === 'frmPinjam');
+          const spIndex = transaksi.findIndex(m => m.key === 'frmSP');
+          transaksi.splice(pinjamIndex !== -1 ? pinjamIndex + 1 : spIndex !== -1 ? spIndex : transaksi.length, 0, bayar);
+        }
         const keluarIndex = transaksi.findIndex((m) => m.key === "frmKeluar");
         if (keluarIndex !== -1) {
           const [keluar] = transaksi.splice(keluarIndex, 1);

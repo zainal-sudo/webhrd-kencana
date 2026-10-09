@@ -71,6 +71,9 @@ const routes = [
   { path: "/absensi/import", component: () => import("@/views/absensi/ImportAbsensiView.vue"), meta: { requiresAuth: true, title: "Import Absensi", form: "frmImportAbsensi" } },
 
   /* ── Transaksi: Ijin / Mutasi / Lembur (duplikat Delphi) ── */
+  { path: "/transaksi/pinjaman", component: () => import("@/views/transaksi/PinjamanView.vue"), meta: { requiresAuth: true, title: "Pinjaman", form: "frmPinjam" } },
+  { path: "/transaksi/pinjaman/pelunasan", component: () => import("@/views/transaksi/ProsesPelunasanPinjamanView.vue"), meta: { requiresAuth: true, title: "Proses Pelunasan Pinjaman", form: "frmBayar" } },
+  { path: "/transaksi/pinjaman/form", component: () => import("@/views/transaksi/PinjamanForm.vue"), meta: { requiresAuth: true, title: "Tambah Pinjaman", form: "frmPinjam" } },
   { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
   { path: "/transaksi/ijin/form", component: () => import("@/views/transaksi/IjinForm.vue"), meta: { requiresAuth: true, title: "Form Ijin", form: "frmIjin" } },
   { path: "/transaksi/ijin-v2/form", component: () => import("@/views/transaksi/Ijin2Form.vue"), meta: { requiresAuth: true, title: "Form Ijin Kolektif", form: "frmIjin2" } },

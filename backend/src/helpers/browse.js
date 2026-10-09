@@ -45,13 +45,21 @@ export function applyColumnFilterSets(whereClause, params, query, allowedMap, ex
         if (alias === except) continue
         let raw = query[`filterSet_${alias}`]
         if (raw === undefined) raw = query[`filterSet_${alias}[]`]
-        if (raw === undefined || raw === null) continue
-        const arr = (Array.isArray(raw) ? raw : [raw])
+        const includeNull = query[`filterNull_${alias}`] === '1'
+        const includeEmpty = query[`filterEmpty_${alias}`] === '1'
+        if ((raw === undefined || raw === null) && !includeNull && !includeEmpty) continue
+        const arr = (raw === undefined || raw === null ? [] : Array.isArray(raw) ? raw : [raw])
             .map((v) => String(v).trim())
             .filter((v) => v !== '')
-        if (arr.length === 0) continue
-        clause += ` AND ${col} IN (${arr.map(() => '?').join(',')})`
+        const alternatives = []
+        if (arr.length) alternatives.push(`${col} IN (${arr.map(() => '?').join(',')})`)
+        if (includeNull) alternatives.push(`${col} IS NULL`)
+        if (includeEmpty) alternatives.push(`${col} = ?`)
+        if (!alternatives.length) continue
+        // Preserve exact old SQL for normal-only filters; group mixed choices with OR.
+        clause += ` AND ${alternatives.length === 1 ? alternatives[0] : `(${alternatives.join(' OR ')})`}`
         out.push(...arr)
+        if (includeEmpty) out.push('')
     }
     return { clause, params: out }
 }

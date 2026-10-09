@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, onDeactivated } from "vue";
 import MsIcon from "@/components/MsIcon.vue";
+import { filterKey, filterLabel } from "@/utils/columnFilter";
 
 const props = defineProps<{
   anchor: HTMLElement;
   colLabel: string;
   selected: string[];
-  fetchValues: () => Promise<(string | number)[]>;
+  fetchValues: () => Promise<(string | number | null)[]>;
 }>();
 
 const emit = defineEmits<{
@@ -57,7 +58,7 @@ const searchText = ref("");
 const filteredValues = computed(() => {
   const q = searchText.value.trim().toLowerCase();
   if (!q) return allValues.value;
-  return allValues.value.filter((v) => v.toLowerCase().includes(q));
+  return allValues.value.filter((v) => filterLabel(v).toLowerCase().includes(q));
 });
 
 const isAllSelected = computed(
@@ -106,7 +107,7 @@ onMounted(async () => {
   }
   try {
     const list = await props.fetchValues();
-    allValues.value = (list || []).map((v) => String(v)).filter((v) => v !== "");
+    allValues.value = [...new Set((list || []).map(filterKey))];
     checked.value =
       props.selected.length > 0 ? props.selected.map(String) : [...allValues.value];
   } catch {
@@ -153,7 +154,7 @@ onDeactivated(() => emit("close"));
           :checked="checked.includes(v)"
           @change="toggleOne(v)"
         />
-        <span :title="v">{{ v }}</span>
+        <span :title="filterLabel(v)">{{ filterLabel(v) }}</span>
       </label>
     </div>
     <div class="cfp-foot">

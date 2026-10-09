@@ -16,6 +16,9 @@ const props = withDefaults(
     hint?: string;
     returnPath?: string;
     saveLabel?: string;
+    /** Opt-in controls; existing forms keep their current footer behavior. */
+    saveDisabled?: boolean;
+    showSave?: boolean;
     /** Opsional: hanya form yang memasang callback ini memiliki reset data. */
     resetFn?: () => boolean | void;
     resetDisabled?: boolean;
@@ -28,6 +31,8 @@ const props = withDefaults(
     hint: "",
     returnPath: "",
     saveLabel: "Simpan",
+    saveDisabled: false,
+    showSave: true,
     resetFn: undefined,
     resetDisabled: false,
   }
@@ -42,7 +47,7 @@ const showSuccess = ref(false);
 const successMsg = ref("Data berhasil disimpan.");
 
 async function doSave() {
-  if (!props.saveFn) return;
+  if (!props.saveFn || props.saveDisabled || !props.showSave || saving.value) return;
   saving.value = true;
   try {
     const msg = await props.saveFn();
@@ -124,7 +129,7 @@ function goCrumb(path?: string) {
       <div class="footer-actions">
         <slot name="footer-actions">
           <button class="form-btn ghost" :disabled="!!resetFn && (saving || resetDisabled)" @click="doReset">Reset</button>
-          <button class="form-btn primary" :disabled="saving" @click="doSave">
+          <button v-if="showSave" class="form-btn primary" :disabled="saving || saveDisabled" @click="doSave">
             <MsIcon v-if="saving" name="progress_activity" :size="15" />
             <MsIcon v-else name="save" :size="15" />
             <span>{{ saving ? "Menyimpan..." : saveLabel }}</span>

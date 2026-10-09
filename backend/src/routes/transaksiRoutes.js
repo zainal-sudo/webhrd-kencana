@@ -1,5 +1,10 @@
 import { Router } from 'express'
+import {
+    getPinjamanList, getRingkasanPinjaman, getOptionsPinjaman, getNomorPinjaman,
+    getDetailPinjaman, lookupKaryawanPinjaman, infoKaryawanPinjaman, savePinjaman, updatePinjaman, deletePinjaman,
+} from '../controllers/transaksi/pinjamanController.js'
 import { wajibHak } from '../middleware/permission.js'
+import { getPelunasan, postPelunasan } from '../controllers/transaksi/pelunasanPinjamanController.js'
 import {
     getKeluarList, getKeluar, getNomorKeluar, getAlasanKeluar,
     lookupKaryawanKeluar, infoKaryawanKeluar, saveKeluar, deleteKeluar,
@@ -98,6 +103,19 @@ import {
 } from '../controllers/transaksi/lembur2Controller.js'
 
 const r = Router()
+// Pinjaman: permissions for each action; no payment routes.
+r.get('/pinjaman', wajibHak('frmPinjam'), getPinjamanList)
+r.get('/pinjaman/pelunasan', wajibHak('frmBayar'), getPelunasan)
+r.post('/pinjaman/pelunasan/proses', wajibHak('frmBayar', 'insert'), postPelunasan)
+r.get('/pinjaman/ringkasan', wajibHak('frmPinjam'), getRingkasanPinjaman)
+r.get('/pinjaman/options', wajibHak('frmPinjam'), getOptionsPinjaman)
+r.get('/pinjaman/nomor', wajibHak('frmPinjam', 'insert'), getNomorPinjaman)
+r.get('/pinjaman/karyawan', wajibHak('frmPinjam'), lookupKaryawanPinjaman)
+r.get('/pinjaman/karyawan-info', wajibHak('frmPinjam'), infoKaryawanPinjaman)
+r.get('/pinjaman/detail', wajibHak('frmPinjam'), getDetailPinjaman)
+r.post('/pinjaman', wajibHak('frmPinjam', 'insert'), savePinjaman)
+r.put('/pinjaman/:nomor', wajibHak('frmPinjam', 'edit'), updatePinjaman)
+r.delete('/pinjaman/:nomor', wajibHak('frmPinjam', 'delete'), deletePinjaman)
 
 /* Karyawan Keluar — hak form frmKeluar, tanggal keluar master ditangani trigger. */
 r.get('/keluar', wajibHak('frmKeluar'), getKeluarList)

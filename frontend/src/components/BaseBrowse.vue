@@ -9,6 +9,7 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { formatDateInput, todaySql } from "@/utils/format";
 import { fotoUrl } from "@/utils/foto";
 import type { BrowseColumn } from "@/types";
+import { columnFilterParams } from "@/utils/columnFilter";
 
 const props = withDefaults(
   defineProps<{
@@ -44,6 +45,11 @@ const props = withDefaults(
     extraQuery?: Record<string, any>;
     /** Muat ulang saat kembali ke browse keep-alive; aktif secara default. */
     refreshOnActivate?: boolean;
+    /** Opt-in dense columns; all existing browse layouts retain their defaults. */
+    compact?: boolean;
+    /** Opt-in inline detail slot. Disabled for all existing modules. */
+    expandable?: boolean;
+    rowNumberLabel?: string;
   }>(),
   {
     moduleSubtitle: "",
@@ -61,10 +67,17 @@ const props = withDefaults(
     exportName: "",
     extraQuery: () => ({}),
     refreshOnActivate: true,
+    compact: false,
+    expandable: false,
+    rowNumberLabel: 'No',
   }
 );
 
 const emit = defineEmits<{
+  /** Optional module summaries refresh with the same successful browse lifecycle. */
+  (e: "loaded"): void;
+  (e: "load-start"): void;
+  (e: "load-error"): void;
   (e: "print", row: Record<string, any>): void;
   /** Dipanggil saat thumbnail foto diklik. Kolom harus bertipe "image". */
   (e: "preview-image", row: Record<string, any>): void;
@@ -104,7 +117,9 @@ function colWidth(c: BrowseColumn): number {
   return isNaN(n) ? 140 : n + 16;
 }
 const tableMinWidth = computed<string>(
-  () => 42 + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
+  () => props.compact
+    ? 36 + (props.expandable ? 36 : 0) + (props.showActions ? 144 : 0) + cols.value.reduce((sum, col) => sum + (parseInt(col.width || "", 10) || 100), 0) + "px"
+    : 42 + (props.expandable ? 36 : 0) + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
 );
 
 // ── Sort & filter per kolom (server-side, popup checklist di header) ──
@@ -164,7 +179,7 @@ function isFilterActive(col: BrowseColumn): boolean {
   return !!filterSets[col.key] && filterSets[col.key].length > 0;
 }
 
-async function fetchDistinct(col: BrowseColumn): Promise<(string | number)[]> {
+async function fetchDistinct(col: BrowseColumn): Promise<(string | number | null)[]> {
   const params: Record<string, any> = { distinct: col.key };
   if (search.value.trim()) params.search = search.value.trim();
   if (props.hasPeriod && startDate.value && endDate.value) {
@@ -175,11 +190,11 @@ async function fetchDistinct(col: BrowseColumn): Promise<(string | number)[]> {
   // kecuali kolom ini sendiri.
   for (const [k, arr] of Object.entries(filterSets)) {
     if (k !== col.key && Array.isArray(arr) && arr.length > 0) {
-      params[`filterSet_${k}`] = arr;
+      Object.assign(params, columnFilterParams(k, arr));
     }
   }
   const { data } = await api.get(props.endpoint, { params });
-  return (data.data || []) as (string | number)[];
+  return (data.data || []) as (string | number | null)[];
 }
 
 function applyFilterSet(col: BrowseColumn, values: string[]) {
@@ -196,12 +211,19 @@ function applyFilterSet(col: BrowseColumn, values: string[]) {
 const deleteDialog = ref(false);
 const deletingKey = ref<string | null>(null);
 const deletingLabel = ref("");
+const expandedKeys = ref(new Set<string | number>());
+const columnCount = computed(() => cols.value.length + 1 + (props.showActions ? 1 : 0) + (props.expandable ? 1 : 0));
 
+let loadRequest = 0;
 async function fetchData() {
+  expandedKeys.value = new Set();
+  const request = ++loadRequest;
   loading.value = true;
+  emit("load-start");
   try {
     const { data } = await api.get(props.endpoint, { params: buildParams(true) });
     rows.value = data.data || [];
+    emit("loaded");
     // Foto yang sebelumnya gagal dimuat dicoba ulang — berkasnya bisa saja
     // baru saja diunggah/diperbaiki di server bukti.
     for (const k of Object.keys(brokenFotos)) delete brokenFotos[k];
@@ -214,6 +236,7 @@ async function fetchData() {
       pageInput.value = page.value;
     }
   } catch (e: any) {
+    if (request === loadRequest) emit("load-error");
     toast.error(getErrorMessage(e));
   } finally {
     loading.value = false;
@@ -246,7 +269,7 @@ function buildParams(includePaging: boolean): Record<string, any> {
     params.sort_dir = sortDir.value;
   }
   for (const [k, arr] of Object.entries(filterSets)) {
-    if (Array.isArray(arr) && arr.length > 0) params[`filterSet_${k}`] = arr;
+    if (Array.isArray(arr) && arr.length > 0) Object.assign(params, columnFilterParams(k, arr));
   }
   if (props.hasPeriod && startDate.value && endDate.value) {
     params[props.periodStartKey] = startDate.value;
@@ -351,13 +374,24 @@ async function doDelete() {
     await api.delete(`${props.endpoint}/${deletingKey.value}`);
     toast.success("Data berhasil dihapus");
     deleteDialog.value = false;
-    if (rows.value.length === 1 && page.value > 1) {
-      page.value -= 1;
-    }
-    fetchData();
+    refreshAfterDelete();
   } catch (e: any) {
     toast.error(getErrorMessage(e));
   }
+}
+
+/** Optional module-specific delete confirmation can reuse the standard refresh. */
+function refreshAfterDelete() {
+  if (rows.value.length === 1 && page.value > 1) page.value -= 1;
+  fetchData();
+}
+defineExpose({ refresh, refreshAfterDelete });
+
+function toggleExpand(row: Record<string, any>) {
+  const key = row[props.primaryKey];
+  const next = new Set(expandedKeys.value);
+  if (next.has(key)) next.delete(key); else next.add(key);
+  expandedKeys.value = next;
 }
 
 function cellText(row: Record<string, any>, col: BrowseColumn): string {
@@ -433,7 +467,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="browse-panel">
+  <div class="browse-panel" :class="{ compact }">
     <!-- Toolbar -->
     <div class="toolbar">
       <div class="toolbar-left">
@@ -499,9 +533,16 @@ onActivated(() => {
     <!-- Table -->
     <div ref="tableWrap" class="table-wrap">
       <table class="browse-table" :style="{ minWidth: tableMinWidth }">
+        <colgroup v-if="compact">
+          <col v-if="expandable" style="width: 36px" />
+          <col style="width: 36px" />
+          <col v-for="col in cols" :key="col.key" :style="{ width: col.width || '100px' }" />
+          <col v-if="showActions" style="width: 144px" />
+        </colgroup>
         <thead>
           <tr>
-            <th class="num-col">No</th>
+            <th v-if="expandable" class="expand-col"><span class="sr-only">Rencana Potongan</span></th>
+            <th class="num-col">{{ rowNumberLabel }}</th>
             <th
               v-for="col in cols"
               :key="col.key"
@@ -547,26 +588,30 @@ onActivated(() => {
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
+            <td class="state-cell" :colspan="columnCount">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="state-cell" :colspan="cols.length + 1 + (showActions ? 1 : 0)">
+            <td class="state-cell" :colspan="columnCount">
               <MsIcon name="inbox" :size="20" />
               Tidak ada data ditemukan
             </td>
           </tr>
+          <template v-for="(row, idx) in rows" :key="row[primaryKey] ?? idx">
           <tr
-            v-for="(row, idx) in rows"
-            :key="row[primaryKey] ?? idx"
             :class="{ odd: idx % 2 === 1 }"
           >
+            <td v-if="expandable" class="expand-col">
+              <button type="button" class="expand-btn" :disabled="loading" :aria-expanded="expandedKeys.has(row[primaryKey])" :aria-label="`${expandedKeys.has(row[primaryKey]) ? 'Tutup' : 'Buka'} Rencana Potongan ${row[primaryKey]}`" @click="toggleExpand(row)">
+                <MsIcon :name="expandedKeys.has(row[primaryKey]) ? 'expand_less' : 'expand_more'" :size="18" />
+              </button>
+            </td>
             <td class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
             <td
               v-for="col in cols"
               :key="col.key"
-              :class="{ 'foto-cell': col.type === 'image' }"
+               :class="{ 'foto-cell': col.type === 'image', 'numeric-cell': col.align === 'right', 'nowrap-cell': col.key === 'Nik' }"
               :style="{ textAlign: col.align || 'left' }"
             >
               <!-- Kolom foto: thumbnail lazy-load, klik untuk preview penuh -->
@@ -590,7 +635,9 @@ onActivated(() => {
                 </span>
                 <span v-else class="foto-empty-cell">-</span>
               </template>
-              <template v-else>{{ cellText(row, col) }}</template>
+              <template v-else>
+                <slot name="cell" :row="row" :column="col" :text="cellText(row, col)">{{ cellText(row, col) }}</slot>
+              </template>
             </td>
             <td v-if="showActions" class="action-col">
               <div class="row-actions">
@@ -622,6 +669,10 @@ onActivated(() => {
               </div>
             </td>
           </tr>
+          <tr v-if="expandable && expandedKeys.has(row[primaryKey])" class="expanded-row">
+            <td :colspan="columnCount"><div class="expanded-content"><slot name="expanded-row" :row="row" /></div></td>
+          </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -825,6 +876,25 @@ onActivated(() => {
   border-collapse: collapse;
   font-size: 12px;
 }
+.compact .browse-table { table-layout: auto; font-size: 11px; }
+.compact .browse-table th { padding: 5px 6px; white-space: nowrap; line-height: 1.25; }
+.compact .th-content { gap: 3px; }
+.compact .th-label { white-space: nowrap; overflow-wrap: normal; }
+.compact th:not(.sorted) .th-sort { display: none; }
+.compact .browse-table td { padding: 5px 6px; white-space: normal; overflow-wrap: anywhere; }
+.compact .browse-table td.numeric-cell { white-space: nowrap; overflow-wrap: normal; }
+.compact .browse-table td.nowrap-cell { white-space: nowrap; overflow-wrap: normal; }
+.compact .row-actions { gap: 4px; flex-wrap: nowrap; }
+.compact .row-actions > * { flex-shrink: 0; }
+.compact .num-col { width: 36px; }
+.compact .action-col { width: 144px; min-width: 144px; }
+.expand-col { width: 36px; text-align: center !important; }
+.expand-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--ds-border-light, var(--ds-border)); border-radius: 5px; background: var(--ds-surface-raised); color: var(--ds-text); cursor: pointer; }
+.expand-btn:hover { background: var(--ds-surface-inset); }
+.expand-btn:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.browse-table .expanded-row > td { padding: 10px 12px 10px 48px; background: var(--ds-surface); }
+.expanded-content { max-width: 560px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 .browse-table th {
   background: var(--ds-primary-dark, #243656);
   color: #fff;
@@ -841,6 +911,7 @@ onActivated(() => {
 .browse-table th.action-col {
   text-align: center;
 }
+
 .browse-table th.sortable {
   cursor: pointer;
   user-select: none;
