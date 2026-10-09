@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
@@ -15,6 +17,7 @@ import { todaySql } from "@/utils/format";
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const karyawanLookup = useKaryawanLookup("/transaksi/keluar/karyawan");
 const auth = useAuthStore();
 const tabsStore = useTabsStore();
 const nomorEdit = computed(() => String(route.query.id || ""));
@@ -29,9 +32,6 @@ const menyimpan = ref(false);
 const cariOpen = ref(false);
 const cariLoading = ref(false);
 const kataCari = ref("");
-const hasilCari = ref<any[]>([]);
-const cariPage = ref(1);
-const cariLastPage = ref(1);
 let nomorRequest = 0;
 let infoRequest = 0;
 
@@ -92,15 +92,10 @@ async function infoKaryawan() {
   }
 }
 
-async function cariNik(page = 1) {
+async function cariNik() {
   cariLoading.value = true;
   try {
-    const { data } = await api.get("/transaksi/keluar/karyawan", {
-      params: { search: kataCari.value, page, per_page: 25 },
-    });
-    hasilCari.value = data.data || [];
-    cariPage.value = data.pagination?.page || 1;
-    cariLastPage.value = data.pagination?.last_page || 1;
+    await karyawanLookup.search(kataCari.value);
   } catch (e) { toast.error(getErrorMessage(e, "Gagal mencari karyawan")); }
   finally { cariLoading.value = false; }
 }
@@ -215,25 +210,11 @@ watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
       <v-card-title class="dlg-head">Cari Karyawan</v-card-title>
       <v-card-text>
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="NIK / nama..." @keyup.enter="cariNik()" />
+          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @keyup.enter="cariNik()" />
           <button class="btn-mini primary" :disabled="cariLoading" @click="cariNik()">Cari</button>
         </div>
         <p class="note">Daftar mencakup karyawan aktif dan nonaktif; status ditampilkan pada setiap baris.</p>
-        <table class="mini">
-          <thead><tr><th>NIK</th><th>Nama</th><th>Pabrik</th><th>Jabatan</th><th>Bagian</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr v-for="r in hasilCari" :key="r.Nik" class="klik" @click="pilihKaryawan(r)">
-              <td>{{ r.Nik }}</td><td>{{ r.Nama }}</td><td>{{ r.Pabrik }}</td>
-              <td>{{ r.Jabatan }}</td><td>{{ r.Bagian }}</td><td>{{ r.Status }}</td>
-            </tr>
-            <tr v-if="!hasilCari.length"><td colspan="6">{{ cariLoading ? 'Memuat...' : 'Karyawan tidak ditemukan' }}</td></tr>
-          </tbody>
-        </table>
-        <div class="pager">
-          <button class="btn-mini" :disabled="cariLoading || cariPage <= 1" @click="cariNik(cariPage - 1)">Sebelumnya</button>
-          <span>{{ cariPage }} / {{ cariLastPage }}</span>
-          <button class="btn-mini" :disabled="cariLoading || cariPage >= cariLastPage" @click="cariNik(cariPage + 1)">Berikutnya</button>
-        </div>
+        <KaryawanLookupTable :lookup="karyawanLookup" :columns="['Nik','Nama','Pabrik','Jabatan','Bagian','Status']" @select="pilihKaryawan" />
       </v-card-text>
       <v-card-actions><v-spacer /><v-btn variant="text" @click="cariOpen = false">Tutup</v-btn></v-card-actions>
     </v-card>

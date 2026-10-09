@@ -1,4 +1,5 @@
 import pool from '../../config/database.js'
+import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
@@ -95,15 +96,17 @@ export const lookupKaryawanKeluar = async (req, res, next) => {
         const page = Math.max(1, parseInt(req.query.page) || 1)
         const perPage = Math.max(1, Math.min(200, parseInt(req.query.per_page) || 25))
         const q = `%${String(req.query.search || '').trim()}%`
-        const where = ' WHERE k.kar_Nik LIKE ? OR k.kar_nama LIKE ?'
+        const where = ' WHERE k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR j.jab_nama LIKE ? OR k.kar_bagian LIKE ? OR k.kar_pab_kode LIKE ?'
+        const lookupParams = Array(5).fill(q)
+        const lookup = applyKaryawanLookup(req.query, where, lookupParams)
         const [rows] = await pool.query(
             `SELECT k.kar_Nik AS Nik, k.kar_nama AS Nama, k.kar_pab_kode AS Pabrik,
                     k.kar_jab_kode AS Jabatan_Kode, j.jab_nama AS Jabatan, k.kar_bagian AS Bagian,
                     IF(k.kar_status_aktif = 1, 'Aktif', 'Non Aktif') AS Status
-             FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode${where}
-             ORDER BY k.kar_nama LIMIT ? OFFSET ?`, [q, q, perPage, (page - 1) * perPage]
+             FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode${lookup.where}
+             ${lookup.orderBy} LIMIT ? OFFSET ?`, [...lookupParams, perPage, (page - 1) * perPage]
         )
-        const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM tkaryawan k${where}`, [q, q])
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode${lookup.where}`, lookupParams)
         paginated(res, rows, { page, per_page: perPage, total: cnt[0].total, last_page: Math.ceil(cnt[0].total / perPage) })
     } catch (err) { next(err) }
 }

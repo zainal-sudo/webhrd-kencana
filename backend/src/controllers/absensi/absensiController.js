@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import pool from '../../config/database.js'
+import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
@@ -231,8 +232,8 @@ export const lookupKaryawanAbsensi = async (req, res, next) => {
         let where = ' WHERE k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> 0'
         const params = []
         if (q) {
-            where += ' AND (k.kar_kode_absensi LIKE ? OR k.kar_Nik LIKE ? OR k.kar_nama LIKE ?)'
-            params.push(`%${q}%`, `%${q}%`, `%${q}%`)
+            where += ' AND (k.kar_kode_absensi LIKE ? OR k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR j.jab_nama LIKE ? OR k.kar_bagian LIKE ? OR k.kar_pab_kode LIKE ?)'
+            params.push(...Array(6).fill(`%${q}%`))
         }
         if (req.query.aktif !== '0') where += ' AND k.kar_status_aktif = 1'
         if (req.query.pabrik) {
@@ -240,6 +241,7 @@ export const lookupKaryawanAbsensi = async (req, res, next) => {
             params.push(req.query.pabrik)
         }
 
+        const lookup = applyKaryawanLookup(req.query, where, params)
         const [rows] = await pool.query(
             `SELECT k.kar_kode_absensi AS KodeAbsensi, k.kar_nama AS Nama, k.kar_tgllahir AS TglLahir,
                     IF(k.kar_jenkel = 1, 'Laki-Laki', 'Perempuan') AS Jenkel,
@@ -248,10 +250,10 @@ export const lookupKaryawanAbsensi = async (req, res, next) => {
                     k.kar_pab_kode AS Pabrik
              FROM tkaryawan k
              LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
-             ${where} ORDER BY k.kar_nama LIMIT ? OFFSET ?`,
+             ${lookup.where} ${lookup.orderBy} LIMIT ? OFFSET ?`,
             [...params, perPage, (page - 1) * perPage]
         )
-        const [cnt] = await pool.query(`SELECT COUNT(*) AS c FROM tkaryawan k ${where}`, params)
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS c FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode ${lookup.where}`, params)
         paginated(res, rows, {
             page,
             per_page: perPage,

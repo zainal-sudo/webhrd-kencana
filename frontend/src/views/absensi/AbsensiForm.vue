@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import { api, getErrorMessage } from "@/api/axios";
@@ -19,6 +21,7 @@ import { normJam, selisihHari } from "@/utils/jam";
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const karyawanLookup = useKaryawanLookup("/absensi/karyawan");
 
 const nik = computed(() => String(route.query.nik ?? ""));
 const tanggal = computed(() => String(route.query.tanggal ?? "").slice(0, 10));
@@ -39,7 +42,7 @@ const info = reactive({ nama: "", jabatan: "", bagian: "", pabrik: "", nikKaryaw
 const memuat = ref(false);
 const adaRecord = ref(false);
 const cariKaryawan = ref(false);
-const hasilCari = ref<any[]>([]);
+const kataCariKaryawan = ref("");
 const cariLoading = ref(false);
 
 const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
@@ -98,13 +101,16 @@ watch(
   }
 );
 
+function bukaCariKaryawan() {
+  kataCariKaryawan.value = String(values.nik || "");
+  cariKaryawan.value = true;
+  cariNik();
+}
+
 async function cariNik() {
   cariLoading.value = true;
   try {
-    const { data } = await api.get("/absensi/karyawan", {
-      params: { search: values.nik, per_page: 25, aktif: 1 },
-    });
-    hasilCari.value = data.data || [];
+    await karyawanLookup.search(kataCariKaryawan.value, { aktif: 1 });
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal mencari karyawan"));
   } finally {
@@ -119,7 +125,6 @@ function pilihKaryawan(row: Record<string, any>) {
   info.bagian = row.Bagian || "";
   info.pabrik = row.Pabrik || "";
   cariKaryawan.value = false;
-  hasilCari.value = [];
   muatData();
 }
 
@@ -218,7 +223,7 @@ function kembali() {
           </div>
 
           <div class="lookup-bar">
-            <button class="btn-mini" type="button" :disabled="isEdit" @click="((cariKaryawan = true), cariNik())">
+            <button class="btn-mini" type="button" :disabled="isEdit" @click="bukaCariKaryawan">
               Cari karyawan
             </button>
             <div class="info-box">
@@ -284,27 +289,15 @@ function kembali() {
   <v-dialog v-model="cariKaryawan" max-width="760" scrollable>
     <v-card rounded="false">
       <v-card-title class="dlg-head">
-        <span>Cari Karyawan (kode absensi &ldquo;{{ values.nik }}&rdquo;)</span>
+        <span>Cari Karyawan</span>
         <v-btn icon="close" size="small" variant="text" @click="cariKaryawan = false" />
       </v-card-title>
       <v-card-text class="dlg-body">
-        <div v-if="cariLoading" class="loading">Mencari...</div>
-        <table v-else class="mini">
-          <thead>
-            <tr><th>Kode Absensi</th><th>Nama</th><th>Jabatan</th><th>Bagian</th><th>Pabrik</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="(r, i) in hasilCari" :key="i" class="klik" @click="pilihKaryawan(r)">
-              <td>{{ r.KodeAbsensi }}</td>
-              <td>{{ r.Nama }}</td>
-              <td>{{ r.Jabatan }}</td>
-              <td>{{ r.Bagian }}</td>
-              <td>{{ r.Pabrik }}</td>
-              <td>{{ r.Status }}</td>
-            </tr>
-            <tr v-if="!hasilCari.length"><td colspan="6" class="empty">Karyawan tidak ditemukan</td></tr>
-          </tbody>
-        </table>
+        <div class="cari-bar">
+          <input v-model="kataCariKaryawan" aria-label="Cari karyawan" placeholder="Kode absensi / NIK / nama / jabatan / bagian / pabrik..." @keyup.enter="cariNik" />
+          <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="cariNik">Cari</button>
+        </div>
+        <KaryawanLookupTable :lookup="karyawanLookup" :columns="['KodeAbsensi','Nama','Jabatan','Bagian','Pabrik','Status']" @select="pilihKaryawan" />
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -409,6 +402,17 @@ function kembali() {
   font-weight: 800;
   padding: 8px 12px;
   background: var(--ds-surface-variant, #e0e4ea);
+}
+.cari-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+.cari-bar input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
 }
 .dlg-body {
   background: #fff;

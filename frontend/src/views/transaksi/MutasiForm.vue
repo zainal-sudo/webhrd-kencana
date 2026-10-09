@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
@@ -20,6 +22,7 @@ import type { LookupItem } from "@/types";
  */
 const route = useRoute();
 const toast = useToast();
+const karyawanLookup = useKaryawanLookup("/transaksi/mutasi/karyawan");
 
 const nomorEdit = computed(() => String(route.query.id ?? ""));
 const isEdit = computed(() => !!nomorEdit.value);
@@ -123,10 +126,7 @@ async function cari() {
   cariLoading.value = true;
   try {
     if (cariMode.value === "nik") {
-      const { data } = await api.get("/transaksi/mutasi/karyawan", {
-        params: { search: kataCari.value, per_page: 25 },
-      });
-      hasilCari.value = data.data || [];
+      await karyawanLookup.search(kataCari.value);
     } else {
       const { data } = await api.get("/transaksi/mutasi/bagian", { params: { search: kataCari.value } });
       hasilCari.value = (data.data || []).map((b: string) => ({ Bagian: b }));
@@ -243,21 +243,12 @@ onMounted(async () => {
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="Kata kunci..." @keyup.enter="cari" />
+          <input v-model="kataCari" :placeholder="cariMode === 'nik' ? 'NIK / nama / jabatan / bagian / pabrik...' : 'Kata kunci...'" @keyup.enter="cari" />
           <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="cari">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>
         </div>
-        <table v-if="cariMode === 'nik'" class="mini">
-          <thead><tr><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Bagian</th><th>Pabrik</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr v-for="(r, i) in hasilCari" :key="i" class="klik" @click="pilih(r)">
-              <td>{{ r.Nik }}</td><td>{{ r.Nama }}</td><td>{{ r.Jabatan }}</td>
-              <td>{{ r.Bagian }}</td><td>{{ r.Pabrik }}</td><td>{{ r.Status }}</td>
-            </tr>
-            <tr v-if="!hasilCari.length"><td colspan="6" class="empty">Tidak ditemukan</td></tr>
-          </tbody>
-        </table>
+        <KaryawanLookupTable v-if="cariMode === 'nik'" :lookup="karyawanLookup" :columns="['Nik','Nama','Jabatan','Bagian','Pabrik','Status']" @select="pilih" />
         <table v-else class="mini">
           <thead><tr><th>Bagian</th></tr></thead>
           <tbody>

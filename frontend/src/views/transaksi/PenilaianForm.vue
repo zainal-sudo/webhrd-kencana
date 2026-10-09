@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
@@ -45,6 +47,7 @@ function kriteriaDariNilai(v: string): string {
 
 const route = useRoute();
 const toast = useToast();
+const karyawanLookup = useKaryawanLookup("/transaksi/penilaian-3-bulan/karyawan");
 
 const nomorEdit = computed(() => String(route.query.id ?? ""));
 const isEdit = computed(() => !!nomorEdit.value);
@@ -72,7 +75,6 @@ const cekOtor = ref(false);
 
 const cariOpen = ref(false);
 const cariBaris = ref(-1);
-const hasilCari = ref<any[]>([]);
 const cariLoading = ref(false);
 const kataCari = ref("");
 
@@ -172,10 +174,7 @@ function bukaCari(i: number) {
 async function cariNik() {
   cariLoading.value = true;
   try {
-    const { data } = await api.get("/transaksi/penilaian-3-bulan/karyawan", {
-      params: { search: kataCari.value, pabrik: values.pabrik, per_page: 25 },
-    });
-    hasilCari.value = data.data || [];
+    await karyawanLookup.search(kataCari.value, { pabrik: values.pabrik });
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal mencari karyawan"));
   } finally {
@@ -362,21 +361,12 @@ watch(
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="NIK / nama..." @keyup.enter="cariNik" />
+          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @keyup.enter="cariNik" />
           <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="cariNik">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>
         </div>
-        <table class="mini">
-          <thead><tr><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Bagian</th><th>Pabrik</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr v-for="(r, i) in hasilCari" :key="i" class="klik" @click="pilihKaryawan(r)">
-              <td>{{ r.Nik }}</td><td>{{ r.Nama }}</td><td>{{ r.Jabatan }}</td>
-              <td>{{ r.Bagian }}</td><td>{{ r.Pabrik }}</td><td>{{ r.Status }}</td>
-            </tr>
-            <tr v-if="!hasilCari.length"><td colspan="6" class="empty">Karyawan tidak ditemukan</td></tr>
-          </tbody>
-        </table>
+        <KaryawanLookupTable :lookup="karyawanLookup" :columns="['Nik','Nama','Jabatan','Bagian','Pabrik','Status']" @select="pilihKaryawan" />
       </v-card-text>
     </v-card>
   </v-dialog>
