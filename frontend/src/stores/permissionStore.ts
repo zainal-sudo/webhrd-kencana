@@ -87,8 +87,7 @@ export const usePermissionStore = defineStore("permission", {
       }
 
       // Jadwal / Shift tepat sebelum Hari Libur jika keduanya diizinkan.
-      const master = byKey.get("master")?.children;
-      if (master) {
+      const master = byKey.get("master")?.children;      if (master) {
         const jadwalIndex = master.findIndex((m) => m.key === "frmJadwal");
         if (jadwalIndex !== -1 && master.some((m) => m.key === "frmHariLibur")) {
           const [jadwal] = master.splice(jadwalIndex, 1);
@@ -111,6 +110,26 @@ export const usePermissionStore = defineStore("permission", {
           const [lemburLibur] = laporan.splice(lemburLiburIndex, 1);
           const historyPosition = laporan.findIndex((m) => m.key === "frmHistoryKaryawan");
           laporan.splice(historyPosition, 0, lemburLibur);
+        }
+      }
+
+      // Hak Akses tidak punya baris tmenu sendiri (satu form `frmUser` dengan
+      // Master User), jadi ditempel manual tepat setelah Master User.
+      const setting = byKey.get("setting")?.children;
+      if (setting) {
+        const userIndex = setting.findIndex((m) => m.key === "frmUser");
+        if (userIndex !== -1 && !setting.some((m) => m.key === "frmHakAkses")) {
+          const user = setting[userIndex];
+          setting.splice(userIndex + 1, 0, {
+            key: "frmHakAkses",
+            label: "Hak Akses",
+            icon: "vpn_key",
+            route: "/setting/hak-akses",
+            form: "frmUser",
+            can_insert: user.can_insert,
+            can_edit: user.can_edit,
+            can_delete: user.can_delete,
+          });
         }
       }
 

@@ -84,9 +84,11 @@ export const getTidakMasukList = async (req, res, next) => {
         if (req.query.distinct && TM_COLUMNS[req.query.distinct]) {
             const dcol = TM_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TM_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            // NULL ikut dikembalikan supaya baris blank (belum berijin) bisa
+            // dipilih di popup filter — frontend sudah mendukung flag
+            // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TM_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TM_FROM}${scoped.clause} ORDER BY value LIMIT 500`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -242,9 +244,11 @@ export const getKeterlambatanList = async (req, res, next) => {
         if (req.query.distinct && TL_COLUMNS[req.query.distinct]) {
             const dcol = TL_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TL_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            // NULL ikut dikembalikan supaya baris blank (belum berijin) bisa
+            // dipilih di popup filter — frontend sudah mendukung flag
+            // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TL_FROM}${scoped.clause} ORDER BY value LIMIT 500`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

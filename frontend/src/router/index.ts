@@ -114,6 +114,7 @@ const routes = [
 
   /* ── Setting / Otorisasi ── */
   { path: "/setting/user", component: () => import("@/views/setting/UserView.vue"), meta: { requiresAuth: true, title: "Master User", form: "frmUser" } },
+  { path: "/setting/generator-otorisasi", component: () => import("@/views/setting/GeneratorOtorisasiView.vue"), meta: { requiresAuth: true, title: "Generator Otorisasi" } },
   { path: "/setting/user/form", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Tambah User", form: "frmUser" } },
   { path: "/setting/user/form/:kode", component: () => import("@/views/setting/UserForm.vue"), meta: { requiresAuth: true, title: "Edit User", form: "frmUser" } },
   { path: "/setting/hak-akses", component: () => import("@/views/setting/HakAksesView.vue"), meta: { requiresAuth: true, title: "Hak Akses", form: "frmUser" } },

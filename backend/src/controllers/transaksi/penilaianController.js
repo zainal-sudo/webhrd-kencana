@@ -1,10 +1,8 @@
-import jwt from 'jsonwebtoken'
 import pool from '../../config/database.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
-import { cekTanggal } from './ijinController.js'
 
 /**
  * Modul Penilaian 3 Bulan — cerminan unit Delphi:
@@ -14,7 +12,7 @@ import { cekTanggal } from './ijinController.js'
  *
  * Tabel: `tpenilaian3bulan` (pb_nomor PK `PB3.YYYYMM.NNNN`),
  *        `tpenilaian3bulan_dtl` (PK pb_nomor + nik), `tkaryawan`,
- *        `tdepartemen`, `tpabrik`, `tlistotorisasi`.
+ *        `tdepartemen`, `tpabrik`.
  *
  * Aturan Delphi yang diduplikasi:
  * - Nomor: `PB3.` + yyyymm(tanggal) + `.` + urut 4 digit per bulan.
@@ -23,7 +21,7 @@ import { cekTanggal } from './ijinController.js'
  * - Kriteria otomatis dari nilai (clNilaiPropertiesEditValueChanged):
  *   >= 46 A, >= 36 B, >= 26 C, >= 16 D, < 16 E — dihitung server saat
  *   simpan supaya tidak bisa dimanipulasi klien.
- * - cektanggal(tgl) < 2 bebas simpan, >= 2 wajib otorisasi atasan (token JWT).
+ * - Modul ini TANPA otorisasi tanggal: tanggal berapa pun bebas simpan.
  * - Simpan: upsert header, DELETE detail + INSERT ulang baris ber-NIK.
  *
  * PERBAIKAN dari Delphi:
@@ -31,8 +29,6 @@ import { cekTanggal } from './ijinController.js'
  *   versi web menghapus `tpenilaian3bulan_dtl` + `tpenilaian3bulan`.
  * - Muat karyawan Delphi tertukar (kolom jabatan diisi bagian & sebaliknya);
  *   versi web memetakan jabatan/bagian/departemen dengan benar.
- * - Tombol "Simpan & Tutup" Delphi melewati otorisasi; versi web selalu
- *   menegakkannya seperti tombol "Simpan & Baru".
  */
 
 /** Kriteria dari nilai — cerminan clNilaiPropertiesEditValueChanged. */
@@ -76,44 +72,6 @@ export async function nomorBerikut(tanggal) {
     )
     const m = rows[0]?.m ? parseInt(rows[0].m, 10) : 0
     return `${prefix}${String(10000 + m + 1).slice(-4)}`
-}
-
-function userDariToken(token) {
-    if (!token) return null
-    try {
-        const t = jwt.verify(String(token), process.env.JWT_SECRET)
-        return t?.tipe === 'penilaian' && t?.otorisasi ? t.otorisasi : null
-    } catch {
-        return null
-    }
-}
-
-async function ensureOtorisasiTable() {
-    await pool.query(`CREATE TABLE IF NOT EXISTS tlistotorisasi (
-        tanggal DATE DEFAULT NULL,
-        nomor VARCHAR(40) DEFAULT NULL,
-        USER VARCHAR(30) DEFAULT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=latin1`)
-}
-
-/** Verifikasi user atasan -> token JWT (pengganti dialog UfrmOtorisasi Delphi). */
-export const cekOtorisasi = async (req, res, next) => {
-    try {
-        const kode = String(req.body?.user_kode ?? '').trim().toUpperCase()
-        const password = String(req.body?.user_password ?? '')
-        if (!kode || !password) return error(res, 'Kode user dan password wajib diisi', 400)
-        const [rows] = await pool.query('SELECT user_kode FROM tuser WHERE user_kode = ? AND user_password = ?', [
-            kode,
-            password,
-        ])
-        if (rows.length === 0) return error(res, 'Kode user atau password salah', 401)
-        const token = jwt.sign({ otorisasi: kode, tipe: 'penilaian' }, process.env.JWT_SECRET, {
-            expiresIn: process.env.OTORISASI_EXPIRES_IN || '10m',
-        })
-        success(res, { user_kode: kode, token }, 'Otorisasi diterima')
-    } catch (err) {
-        next(err)
-    }
 }
 
 /** Daftar penilaian per periode (default bulan berjalan). */
@@ -333,8 +291,7 @@ export const lookupKaryawan = async (req, res, next) => {
 
 /**
  * Simpan (simpandata). Body: { nomor?, tanggal, pabrik, tahun, periode,
- *   periode2, detail: [{ nik, jabatan?, bagian?, nilai, keterangan? }],
- *   otorisasi_token? }
+ *   periode2, detail: [{ nik, jabatan?, bagian?, nilai, keterangan? }] }
  * Kriteria selalu dihitung ulang dari nilai di server.
  */
 export const savePenilaian = async (req, res, next) => {
@@ -397,14 +354,6 @@ export const savePenilaian = async (req, res, next) => {
             }
         }
 
-        let atasan = null
-        if ((await cekTanggal(tanggal)) >= 2) {
-            atasan = userDariToken(b.otorisasi_token)
-            if (!atasan) {
-                return error(res, 'Data lebih dari 2 hari memerlukan otorisasi atasan', 403)
-            }
-        }
-
         const nomorEdit = String(b.nomor || '').trim()
         let nomor = nomorEdit
         if (nomorEdit) {
@@ -435,13 +384,6 @@ export const savePenilaian = async (req, res, next) => {
                     [nomor, d.nik, d.bagian, d.jabatan, d.nilai, d.kriteria, d.keterangan]
                 )
             }
-            if (atasan) {
-                await ensureOtorisasiTable()
-                await conn.query('INSERT INTO tlistotorisasi (tanggal, nomor, user) VALUES (NOW(), ?, ?)', [
-                    nomor,
-                    atasan,
-                ])
-            }
             await conn.commit()
         } catch (e) {
             try {
@@ -454,7 +396,7 @@ export const savePenilaian = async (req, res, next) => {
             conn.release()
         }
 
-        success(res, { nomor, jumlah: detail.length, otorisasi_by: atasan }, `Berhasil simpan dengan nomor ${nomor}`)
+        success(res, { nomor, jumlah: detail.length }, `Berhasil simpan dengan nomor ${nomor}`)
     } catch (err) {
         next(err)
     }

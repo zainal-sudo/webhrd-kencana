@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
@@ -29,7 +30,7 @@ import type { LookupItem } from "@/types";
  * - "Samakan Jam" (Button1Click): salin jam baris pertama ke semua baris.
  * - Validasi absensi (cekdata): jam akhir maksimal 30 menit setelah scan
  *   keluar; server menolak dengan 422 bila dilanggar.
- * - Otorisasi atasan bila tanggal >= 2 hari (token JWT).
+ * - Otorisasi atasan model kode ala Delphi bila tanggal >= 2 hari.
  */
 interface Baris {
   nik: string;
@@ -71,10 +72,11 @@ const departemenOptions = ref<{ label: string; value: string | number }[]>([]);
 const bagianOptions = ref<string[]>([]);
 
 const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
-const otorisasi = reactive({ user_kode: "", user_password: "" });
 const otorisasiToken = ref("");
-const otorisasiDiterima = ref(false);
-const cekOtor = ref(false);
+
+function otorisasiOke(payload: { token: string; pemberi: string }) {
+  otorisasiToken.value = payload.token;
+}
 
 const cariOpen = ref(false);
 const cariBaris = ref(-1);
@@ -82,16 +84,13 @@ const cariLoading = ref(false);
 const kataCari = ref("");
 const resetState = useTransactionReset({ values, baris, allDep, allJab, allBag, departemenOptions, jabatanOptions, bagianOptions }, {
   isEdit: () => isEdit.value,
-  blocked: () => memuat.value || memuatKaryawan.value || cariLoading.value || cekOtor.value || karyawanLookup.loading,
+  blocked: () => memuat.value || memuatKaryawan.value || cariLoading.value || karyawanLookup.loading,
   afterRestore: () => {
     cariOpen.value = false;
     cariBaris.value = -1;
     kataCari.value = "";
     karyawanLookup.clear();
-    otorisasi.user_kode = "";
-    otorisasi.user_password = "";
     otorisasiToken.value = "";
-    otorisasiDiterima.value = false;
   },
 });
 const api = resetState.trackApi(sourceApi);
@@ -256,30 +255,6 @@ function pilihKaryawan(row: Record<string, any>) {
   cariOpen.value = false;
 }
 
-async function cekOtorisasi() {
-  if (!otorisasi.user_kode || !otorisasi.user_password) {
-    toast.error("Kode user dan password atasan wajib diisi");
-    return;
-  }
-  cekOtor.value = true;
-  try {
-    const { data } = await api.post("/transaksi/lembur/otorisasi", {
-      user_kode: otorisasi.user_kode,
-      user_password: otorisasi.user_password,
-    });
-    otorisasiToken.value = data.data?.token || "";
-    otorisasiDiterima.value = !!otorisasiToken.value;
-    otorisasi.user_password = "";
-    toast.success(`Otorisasi diterima oleh ${otorisasi.user_kode}`);
-  } catch (e) {
-    otorisasiDiterima.value = false;
-    otorisasiToken.value = "";
-    toast.error(getErrorMessage(e, "Otorisasi ditolak"));
-  } finally {
-    cekOtor.value = false;
-  }
-}
-
 async function simpan(): Promise<string> {
   const terisi = baris.value.filter((b) => String(b.nik || "").trim());
   terisi.forEach((b, i) => {
@@ -328,7 +303,6 @@ onMounted(async () => {
 watch(
   () => values.tanggal,
   () => {
-    otorisasiDiterima.value = false;
     otorisasiToken.value = "";
     if (!isEdit.value) muatNomor();
   }
@@ -412,23 +386,12 @@ watch(
           </div>
         </fieldset>
 
-        <fieldset v-if="perluOtorisasi" class="fs warn">
-          <legend>Otorisasi Atasan</legend>
-          <p class="note">
-            Tanggal <strong>{{ values.tanggal }}</strong> berjarak
-            <strong>{{ selisihHari(values.tanggal) }} hari</strong> dari hari ini — perlu persetujuan atasan.
-          </p>
-          <div class="grid">
-            <FText v-model="otorisasi.user_kode" label="Kode User Atasan" placeholder="mis. ADMIN" />
-            <FText v-model="otorisasi.user_password" label="Password Atasan" type="password" />
-          </div>
-          <div class="aksi-row">
-            <button class="btn-mini primary" type="button" :disabled="cekOtor" @click="cekOtorisasi">
-              {{ cekOtor ? "Memeriksa..." : "Verifikasi Otorisasi" }}
-            </button>
-            <span v-if="otorisasiDiterima" class="ok">Otorisasi diterima oleh {{ otorisasi.user_kode }}</span>
-          </div>
-        </fieldset>
+        <OtorisasiKode
+          v-if="perluOtorisasi"
+          modul="lembur"
+          :tanggal="String(values.tanggal || '')"
+          @verified="otorisasiOke"
+        />
       </template>
     </template>
   </BaseForm>

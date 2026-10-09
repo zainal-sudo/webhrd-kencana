@@ -56,13 +56,13 @@ function keydown(event: KeyboardEvent) {
 </template>
 
 <style scoped>
-.time-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.time-label { font-size: 11px; font-weight: 700; color: var(--ds-primary); }
+.time-field { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.time-label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary); }
 .req, small { color: var(--ds-error); }
-input { width: 100%; min-width: 0; height: 34px; padding: 0 9px; border: 1px solid var(--ds-border); background: var(--ds-surface-raised); font-family: inherit; font-size: 12px; color: var(--ds-text); outline: none; }
+input { flex: 1; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--ds-border); background: var(--ds-surface-raised); font-family: inherit; font-size: 12px; color: var(--ds-text); outline: none; }
 input:focus { border-color: var(--ds-primary); }
 input:disabled { background: var(--ds-surface-inset); color: var(--ds-text-secondary); }
 input[aria-invalid="true"] { border-color: var(--ds-error); }
 .compact input { height: 28px; padding: 0 4px; font-size: 11px; }
-small { font-size: 10px; font-weight: 400; }
+small { flex: 1 1 100%; margin-left: 148px; font-size: 10px; font-weight: 400; }
 </style>

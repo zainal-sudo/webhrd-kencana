@@ -67,6 +67,7 @@ function builder(startDate: string, endDate: string): BrowseColumn[] {
     has-period
     :default-start="firstDayOfMonth()"
     :can-delete="false"
+    :show-actions="false"
     search-placeholder="Cari NIK / nama / bagian / pabrik..."
     :per-page="25"
   />

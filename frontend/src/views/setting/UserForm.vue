@@ -103,15 +103,18 @@ async function simpan(): Promise<string> {
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  max-width: 560px;
 }
 .field {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 .field label {
+  flex: 0 0 140px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ds-primary, #3b5998);
@@ -120,6 +123,8 @@ async function simpan(): Promise<string> {
   color: #b91c1c;
 }
 select {
+  flex: 1;
+  min-width: 0;
   height: 30px;
   border: 1px solid var(--ds-border, #b0b8c4);
   padding: 0 6px;

@@ -50,6 +50,8 @@ const props = withDefaults(
     /** Opt-in inline detail slot. Disabled for all existing modules. */
     expandable?: boolean;
     rowNumberLabel?: string;
+    /** Kelas CSS tambahan per baris (mis. tandai karyawan sudah keluar). */
+    rowClass?: (row: Record<string, any>, index: number) => string | undefined;
   }>(),
   {
     moduleSubtitle: "",
@@ -394,6 +396,12 @@ function toggleExpand(row: Record<string, any>) {
   expandedKeys.value = next;
 }
 
+/** Kelas baris: belang ganjil + kustom per modul (mis. karyawan keluar). */
+function rowCls(row: Record<string, any>, idx: number) {
+  const custom = props.rowClass ? props.rowClass(row, idx) : "";
+  return [{ odd: idx % 2 === 1 }, custom];
+}
+
 function cellText(row: Record<string, any>, col: BrowseColumn): string {
   let v = row[col.key];
   if (v === null || v === undefined) return "";
@@ -600,7 +608,7 @@ onActivated(() => {
           </tr>
           <template v-for="(row, idx) in rows" :key="row[primaryKey] ?? idx">
           <tr
-            :class="{ odd: idx % 2 === 1 }"
+            :class="rowCls(row, idx)"
           >
             <td v-if="expandable" class="expand-col">
               <button type="button" class="expand-btn" :disabled="loading" :aria-expanded="expandedKeys.has(row[primaryKey])" :aria-label="`${expandedKeys.has(row[primaryKey]) ? 'Tutup' : 'Buka'} Rencana Potongan ${row[primaryKey]}`" @click="toggleExpand(row)">

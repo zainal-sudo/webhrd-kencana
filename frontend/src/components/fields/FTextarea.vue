@@ -32,10 +32,13 @@ const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
 <style scoped>
 .field {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
 }
 .field label {
+  flex: 0 0 140px;
+  padding-top: 7px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ds-primary, #3b5998);
@@ -44,6 +47,8 @@ const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
   color: #dc2626;
 }
 .field textarea {
+  flex: 1;
+  min-width: 0;
   padding: 7px 9px;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: #fff;

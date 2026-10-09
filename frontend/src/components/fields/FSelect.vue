@@ -55,10 +55,12 @@ function onChange(e: Event) {
 <style scoped>
 .field {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 .field label {
+  flex: 0 0 140px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ds-primary, #3b5998);
@@ -68,10 +70,12 @@ function onChange(e: Event) {
 }
 .select-wrap {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 .select-wrap select {
   width: 100%;
-  height: 34px;
+  height: 30px;
   padding: 0 28px 0 9px;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: #fff;

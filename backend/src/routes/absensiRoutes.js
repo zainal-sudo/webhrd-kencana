@@ -7,7 +7,6 @@ import {
     lookupKaryawanAbsensi,
     saveAbsensi,
     deleteAbsensi,
-    cekOtorisasi,
     getPabrikMesin,
     getStaging,
     importStaging,
@@ -30,7 +29,6 @@ r.get('/', wajibHak('frmAbsensi'), getAbsensiList)
 /* Form absensi (ufrmAbsensi) — nik = kode absensi, wajib bersama tanggal */
 r.get('/form', wajibHak('frmAbsensi'), getAbsensi)
 r.get('/karyawan', wajibHak('frmAbsensi'), lookupKaryawanAbsensi)
-r.post('/otorisasi', wajibHak('frmAbsensi', 'edit'), cekOtorisasi)
 r.post('/', wajibHak('frmAbsensi', 'insert'), saveAbsensi)
 r.put('/', wajibHak('frmAbsensi', 'edit'), saveAbsensi)
 r.delete('/', wajibHak('frmAbsensi', 'delete'), deleteAbsensi)

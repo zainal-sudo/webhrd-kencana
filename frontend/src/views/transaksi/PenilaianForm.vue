@@ -11,7 +11,6 @@ import FSelect from "@/components/fields/FSelect.vue";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useTransactionReset } from "@/composables/useTransactionReset";
 import { todaySql } from "@/utils/format";
-import { selisihHari } from "@/utils/jam";
 import type { LookupItem } from "@/types";
 
 /**
@@ -21,7 +20,7 @@ import type { LookupItem } from "@/types";
  * Periode bulan awal–akhir. Grid: NIK (+lookup), Nama, Jabatan, Departemen,
  * Bagian, Nilai (angka), Kriteria (A–E otomatis dari nilai), Keterangan.
  * Tombol "Muat Karyawan" mengisi grid dari karyawan aktif pabrik terpilih.
- * Otorisasi atasan bila tanggal >= 2 hari.
+ * Modul ini tanpa otorisasi tanggal.
  */
 interface Baris {
   nik: string;
@@ -68,28 +67,18 @@ const memuatKaryawan = ref(false);
 
 const pabrikOptions = ref<{ label: string; value: string | number }[]>([]);
 
-const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
-const otorisasi = reactive({ user_kode: "", user_password: "" });
-const otorisasiToken = ref("");
-const otorisasiDiterima = ref(false);
-const cekOtor = ref(false);
-
 const cariOpen = ref(false);
 const cariBaris = ref(-1);
 const cariLoading = ref(false);
 const kataCari = ref("");
 const resetState = useTransactionReset({ values, baris }, {
   isEdit: () => isEdit.value,
-  blocked: () => memuat.value || memuatKaryawan.value || cariLoading.value || cekOtor.value || karyawanLookup.loading,
+  blocked: () => memuat.value || memuatKaryawan.value || cariLoading.value || karyawanLookup.loading,
   afterRestore: () => {
     cariOpen.value = false;
     cariBaris.value = -1;
     kataCari.value = "";
     karyawanLookup.clear();
-    otorisasi.user_kode = "";
-    otorisasi.user_password = "";
-    otorisasiToken.value = "";
-    otorisasiDiterima.value = false;
   },
 });
 const api = resetState.trackApi(sourceApi);
@@ -211,30 +200,6 @@ function pilihKaryawan(row: Record<string, any>) {
   cariOpen.value = false;
 }
 
-async function cekOtorisasi() {
-  if (!otorisasi.user_kode || !otorisasi.user_password) {
-    toast.error("Kode user dan password atasan wajib diisi");
-    return;
-  }
-  cekOtor.value = true;
-  try {
-    const { data } = await api.post("/transaksi/penilaian-3-bulan/otorisasi", {
-      user_kode: otorisasi.user_kode,
-      user_password: otorisasi.user_password,
-    });
-    otorisasiToken.value = data.data?.token || "";
-    otorisasiDiterima.value = !!otorisasiToken.value;
-    otorisasi.user_password = "";
-    toast.success(`Otorisasi diterima oleh ${otorisasi.user_kode}`);
-  } catch (e) {
-    otorisasiDiterima.value = false;
-    otorisasiToken.value = "";
-    toast.error(getErrorMessage(e, "Otorisasi ditolak"));
-  } finally {
-    cekOtor.value = false;
-  }
-}
-
 async function simpan(): Promise<string> {
   const terisi = baris.value.filter((b) => String(b.nik || "").trim());
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
@@ -243,8 +208,6 @@ async function simpan(): Promise<string> {
   for (const b of terisi) {
     if (b.nilai === "" || isNaN(parseFloat(b.nilai))) throw new Error(`Nilai ${b.nik} wajib diisi angka`);
   }
-  if (perluOtorisasi.value && !otorisasiToken.value)
-    throw new Error("Data lebih dari 2 hari memerlukan otorisasi atasan");
 
   const body: Record<string, any> = {
     tanggal: String(values.tanggal).slice(0, 10),
@@ -258,7 +221,6 @@ async function simpan(): Promise<string> {
     })),
   };
   if (isEdit.value) body.nomor = nomorEdit.value;
-  if (otorisasiToken.value) body.otorisasi_token = otorisasiToken.value;
 
   try {
     const { data } = isEdit.value
@@ -280,8 +242,6 @@ onMounted(async () => {
 watch(
   () => values.tanggal,
   () => {
-    otorisasiDiterima.value = false;
-    otorisasiToken.value = "";
     if (!isEdit.value) muatNomor();
   }
 );
@@ -352,24 +312,6 @@ watch(
             <button class="btn-mini" type="button" @click="tambahBaris">+ Tambah baris</button>
           </div>
         </fieldset>
-
-        <fieldset v-if="perluOtorisasi" class="fs warn">
-          <legend>Otorisasi Atasan</legend>
-          <p class="note">
-            Tanggal <strong>{{ values.tanggal }}</strong> berjarak
-            <strong>{{ selisihHari(values.tanggal) }} hari</strong> dari hari ini — perlu persetujuan atasan.
-          </p>
-          <div class="grid">
-            <FText v-model="otorisasi.user_kode" label="Kode User Atasan" placeholder="mis. ADMIN" />
-            <FText v-model="otorisasi.user_password" label="Password Atasan" type="password" />
-          </div>
-          <div class="aksi-row">
-            <button class="btn-mini primary" type="button" :disabled="cekOtor" @click="cekOtorisasi">
-              {{ cekOtor ? "Memeriksa..." : "Verifikasi Otorisasi" }}
-            </button>
-            <span v-if="otorisasiDiterima" class="ok">Otorisasi diterima oleh {{ otorisasi.user_kode }}</span>
-          </div>
-        </fieldset>
       </template>
     </template>
   </BaseForm>
@@ -396,11 +338,9 @@ watch(
 <style scoped>
 .fs { border: 1px solid var(--ds-border, #b0b8c4); background: #fff; padding: 10px 12px 14px; margin-bottom: 12px; }
 .fs > legend { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ds-primary, #3b5998); padding: 0 6px; }
-.fs.warn { border-color: #d9a441; background: #fffaef; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
 .note { font-size: 12px; color: #7a5b16; margin: 8px 0 0; }
 .aksi-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.ok { font-size: 12px; font-weight: 700; color: #15803d; }
 .btn-mini { height: 26px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
 .btn-mini.primary { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary-dark, #2c4472); color: #fff; }
 .btn-mini.del { color: #dc2626; }

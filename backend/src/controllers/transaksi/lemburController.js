@@ -93,26 +93,6 @@ async function ensureOtorisasiTable() {
     ) ENGINE=InnoDB DEFAULT CHARSET=latin1`)
 }
 
-/** Verifikasi user atasan -> token JWT (pengganti dialog UfrmOtorisasi Delphi). */
-export const cekOtorisasi = async (req, res, next) => {
-    try {
-        const kode = String(req.body?.user_kode ?? '').trim().toUpperCase()
-        const password = String(req.body?.user_password ?? '')
-        if (!kode || !password) return error(res, 'Kode user dan password wajib diisi', 400)
-        const [rows] = await pool.query('SELECT user_kode FROM tuser WHERE user_kode = ? AND user_password = ?', [
-            kode,
-            password,
-        ])
-        if (rows.length === 0) return error(res, 'Kode user atau password salah', 401)
-        const token = jwt.sign({ otorisasi: kode, tipe: 'lembur' }, process.env.JWT_SECRET, {
-            expiresIn: process.env.OTORISASI_EXPIRES_IN || '10m',
-        })
-        success(res, { user_kode: kode, token }, 'Otorisasi diterima')
-    } catch (err) {
-        next(err)
-    }
-}
-
 /** Daftar SPL per periode (default bulan berjalan). */
 export const getLemburList = async (req, res, next) => {
     try {

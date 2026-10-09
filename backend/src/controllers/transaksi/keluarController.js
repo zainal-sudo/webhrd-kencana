@@ -161,3 +161,61 @@ export const deleteKeluar = async (req, res, next) => {
         success(res, null, 'Dokumen Karyawan Keluar berhasil dihapus')
     } catch (err) { next(err) }
 }
+
+/**
+ * Data surat pengalaman kerja (Surat Keterangan Pengalaman Kerja).
+ * Dipakai frontend untuk render dialog + cetakan, meniru contoh cetakan
+ * Delphi: kop Kencana Print, judul + nomor, penandatangan (HR Manager),
+ * data karyawan keluar, periode kerja, jabatan terakhir.
+ */
+export const getSuratKeluar = async (req, res, next) => {
+    try {
+        const nomor = String(req.params.nomor || req.query.nomor || '')
+        if (!nomor) return error(res, 'Nomor wajib diisi', 400)
+        const [rows] = await pool.query(
+            `SELECT x.kl_nomor AS nomor, x.kl_tanggal AS tanggal,
+                    k.kar_Nik AS nik, k.kar_nama AS nama,
+                    j.jab_nama AS jabatan, k.kar_bagian AS bagian,
+                    d.dep_nama AS departemen, k.kar_pab_kode AS pabrik,
+                    k.kar_tgl_masuk AS tgl_masuk,
+                    COALESCE(k.kar_tgl_keluar, x.kl_tanggal) AS tgl_keluar
+             FROM tkeluar x
+             LEFT JOIN tkaryawan k ON k.kar_Nik = x.kl_nik
+             LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
+             LEFT JOIN tdepartemen d ON d.dep_kode = k.kar_dep_kode
+             WHERE x.kl_nomor = ?`,
+            [nomor]
+        )
+        if (!rows.length) return error(res, 'Dokumen Karyawan Keluar tidak ditemukan', 404)
+        const r = rows[0]
+        // Penandatangan: HR Manager aktif (Andi Wahyu Nugroho). Diambil dari
+        // master bila masih ada supaya nama/NIK selalu sinkron; fallback ke
+        // nilai pada contoh cetakan bila sudah tidak aktif/diubah.
+        let penandatangan = {
+            nama: 'Andi Wahyu Nugroho',
+            nik: '0412160272',
+            jabatan: 'HR MANAGER',
+            departemen: 'HRD',
+        }
+        try {
+            const [s] = await pool.query(
+                `SELECT k.kar_nama AS nama, k.kar_Nik AS nik, j.jab_nama AS jabatan,
+                        COALESCE(d.dep_nama, k.kar_bagian) AS departemen
+                 FROM tkaryawan k
+                 LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
+                 LEFT JOIN tdepartemen d ON d.dep_kode = k.kar_dep_kode
+                 WHERE k.kar_Nik = ? LIMIT 1`,
+                [penandatangan.nik]
+            )
+            if (s.length && s[0].nama) {
+                penandatangan = {
+                    nama: s[0].nama,
+                    nik: s[0].nik,
+                    jabatan: s[0].jabatan || penandatangan.jabatan,
+                    departemen: s[0].departemen || penandatangan.departemen,
+                }
+            }
+        } catch { /* abaikan, pakai fallback */ }
+        success(res, { ...r, penandatangan })
+    } catch (err) { next(err) }
+}

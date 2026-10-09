@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
@@ -17,7 +18,8 @@ import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
  *
  * Field: Kode Absensi (bukan NIK), Tanggal, Jam Masuk/Keluar (jadwal) dan
  * Scan Masuk/Keluar (hasil mesin). Bila tanggal lebih dari 2 hari lalu,
- * penyimpanan meminta otorisasi user lain (backend menolak dengan 403).
+ * penyimpanan meminta otorisasi atasan model kode ala Delphi
+ * (backend menolak dengan 403 bila tanpa token).
  */
 const route = useRoute();
 const router = useRouter();
@@ -49,10 +51,15 @@ const cariLoading = ref(false);
 const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
 const diformat = computed(() => !perluOtorisasi.value || otorisasiDiterima.value);
 
-const otorisasi = reactive({ user_kode: "", user_password: "" });
 const otorisasiDiterima = ref(false);
 const otorisasiToken = ref("");
-const cekOtor = ref(false);
+
+function otorisasiOke(payload: { token: string; pemberi: string }) {
+  // Token inilah yang membuktikan ke server bahwa otorisasi benar-benar
+  // dijalankan; flag di sisi klien tidak dipercaya.
+  otorisasiToken.value = payload.token;
+  otorisasiDiterima.value = true;
+}
 
 async function muatData() {
   const kode = String(values.nik ?? "").trim();
@@ -127,33 +134,6 @@ function pilihKaryawan(row: Record<string, any>) {
   info.pabrik = row.Pabrik || "";
   cariKaryawan.value = false;
   muatData();
-}
-
-async function cekOtorisasi() {
-  if (!otorisasi.user_kode || !otorisasi.user_password) {
-    toast.error("Kode user dan password atasan wajib diisi");
-    return;
-  }
-  cekOtor.value = true;
-  try {
-    const { data } = await api.post("/absensi/otorisasi", {
-      user_kode: otorisasi.user_kode,
-      user_password: otorisasi.user_password,
-    });
-    // Token inilah yang membuktikan ke server bahwa otorisasi benar-benar
-    // dijalankan; flag di sisi klien tidak dipercaya.
-    otorisasiToken.value = data.data?.token || "";
-    otorisasiDiterima.value = !!otorisasiToken.value;
-    otorisasi.user_password = "";
-    toast.success(`Otorisasi diterima oleh ${otorisasi.user_kode}`);
-  } catch (e) {
-    otorisasiDiterima.value = false;
-    otorisasiToken.value = "";
-    toast.error(getErrorMessage(e, "Otorisasi ditolak"));
-    otorisasi.user_password = "";
-  } finally {
-    cekOtor.value = false;
-  }
 }
 
 async function simpan(): Promise<string> {
@@ -264,24 +244,12 @@ function kembali() {
           </div>
         </fieldset>
 
-        <fieldset v-if="perluOtorisasi" class="fs warn">
-          <legend>Otorisasi Atasan</legend>
-          <p class="note">
-            Tanggal <strong>{{ values.tanggal }}</strong> berjarak
-            <strong>{{ selisihHari(values.tanggal) }} hari</strong> dari hari ini. Program Delphi meminta
-            persetujuan atasan sebelum data absensi lama boleh diubah.
-          </p>
-          <div class="grid">
-            <FText v-model="otorisasi.user_kode" label="Kode User Atasan" placeholder="mis. ADMIN" />
-            <FText v-model="otorisasi.user_password" label="Password Atasan" type="password" />
-          </div>
-          <div class="aksi-row">
-            <button class="btn-mini primary" type="button" :disabled="cekOtor" @click="cekOtorisasi">
-              {{ cekOtor ? "Memeriksa..." : "Verifikasi Otorisasi" }}
-            </button>
-            <span v-if="otorisasiDiterima" class="ok">Otorisasi diterima oleh {{ otorisasi.user_kode }}</span>
-          </div>
-        </fieldset>
+        <OtorisasiKode
+          v-if="perluOtorisasi"
+          modul="absensi"
+          :tanggal="String(values.tanggal || '')"
+          @verified="otorisasiOke"
+        />
       </template>
     </template>
 

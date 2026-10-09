@@ -33,9 +33,25 @@ const columns: BrowseColumn[] = [
   { key: "Scan1", label: "Scan Masuk", width: "90px", align: "center" },
   { key: "Keluar", label: "Jam Keluar", width: "90px", align: "center" },
   { key: "Scan2", label: "Scan Keluar", width: "90px", align: "center" },
-  { key: "Status", label: "Status", width: "70px", align: "center" },
+  { key: "Status", label: "Status", width: "110px", align: "center" },
   { key: "Nonaktif", label: "Sudah Keluar", width: "95px", align: "center" },
 ];
+
+/** Status absensi: 0 = tidak masuk (kuning), 1 = masuk, 2 = terlambat (hijau). */
+function statusAbsensi(row: Record<string, any>): { label: string; cls: string } {
+  const s = String(row.Status ?? "").trim();
+  if (s === "0") return { label: "Tidak Masuk", cls: "st-0" };
+  if (s === "2") return { label: "Terlambat", cls: "st-2" };
+  return { label: "Masuk", cls: "st-1" };
+}
+
+/** Baris ikut ditandai samar mengikuti status. */
+function barisAbsensi(row: Record<string, any>): string {
+  const s = String(row.Status ?? "").trim();
+  if (s === "0") return "absen-0";
+  if (s === "2") return "absen-2";
+  return "";
+}
 
 const dialog = ref(false);
 const target = ref<{ Nik: string; Tanggal: string; Nama: string } | null>(null);
@@ -87,7 +103,17 @@ async function hapus() {
     :can-delete="false"
     search-placeholder="Cari NIK / nama / bagian / kode absensi..."
     :per-page="50"
+    :row-class="barisAbsensi"
   >
+    <template #cell="{ row, column, text }">
+      <span v-if="column.key === 'Status'" :class="['status-badge', statusAbsensi(row).cls]">{{
+        statusAbsensi(row).label
+      }}</span>
+      <span v-else-if="column.key === 'Nonaktif'" :class="['keluar-badge', String(row.Nonaktif ?? '').trim() === '1' ? 'ya' : 'tidak']">{{
+        String(row.Nonaktif ?? '').trim() === '1' ? "Sudah Keluar" : "–"
+      }}</span>
+      <template v-else>{{ text }}</template>
+    </template>
     <template #row-actions="{ row }">
       <button class="row-btn edit" title="Ubah jam absensi" @click="bukaEdit(row)">
         <span class="material-symbols-outlined" style="font-size: 14px">edit</span>
@@ -118,3 +144,60 @@ async function hapus() {
     </v-card>
   </v-dialog>
 </template>
+
+<style scoped>
+.status-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 0 = tidak masuk */
+.status-badge.st-0 {
+  color: #854d0e;
+  background: #fef3c7;
+  border-color: #e8c547;
+}
+/* 1 = masuk */
+.status-badge.st-1 {
+  color: #1d4ed8;
+  background: #e3ecfd;
+  border-color: #9dbcf3;
+}
+/* 2 = terlambat */
+.status-badge.st-2 {
+  color: #166534;
+  background: #dff3e5;
+  border-color: #8ed0a4;
+}
+/* Kolom Sudah Keluar: hanya sel bernilai 1 yang merah. */
+.keluar-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.keluar-badge.ya {
+  color: #b91c1c;
+  background: #fde2e2;
+  border: 1px solid #f0a8a8;
+}
+.keluar-badge.tidak {
+  color: #9aa7b8;
+}
+:deep(tbody tr.absen-0 td) {
+  background: #fff8e1;
+}
+:deep(tbody tr.absen-0:hover td) {
+  background: #ffefc2 !important;
+}
+:deep(tbody tr.absen-2 td) {
+  background: #eef9f0;
+}
+:deep(tbody tr.absen-2:hover td) {
+  background: #d9f0dd !important;
+}
+</style>

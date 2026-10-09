@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
+import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
@@ -26,7 +27,7 @@ import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
  * - Tanggal2 > Tanggal berarti simpan rentang: satu dokumen per hari, hari
  *   libur dilewati server, NIK yang sudah berijin hanya jadi peringatan.
  * - NIK+tanggal yang sudah ada pada mode 1 hari meminta konfirmasi LANJUT.
- * - Tanggal >= 3 hari lalu wajib otorisasi atasan (token JWT dari server).
+ * - Tanggal >= 3 hari lalu wajib otorisasi atasan model kode ala Delphi.
  */
 const route = useRoute();
 const toast = useToast();
@@ -56,10 +57,11 @@ const pakaiJam2 = computed(() => PAKAI_JAM2.includes(String(values.jenis_id)));
 const isRentang = computed(() => values.tanggal2 && values.tanggal2 !== values.tanggal);
 
 const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 3);
-const otorisasi = reactive({ user_kode: "", user_password: "" });
 const otorisasiToken = ref("");
-const otorisasiDiterima = ref(false);
-const cekOtor = ref(false);
+
+function otorisasiOke(payload: { token: string; pemberi: string }) {
+  otorisasiToken.value = payload.token;
+}
 
 const cariOpen = ref(false);
 const cariLoading = ref(false);
@@ -69,15 +71,12 @@ const dialogDuplikat = ref(false);
 const pesanDuplikat = ref("");
 const resetState = useTransactionReset({ values, info }, {
   isEdit: () => isEdit.value,
-  blocked: () => memuat.value || cariLoading.value || cekOtor.value || karyawanLookup.loading,
+  blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
   afterRestore: () => {
     cariOpen.value = false;
     kataCari.value = "";
     karyawanLookup.clear();
-    otorisasi.user_kode = "";
-    otorisasi.user_password = "";
     otorisasiToken.value = "";
-    otorisasiDiterima.value = false;
     dialogDuplikat.value = false;
     pesanDuplikat.value = "";
   },
@@ -170,30 +169,6 @@ function pilihKaryawan(row: Record<string, any>) {
   cariOpen.value = false;
 }
 
-async function cekOtorisasi() {
-  if (!otorisasi.user_kode || !otorisasi.user_password) {
-    toast.error("Kode user dan password atasan wajib diisi");
-    return;
-  }
-  cekOtor.value = true;
-  try {
-    const { data } = await api.post("/transaksi/ijin/otorisasi", {
-      user_kode: otorisasi.user_kode,
-      user_password: otorisasi.user_password,
-    });
-    otorisasiToken.value = data.data?.token || "";
-    otorisasiDiterima.value = !!otorisasiToken.value;
-    otorisasi.user_password = "";
-    toast.success(`Otorisasi diterima oleh ${otorisasi.user_kode}`);
-  } catch (e) {
-    otorisasiDiterima.value = false;
-    otorisasiToken.value = "";
-    toast.error(getErrorMessage(e, "Otorisasi ditolak"));
-  } finally {
-    cekOtor.value = false;
-  }
-}
-
 async function kirim(konfirmasiDuplikat: boolean): Promise<string> {
   if (!values.jenis_id) throw new Error("Jenis ijin wajib dipilih");
   if (!values.nik) throw new Error("NIK wajib diisi");
@@ -269,7 +244,6 @@ onMounted(async () => {
 watch(
   () => values.tanggal,
   () => {
-    otorisasiDiterima.value = false;
     otorisasiToken.value = "";
     if (!isEdit.value) muatNomor();
   }
@@ -342,24 +316,12 @@ watch(
           <p v-if="!pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
         </fieldset>
 
-        <fieldset v-if="perluOtorisasi" class="fs warn">
-          <legend>Otorisasi Atasan</legend>
-          <p class="note">
-            Tanggal <strong>{{ values.tanggal }}</strong> berjarak
-            <strong>{{ selisihHari(values.tanggal) }} hari</strong> dari hari ini. Program Delphi meminta
-            persetujuan atasan sebelum ijin lama boleh disimpan.
-          </p>
-          <div class="grid">
-            <FText v-model="otorisasi.user_kode" label="Kode User Atasan" placeholder="mis. ADMIN" />
-            <FText v-model="otorisasi.user_password" label="Password Atasan" type="password" />
-          </div>
-          <div class="aksi-row">
-            <button class="btn-mini primary" type="button" :disabled="cekOtor" @click="cekOtorisasi">
-              {{ cekOtor ? "Memeriksa..." : "Verifikasi Otorisasi" }}
-            </button>
-            <span v-if="otorisasiDiterima" class="ok">Otorisasi diterima oleh {{ otorisasi.user_kode }}</span>
-          </div>
-        </fieldset>
+        <OtorisasiKode
+          v-if="perluOtorisasi"
+          modul="ijin"
+          :tanggal="String(values.tanggal || '')"
+          @verified="otorisasiOke"
+        />
       </template>
     </template>
   </BaseForm>

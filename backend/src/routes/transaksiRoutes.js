@@ -7,7 +7,7 @@ import { wajibHak } from '../middleware/permission.js'
 import { getPelunasan, postPelunasan } from '../controllers/transaksi/pelunasanPinjamanController.js'
 import {
     getKeluarList, getKeluar, getNomorKeluar, getAlasanKeluar,
-    lookupKaryawanKeluar, infoKaryawanKeluar, saveKeluar, deleteKeluar,
+    lookupKaryawanKeluar, infoKaryawanKeluar, saveKeluar, deleteKeluar, getSuratKeluar,
 } from '../controllers/transaksi/keluarController.js'
 import {
     getIjinList,
@@ -17,7 +17,6 @@ import {
     infoKaryawan as infoKaryawanIjin,
     cekDuplikatHandler,
     getJenisIjin,
-    cekOtorisasi as otorisasiIjin,
     saveIjin,
     deleteIjin,
 } from '../controllers/transaksi/ijinController.js'
@@ -43,7 +42,6 @@ import {
     getDepartemenOptions,
     getBagianOptions,
     cekAbsensi,
-    cekOtorisasi as otorisasiLembur,
     saveLembur,
     deleteLembur,
 } from '../controllers/transaksi/lemburController.js'
@@ -75,7 +73,6 @@ import {
     getNomor as getNomorPenilaian,
     muatKaryawan as muatKaryawanPenilaian,
     lookupKaryawan as lookupKaryawanPenilaian,
-    cekOtorisasi as otorisasiPenilaian,
     savePenilaian,
     deletePenilaian,
 } from '../controllers/transaksi/penilaianController.js'
@@ -124,6 +121,7 @@ r.get('/keluar/alasan', wajibHak('frmKeluar'), getAlasanKeluar)
 r.get('/keluar/karyawan', wajibHak('frmKeluar'), lookupKaryawanKeluar)
 r.get('/keluar/karyawan-info', wajibHak('frmKeluar'), infoKaryawanKeluar)
 r.get('/keluar/form', wajibHak('frmKeluar'), getKeluar)
+r.get('/keluar/surat', wajibHak('frmKeluar'), getSuratKeluar)
 r.post('/keluar', wajibHak('frmKeluar', 'insert'), saveKeluar)
 r.put('/keluar/:nomor', wajibHak('frmKeluar', 'edit'), saveKeluar)
 r.delete('/keluar/:nomor', wajibHak('frmKeluar', 'delete'), deleteKeluar)
@@ -136,7 +134,6 @@ r.get('/ijin/karyawan', wajibHak('frmIjin'), lookupKaryawanIjin)
 r.get('/ijin/karyawan-info', wajibHak('frmIjin'), infoKaryawanIjin)
 r.get('/ijin/cek', wajibHak('frmIjin'), cekDuplikatHandler)
 r.get('/ijin/form', wajibHak('frmIjin'), getIjin)
-r.post('/ijin/otorisasi', wajibHak('frmIjin', 'edit'), otorisasiIjin)
 r.post('/ijin', wajibHak('frmIjin', 'insert'), saveIjin)
 r.put('/ijin', wajibHak('frmIjin', 'edit'), saveIjin)
 r.delete('/ijin/:nomor', wajibHak('frmIjin', 'delete'), deleteIjin)
@@ -164,7 +161,6 @@ r.get('/lembur/bagian-options', wajibHak('frmLembur'), getBagianOptions)
 r.get('/lembur/detail', wajibHak('frmLembur'), getLemburDetail)
 r.get('/lembur/form', wajibHak('frmLembur'), getLembur)
 r.post('/lembur/cek-absensi', wajibHak('frmLembur'), cekAbsensi)
-r.post('/lembur/otorisasi', wajibHak('frmLembur', 'edit'), otorisasiLembur)
 r.post('/lembur', wajibHak('frmLembur', 'insert'), saveLembur)
 r.put('/lembur', wajibHak('frmLembur', 'edit'), saveLembur)
 r.delete('/lembur/:nomor', wajibHak('frmLembur', 'delete'), deleteLembur)
@@ -199,7 +195,6 @@ r.get('/penilaian-3-bulan/karyawan', wajibHak('frmPenilaian3Bulan'), lookupKarya
 r.get('/penilaian-3-bulan/muat-karyawan', wajibHak('frmPenilaian3Bulan'), muatKaryawanPenilaian)
 r.get('/penilaian-3-bulan/detail', wajibHak('frmPenilaian3Bulan'), getPenilaianDetail)
 r.get('/penilaian-3-bulan/form', wajibHak('frmPenilaian3Bulan'), getPenilaian)
-r.post('/penilaian-3-bulan/otorisasi', wajibHak('frmPenilaian3Bulan', 'edit'), otorisasiPenilaian)
 r.post('/penilaian-3-bulan', wajibHak('frmPenilaian3Bulan', 'insert'), savePenilaian)
 r.put('/penilaian-3-bulan', wajibHak('frmPenilaian3Bulan', 'edit'), savePenilaian)
 r.delete('/penilaian-3-bulan/:nomor', wajibHak('frmPenilaian3Bulan', 'delete'), deletePenilaian)
