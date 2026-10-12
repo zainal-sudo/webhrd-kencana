@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import { reportRowKey } from "@/utils/reportRowKey";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
 import type { BrowseColumn } from "@/types";
@@ -53,6 +54,7 @@ function editAbsensi(row: Record<string, any>) {
     endpoint="/laporan/lembur-tanpa-spl"
     :columns="columns"
     primary-key="Nik"
+    :row-key="reportRowKey"
     has-period
     :default-start="firstDayOfMonth()"
     :can-delete="false"

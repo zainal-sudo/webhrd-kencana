@@ -147,6 +147,6 @@ test('Absensi row identity combines code + date; original edit and delete identi
   assert.equal(handlers.target.value.Tanggal, '2026-10-01');
   assert.match(source, /primary-key="Nik"/);
   assert.match(source, /:row-key="absensiRowKey"/);
-  assert.match(read('components/BaseBrowse.vue'), /:key="rowIdentity\(row, idx\)"/);
+  assert.match(read('components/BaseBrowse.vue'), /:key="renderRowKeys\[idx\]"/);
   f.unmount(); normal.unmount();
 });

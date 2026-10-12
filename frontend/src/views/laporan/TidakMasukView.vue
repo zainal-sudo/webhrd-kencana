@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import { reportRowKey } from "@/utils/reportRowKey";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
 import type { BrowseColumn } from "@/types";
@@ -97,6 +98,7 @@ async function jalankan() {
     :endpoint="endpoint"
     :columns="columns"
     primary-key="Nik"
+    :row-key="reportRowKey"
     has-period
     :default-start="firstDayOfMonth()"
     :can-delete="false"

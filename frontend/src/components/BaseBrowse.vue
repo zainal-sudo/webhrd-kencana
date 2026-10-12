@@ -293,6 +293,20 @@ function rowIdentity(row: Record<string, any>, index: number) {
   return props.rowKey ? props.rowKey(row) : row[props.primaryKey] ?? index;
 }
 
+// Proyeksi join bisa identik tanpa ID detail di API. Pertahankan semua baris,
+// tetapi beri ordinal per identitas (bukan index global) agar key Vue unik.
+// Hanya opt-in rowKey; identitas/action browse lain tetap seperti sebelumnya.
+const renderRowKeys = computed(() => {
+  const occurrences = new Map<string | number, number>();
+  return rows.value.map((row, index) => {
+    const key = rowIdentity(row, index);
+    if (!props.rowKey) return key;
+    const occurrence = occurrences.get(key) ?? 0;
+    occurrences.set(key, occurrence + 1);
+    return JSON.stringify([key, occurrence]);
+  });
+});
+
 onUnmounted(() => {
   toolbarObserver?.disconnect();
   ++loadRequest;
@@ -665,7 +679,7 @@ onActivated(() => {
               Tidak ada data ditemukan
             </td>
           </tr>
-          <template v-for="(row, idx) in rows" :key="rowIdentity(row, idx)">
+          <template v-for="(row, idx) in rows" :key="renderRowKeys[idx]">
           <tr
             :class="rowCls(row, idx)"
           >
