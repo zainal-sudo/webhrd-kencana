@@ -5,6 +5,7 @@ import {
 } from '../controllers/transaksi/pinjamanController.js'
 import { wajibHak } from '../middleware/permission.js'
 import { getPelunasan, postPelunasan } from '../controllers/transaksi/pelunasanPinjamanController.js'
+import { getRekapHutang } from '../controllers/transaksi/rekapHutangController.js'
 import {
     getKeluarList, getKeluar, getNomorKeluar, getAlasanKeluar,
     lookupKaryawanKeluar, infoKaryawanKeluar, saveKeluar, deleteKeluar, getSuratKeluar,
@@ -100,6 +101,7 @@ import {
 } from '../controllers/transaksi/lembur2Controller.js'
 
 const r = Router()
+r.get('/pinjaman/rekap-hutang', wajibHak('frmLapSaldo'), getRekapHutang)
 // Pinjaman: permissions for each action; no payment routes.
 r.get('/pinjaman', wajibHak('frmPinjam'), getPinjamanList)
 r.get('/pinjaman/export-pengajuan', wajibHak('frmPinjam'), getPengajuanPinjamanExcel)

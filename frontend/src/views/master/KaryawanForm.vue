@@ -10,6 +10,7 @@ import FNumber from "@/components/fields/FNumber.vue";
 import FTextarea from "@/components/fields/FTextarea.vue";
 import TableTextInput from "@/components/fields/TableTextInput.vue";
 import { api, getErrorMessage } from "@/api/axios";
+import { todaySql } from "@/utils/format";
 import {
   OPSI_AGAMA,
   OPSI_BPJS,
@@ -27,7 +28,10 @@ const toast = useToast();
 const nik = computed(() => (route.query.nik as string) || (route.query.id as string) || "");
 const isEdit = computed(() => nik.value !== "");
 
-const values = reactive<Record<string, any>>({ kar_status_aktif: null });
+const values = reactive<Record<string, any>>({
+  kar_status_aktif: null,
+  ...(isEdit.value ? {} : { kar_tgl_masuk: todaySql() }),
+});
 const anak = ref<any[]>([]);
 const pendidikan = ref<any[]>([]);
 const pengalaman = ref<any[]>([]);

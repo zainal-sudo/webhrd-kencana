@@ -73,6 +73,7 @@ const routes = [
   /* ── Transaksi: Ijin / Mutasi / Lembur (duplikat Delphi) ── */
   { path: "/transaksi/pinjaman", component: () => import("@/views/transaksi/PinjamanView.vue"), meta: { requiresAuth: true, title: "Pinjaman", form: "frmPinjam" } },
   { path: "/transaksi/pinjaman/pelunasan", component: () => import("@/views/transaksi/ProsesPelunasanPinjamanView.vue"), meta: { requiresAuth: true, title: "Proses Pelunasan Pinjaman", form: "frmBayar" } },
+  { path: "/transaksi/pinjaman/rekap-hutang", component: () => import("@/views/transaksi/RekapHutangView.vue"), meta: { requiresAuth: true, title: "Rekap Hutang", form: "frmLapSaldo" } },
   { path: "/transaksi/pinjaman/form", component: () => import("@/views/transaksi/PinjamanForm.vue"), meta: { requiresAuth: true, title: "Tambah Pinjaman", form: "frmPinjam" } },
   { path: "/transaksi/ijin", component: () => import("@/views/transaksi/IjinView.vue"), meta: { requiresAuth: true, title: "Ijin", form: "frmIjin" } },
   { path: "/transaksi/ijin/form", component: () => import("@/views/transaksi/IjinForm.vue"), meta: { requiresAuth: true, title: "Form Ijin", form: "frmIjin" } },

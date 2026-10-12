@@ -55,6 +55,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   /* ── Transaksi ── */
   frmPinjam: { grup: "koperasi", path: "/transaksi/pinjaman", label: "Pinjaman", icon: "account_balance", ready: true },
   frmBayar: { grup: "koperasi", path: "/transaksi/pinjaman/pelunasan", label: "Proses Pelunasan Pinjaman", icon: "payments", ready: true },
+  frmLapSaldo: { grup: "koperasi", path: "/transaksi/pinjaman/rekap-hutang", label: "Rekap Hutang", icon: "summarize", ready: true },
   frmIjin: { grup: "transaksi", path: "/transaksi/ijin", label: "Ijin", icon: "event_available", ready: true },
   frmIjin2: { grup: "transaksi", path: "/transaksi/ijin-v2/form", label: "Ijin Kolektif (V2)", icon: "group_add", ready: false },
   frmKeluar: { grup: "transaksi", path: "/transaksi/keluar", label: "Karyawan Keluar", icon: "logout", ready: true },
@@ -103,7 +104,6 @@ export const MENU_DIABAIKAN = [
   "frmprosesMPPBulanan",
   "frmProsesSMBulanan",
   "frmGajiHarianperBagian",
-  "frmLapSaldo",
 ];
 
 export function definisiMenu(menNama: string): (MenuDef & { grup: keyof typeof GRUP }) | undefined {

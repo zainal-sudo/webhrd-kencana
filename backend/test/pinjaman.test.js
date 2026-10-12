@@ -459,7 +459,7 @@ test('Pinjaman export supplies transaction dates and global budget independent o
 
 test('Routes protect Pinjaman insert/edit/delete separately; updates never modify balance or document number', () => {
     const routes = readFileSync(new URL('../src/routes/transaksiRoutes.js', import.meta.url), 'utf8')
-    const loanRoutes = routes.split('\n').filter(line => /r\.(get|post|put|patch|delete)\('\/pinjaman/.test(line) && !line.includes('/pelunasan'))
+    const loanRoutes = routes.split('\n').filter(line => /r\.(get|post|put|patch|delete)\('\/pinjaman/.test(line) && !line.includes('/pelunasan') && !line.includes('/rekap-hutang'))
     assert.equal(loanRoutes.length, 11)
     assert.ok(loanRoutes.every(line => line.includes("wajibHak('frmPinjam'")))
     assert.ok(loanRoutes.some(line => line.includes("r.put('/pinjaman/:nomor', wajibHak('frmPinjam', 'edit')")))

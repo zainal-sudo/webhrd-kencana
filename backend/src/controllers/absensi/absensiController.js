@@ -123,18 +123,23 @@ export const getAbsensiList = async (req, res, next) => {
             params.push(req.query.departemen)
         }
 
+        // MySQL TIME/angka membandingkan '' sebagai nol. Untuk pilihan kosong,
+        // bandingkan sebagai teks agar tidak ikut memilih 00:00:00 atau angka 0.
+        const filterColumns = Object.fromEntries(Object.entries(LIST_COLUMNS).map(([alias, col]) => [
+            alias, req.query[`filterEmpty_${alias}`] === '1' ? `CAST(${col} AS CHAR)` : col,
+        ]))
+
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const dcol = LIST_COLUMNS[req.query.distinct]
-            const scoped = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            const scoped = applyAllColumnFilters(where, params, req.query, filterColumns, req.query.distinct)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${FROM_SQL} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${FROM_SQL}${scoped.clause} ORDER BY value LIMIT 500`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
         }
 
-        const f = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS)
+        const f = applyAllColumnFilters(where, params, req.query, filterColumns)
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY a.tanggal DESC, k.kar_nama')

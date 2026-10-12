@@ -54,6 +54,8 @@ const props = withDefaults(
     rowNumberLabel?: string;
     /** Letakkan nomor urut setelah kolom pertama (mis. TGL di Pinjaman). */
     rowNumberAfterFirstColumn?: boolean;
+    /** Opt-in summary above the toolbar that scrolls away with table rows. */
+    scrollableHeader?: boolean;
     /** Kelas CSS tambahan per baris (mis. tandai karyawan sudah keluar). */
     rowClass?: (row: Record<string, any>, index: number) => string | undefined;
   }>(),
@@ -77,6 +79,7 @@ const props = withDefaults(
     expandable: false,
     rowNumberLabel: 'No',
     rowNumberAfterFirstColumn: false,
+    scrollableHeader: false,
   }
 );
 
@@ -104,6 +107,19 @@ const perPage = ref(props.perPage);
 const total = ref(0);
 const lastPage = ref(1);
 const tableWrap = ref<HTMLElement | null>(null);
+const scrollRegion = ref<HTMLElement | null>(null);
+const toolbar = ref<HTMLElement | null>(null);
+const toolbarHeight = ref(0);
+let toolbarObserver: ResizeObserver | undefined;
+onMounted(() => {
+  if (!props.scrollableHeader || !toolbar.value) return;
+  const measure = () => { toolbarHeight.value = toolbar.value?.offsetHeight ?? 0; };
+  measure();
+  if (typeof ResizeObserver !== 'undefined') {
+    toolbarObserver = new ResizeObserver(measure);
+    toolbarObserver.observe(toolbar.value);
+  }
+});
 const pageInput = ref(1);
 const visiblePages = computed(() => {
   const count = Math.min(5, lastPage.value);
@@ -278,6 +294,7 @@ function rowIdentity(row: Record<string, any>, index: number) {
 }
 
 onUnmounted(() => {
+  toolbarObserver?.disconnect();
   ++loadRequest;
   if (timeoutId.value !== undefined) window.clearTimeout(timeoutId.value);
 });
@@ -350,7 +367,8 @@ function goToPage(p: number) {
   pageInput.value = target;
   if (target === page.value) return;
   page.value = target;
-  if (tableWrap.value) tableWrap.value.scrollTop = 0;
+  const scroller = props.scrollableHeader ? scrollRegion.value : tableWrap.value;
+  if (scroller) scroller.scrollTop = 0;
   fetchData();
 }
 
@@ -503,9 +521,11 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="browse-panel" :class="{ compact }">
+  <div class="browse-panel" :class="{ compact, 'scrollable-header': scrollableHeader }" :style="scrollableHeader ? { '--browse-toolbar-height': `${toolbarHeight}px` } : undefined">
+    <div ref="scrollRegion" class="browse-scroll-region">
+    <div v-if="scrollableHeader" class="scroll-header"><slot name="scroll-header" /></div>
     <!-- Toolbar -->
-    <div class="toolbar">
+    <div ref="toolbar" class="toolbar">
       <div class="toolbar-left">
         <span class="module-icon">
           <MsIcon name="table_view" :size="16" />
@@ -727,6 +747,7 @@ onActivated(() => {
     </div>
 
     <!-- Footer -->
+    </div>
     <div class="browse-foot">
       <div class="foot-info">
         Menampilkan <strong>{{ fromRow }}-{{ toRow }}</strong> dari
@@ -805,6 +826,12 @@ onActivated(() => {
   display: flex;
   flex-direction: column;
 }
+.browse-scroll-region { display: contents; }
+.scrollable-header .browse-scroll-region { display: block; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.scrollable-header .scroll-header { position: sticky; left: 0; padding-bottom: 12px; }
+.scrollable-header .toolbar { position: sticky; top: 0; left: 0; z-index: 5; }
+.scrollable-header .table-wrap { overflow: visible; }
+.scrollable-header .browse-table th { top: var(--browse-toolbar-height, 0px); z-index: 3; }
 .toolbar {
   flex-shrink: 0;
   display: flex;

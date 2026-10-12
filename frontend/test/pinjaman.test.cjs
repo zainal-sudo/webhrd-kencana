@@ -576,17 +576,21 @@ test('Actual ColumnFilterPopup retains NULL and empty choices, emits typed keys,
   assert.deepEqual(Array.from(popup.filteredValues.value), [columnFilter.filterKey('BSI')]);
   for (const stop of stops) stop();
 });
-test('Pinjaman and Pelunasan reuse separate legacy permissions; saldo report remains disabled', () => {
+test('Pinjaman, Pelunasan and Rekap Hutang reuse separate legacy permissions in Koperasi', () => {
   const menu = compile(read('utils/menuMap.ts'), require);
   assert.equal(menu.definisiMenu('frmPinjam').grup, 'koperasi');
   assert.equal(menu.definisiMenu('frmBayar').grup, 'koperasi');
   assert.equal(menu.MENU_DIABAIKAN.includes('frmPinjam'), false);
   assert.equal(menu.MENU_DIABAIKAN.includes('frmBayar'), false);
   assert.equal(menu.definisiMenu('frmBayar').label, 'Proses Pelunasan Pinjaman');
-  assert.equal(menu.MENU_DIABAIKAN.includes('frmLapSaldo'), true);
+  assert.equal(menu.MENU_DIABAIKAN.includes('frmLapSaldo'), false);
+  assert.equal(menu.definisiMenu('frmLapSaldo').grup, 'koperasi');
+  assert.equal(menu.definisiMenu('frmLapSaldo').label, 'Rekap Hutang');
+  assert.equal(menu.definisiMenu('frmLapSaldo').ready, true);
   const routes = read('router/index.ts').split('\n').filter(line => line.includes('path: "/transaksi/pinjaman'));
-  assert.equal(routes.length, 3);
-  assert.ok(routes.filter(line => !line.includes('/pelunasan')).every(line => line.includes('form: "frmPinjam"')));
+  assert.equal(routes.length, 4);
+  assert.ok(routes.filter(line => !line.includes('/pelunasan') && !line.includes('/rekap-hutang')).every(line => line.includes('form: "frmPinjam"')));
+  assert.ok(routes.find(line => line.includes('/rekap-hutang')).includes('form: "frmLapSaldo"'));
   assert.ok(routes.find(line => line.includes('/pelunasan')).includes('form: "frmBayar"'));
   assert.match(read('stores/permissionStore.ts'), /if \(key === "frmSP"\) return transactionOrder\.length \+ 1/);
 });
