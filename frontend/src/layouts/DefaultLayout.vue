@@ -88,8 +88,8 @@ function toggleFullscreen() {
             <MsIcon name="groups" :size="22" filled />
           </span>
           <span class="brand-text">
-            <strong>WEB HRD &mdash; KENCANA</strong>
-            <small>HUMAN RESOURCE DEPARTMENT</small>
+            <strong>HRIS &mdash; Kencana</strong>
+            <small>Human Resource Information System</small>
           </span>
         </button>
       </div>

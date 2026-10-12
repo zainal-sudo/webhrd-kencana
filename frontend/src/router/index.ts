@@ -150,8 +150,8 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to, _from, failure) => {
   if (failure) return;
-  const title = (to.meta.title as string) || "Web HRD Kencana";
-  document.title = title === "Web HRD Kencana" ? title : `${title} | Web HRD Kencana`;
+  const title = (to.meta.title as string) || "HRIS — Kencana";
+  document.title = title === "HRIS — Kencana" ? title : `${title} | HRIS — Kencana`;
   if (to.meta.layout === "BlankLayout" || to.meta.requiresAuth === false || !useAuthStore().isAuthenticated) return;
   const tabs = useTabsStore();
   tabs.initDefaultTabs();

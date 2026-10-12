@@ -47,8 +47,8 @@ async function doLogin() {
           <MsIcon name="groups" :size="32" filled :weight="300" />
         </span>
         <div class="brand-text">
-          <strong>WEB HRD &mdash; KENCANA</strong>
-          <small>HUMAN RESOURCE DEPARTMENT</small>
+          <strong>HRIS &mdash; Kencana</strong>
+          <small>Human Resource Information System</small>
         </div>
       </div>
 
@@ -97,7 +97,7 @@ async function doLogin() {
       </div>
 
       <div class="login-foot">
-        <span>&copy; {{ new Date().getFullYear() }} Kencana &mdash; Human Resource Department.</span>
+        <span>&copy; {{ new Date().getFullYear() }} Kencana &mdash; Human Resource Information System.</span>
       </div>
     </div>
   </div>
