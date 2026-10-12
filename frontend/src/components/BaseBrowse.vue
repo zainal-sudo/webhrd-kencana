@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, reactive, computed, onMounted, onActivated, watch } from "vue";
+import { ref, shallowRef, reactive, computed, onMounted, onActivated, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -22,6 +22,8 @@ const props = withDefaults(
     periodStartKey?: string;
     periodEndKey?: string;
     primaryKey: string;
+    /** Identitas render majemuk; tidak mengubah parameter Edit/Hapus. */
+    rowKey?: (row: Record<string, any>) => string | number;
     /** Bangun kolom dinamis berdasar periode aktif (mis. tabel kalender
      *  Absensi Periode yang 1 kolom tiap tanggal). Bila tidak diisi, kolom
      *  memakai prop `columns` apa adanya. */
@@ -221,6 +223,10 @@ const columnCount = computed(() => cols.value.length + 1 + (props.showActions ? 
 
 let loadRequest = 0;
 async function fetchData() {
+  if (timeoutId.value !== undefined) {
+    window.clearTimeout(timeoutId.value);
+    timeoutId.value = undefined;
+  }
   expandedKeys.value = new Set();
   const request = ++loadRequest;
   loading.value = true;
@@ -242,7 +248,8 @@ async function fetchData() {
       pageInput.value = page.value;
     }
   } catch (e: any) {
-    if (request === loadRequest) emit("load-error");
+    if (request !== loadRequest) return;
+    emit("load-error");
     toast.error(getErrorMessage(e));
   } finally {
     if (request === loadRequest) loading.value = false;
@@ -251,12 +258,29 @@ async function fetchData() {
 
 const timeoutId = ref<number | undefined>(undefined);
 function onSearch() {
-  if (timeoutId.value) window.clearTimeout(timeoutId.value);
+  // Invalidasi sejak input berubah, bukan setelah debounce selesai.
+  ++loadRequest;
+  if (timeoutId.value !== undefined) window.clearTimeout(timeoutId.value);
+  rows.value = [];
+  expandedKeys.value = new Set();
+  loading.value = true;
+  page.value = 1;
+  total.value = 0;
+  lastPage.value = 1;
   timeoutId.value = window.setTimeout(() => {
-    page.value = 1;
+    timeoutId.value = undefined;
     fetchData();
   }, 350);
 }
+
+function rowIdentity(row: Record<string, any>, index: number) {
+  return props.rowKey ? props.rowKey(row) : row[props.primaryKey] ?? index;
+}
+
+onUnmounted(() => {
+  ++loadRequest;
+  if (timeoutId.value !== undefined) window.clearTimeout(timeoutId.value);
+});
 
 function refresh() {
   fetchData();
@@ -621,7 +645,7 @@ onActivated(() => {
               Tidak ada data ditemukan
             </td>
           </tr>
-          <template v-for="(row, idx) in rows" :key="row[primaryKey] ?? idx">
+          <template v-for="(row, idx) in rows" :key="rowIdentity(row, idx)">
           <tr
             :class="rowCls(row, idx)"
           >

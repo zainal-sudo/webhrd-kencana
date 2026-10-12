@@ -20,7 +20,7 @@ const settle = async () => { await vue.nextTick(); await new Promise(resolve => 
 function fixture(kind, settings = {}) {
   const mounted = [], activated = [], stops = [], calls = [], events = [];
   let confirm = true, fail = false;
-  const vueModule = { ...vue, onMounted: fn => mounted.push(fn), onActivated: fn => activated.push(fn),
+  const vueModule = { ...vue, onMounted: fn => mounted.push(fn), onActivated: fn => activated.push(fn), onUnmounted() {},
     watch: (...args) => { const stop = vue.watch(...args); stops.push(stop); return stop; } };
   const api = {
     async get(url, config) {

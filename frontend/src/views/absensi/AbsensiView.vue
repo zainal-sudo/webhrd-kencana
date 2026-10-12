@@ -20,6 +20,11 @@ const router = useRouter();
 const endpoint = "/absensi";
 const formPath = "/absensi/form";
 
+/** Satu karyawan punya banyak tanggal; key Vue tidak boleh hanya kode absensi. */
+function absensiRowKey(row: Record<string, any>): string {
+  return JSON.stringify([String(row.Nik ?? ''), String(row.Tanggal ?? '').slice(0, 10)]);
+}
+
 const columns: BrowseColumn[] = [
   { key: "Nik", label: "Kode Absensi", width: "110px" },
   { key: "NIK", label: "NIK", width: "110px" },
@@ -98,6 +103,7 @@ async function hapus() {
     :columns="columns"
     :add-form-path="formPath"
     primary-key="Nik"
+    :row-key="absensiRowKey"
     has-period
     :default-start="firstDayOfMonth()"
     :can-delete="false"
