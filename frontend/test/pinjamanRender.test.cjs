@@ -133,6 +133,20 @@ test('Pinjaman renders auto-period in toolbar, defaults to checked all dates, no
   assert.doesNotMatch(filtered.html, /class="export-button" disabled/);
 });
 
+test('Pinjaman has compact rounded summary cards and a single bordered period group', async () => {
+  const { html } = await renderer()('views/transaksi/PinjamanView.vue');
+  const groupStart = html.indexOf('class="period-fields" role="group" aria-label="Periode pinjaman"');
+  assert.ok(groupStart >= 0);
+  const group = html.slice(groupStart, html.indexOf('</button>', groupStart));
+  for (const text of ['id="loan-export-start"', 'id="loan-export-end"', 'Semua periode']) assert.ok(group.includes(text));
+  const source = fs.readFileSync(path.join(root, 'views/transaksi/PinjamanView.vue'), 'utf8');
+  assert.match(source, /class="period-fields"[\s\S]*?class="all-dates-button"[\s\S]*?<\/button>\s*<\/div>/);
+  assert.match(source, /\.period-fields[^}]*padding: 4px 6px[^}]*border: 1px solid/);
+  assert.match(source, /\.loan-summary > div[^}]*padding: 8px 14px/);
+  assert.match(source, /\.pinjaman-page \.loan-summary > div[^}]*border-radius: 14px !important/);
+  assert.match(source, /\.loan-summary strong[^}]*font-size: 18px/);
+});
+
 test('Pinjaman toolbar groups Export + Tambah, keeps order and insert/export disabled states', async () => {
   const period = { start_date: '2026-10-01', end_date: '2026-10-09' };
   for (const settings of [{}, { range: period }, { range: period, exporting: true }, { period }, { period, insert: false }, { period, exporting: true }]) {

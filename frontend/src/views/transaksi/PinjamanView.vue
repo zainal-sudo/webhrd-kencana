@@ -182,11 +182,11 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
       search-placeholder="Cari nomor / NIK / nama / bagian / bank / rekening..." @load-start="refreshSummary" @load-error="browseFailed" @loaded="browseLoaded">
       <template #toolbar-before-search>
         <div class="loan-period">
-          <div class="period-fields">
+          <div class="period-fields" role="group" aria-label="Periode pinjaman">
             <div class="date-field"><label for="loan-export-start">DARI</label><input id="loan-export-start" v-model="exportStart" type="date" :max="exportEnd || undefined" :disabled="exporting" @change="applyPeriod" /></div>
             <div class="date-field"><label for="loan-export-end">SAMPAI</label><input id="loan-export-end" v-model="exportEnd" type="date" :min="exportStart || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+            <button type="button" class="all-dates-button" :class="{ active: !appliedPeriod }" :aria-pressed="!appliedPeriod" :disabled="exporting" @click="allDates"><MsIcon v-if="!appliedPeriod" name="check" :size="14" />Semua periode</button>
           </div>
-          <button type="button" class="all-dates-button" :class="{ active: !appliedPeriod }" :aria-pressed="!appliedPeriod" :disabled="exporting" @click="allDates"><MsIcon v-if="!appliedPeriod" name="check" :size="14" />Semua periode</button>
           <span v-if="(exportStart || exportEnd) && !exportPeriodValid" class="period-error" role="alert">Rentang tanggal tidak valid.</span>
         </div>
       </template>
@@ -241,9 +241,9 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .pinjaman-page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .pinjaman-page > .loan-summary, .pinjaman-page > p { flex-shrink: 0; }
 .pinjaman-page > :deep(.browse-panel) { flex: 1; height: auto; min-height: 0; }
-.loan-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.loan-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
 .loan-period { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
-.period-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0; border: 0; background: transparent; }
+.period-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border: 1px solid var(--ds-border, #c3cad4); background: var(--ds-surface-raised, white); min-width: 0; }
 .date-field { display: flex; align-items: center; gap: 4px; }
 .loan-period label { font-size: 10px; font-weight: 700; color: var(--ds-text-secondary, #55637a); }
 .loan-period input { height: 32px; box-sizing: border-box; width: 112px; min-width: 0; padding: 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 0; font: inherit; font-size: 11px; }
@@ -280,9 +280,11 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
   .period-fields { flex-wrap: wrap; }
   .loan-toolbar-actions { margin-left: auto; }
 }
-.loan-summary > div { background: var(--ds-surface, white); border: 1px solid var(--ds-border, #dde3ec); padding: 16px; border-radius: 8px; }
-.loan-summary span { display: block; font-size: 12px; margin-bottom: 8px; }
-.loan-summary strong { font-size: 20px; }
+.loan-summary > div { background: var(--ds-surface, white); border: 1px solid var(--ds-border, #dde3ec); padding: 8px 14px; }
+/* Radius lokal tetap berlaku meskipun app-shell mengatur zero-radius global. */
+.pinjaman-page .loan-summary > div { border-radius: 14px !important; }
+.loan-summary span { display: block; font-size: 11px; line-height: 1.3; margin-bottom: 3px; }
+.loan-summary strong { display: block; font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
 .detail-button, .loan-dialog button { cursor: pointer; padding: 6px 10px; border: 1px solid var(--ds-border, #dde3ec); border-radius: 5px; background: var(--ds-surface, white); color: inherit; }
 .detail-button { font-size: 11px; padding: 4px 6px; }
 .loan-overlay { position: fixed; inset: 0; background: #0008; z-index: 2000; display: grid; place-items: center; padding: 20px; }
