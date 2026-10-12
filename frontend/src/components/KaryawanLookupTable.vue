@@ -2,10 +2,20 @@
 import { computed, ref } from "vue";
 import type { KaryawanLookup } from "@/composables/useKaryawanLookup";
 
-const props = defineProps<{ lookup: KaryawanLookup; columns: string[] }>();
+const props = defineProps<{
+  lookup: KaryawanLookup; columns: string[];
+  rowSelectable?: (row: Record<string, any>) => boolean;
+  unsortableColumns?: string[];
+}>();
 const emit = defineEmits<{ select: [row: Record<string, any>] }>();
 const jump = ref(1);
-const labels: Record<string, string> = { Nik: "NIK", KodeAbsensi: "Kode Absensi" };
+const labels: Record<string, string> = { Nik: "NIK", KodeAbsensi: "Kode Absensi", MasaKerja: "Masa Kerja", StatusKelayakan: "Status" };
+function isSelectable(row: Record<string, any>) {
+  return !props.lookup.loading && (props.rowSelectable?.(row) ?? true);
+}
+function selectRow(row: Record<string, any>) {
+  if (isSelectable(row)) emit('select', row);
+}
 const pages = computed(() => {
   const { page, last_page } = props.lookup.pagination;
   const start = Math.max(1, Math.min(page - 2, last_page - 4));
@@ -27,15 +37,16 @@ function go(page: number) {
         <thead>
           <tr>
             <th v-for="key in columns" :key="key" :aria-sort="lookup.sortBy === key ? (lookup.sortDir === 'asc' ? 'ascending' : 'descending') : 'none'">
-              <button type="button" class="sort" :disabled="lookup.loading" :aria-label="`Urutkan ${labels[key] || key}`" @click="run(() => lookup.sort(key))">
+              <span v-if="unsortableColumns?.includes(key)">{{ labels[key] || key }}</span>
+              <button v-else type="button" class="sort" :disabled="lookup.loading" :aria-label="`Urutkan ${labels[key] || key}`" @click="run(() => lookup.sort(key))">
                 {{ labels[key] || key }} <span v-if="lookup.sortBy === key">{{ lookup.sortDir === 'asc' ? '↑' : '↓' }}</span>
               </button>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in lookup.rows" :key="row.Nik ?? row.KodeAbsensi" tabindex="0" @click="emit('select', row)" @keydown.enter.prevent="emit('select', row)" @keydown.space.prevent="emit('select', row)">
-            <td v-for="key in columns" :key="key">{{ row[key] }}</td>
+          <tr v-for="row in lookup.rows" :key="row.Nik ?? row.KodeAbsensi" :tabindex="isSelectable(row) ? 0 : -1" :aria-disabled="!isSelectable(row)" :class="{ 'unselectable-row': !isSelectable(row) }" @click="selectRow(row)" @keydown.enter.prevent="selectRow(row)" @keydown.space.prevent="selectRow(row)">
+            <td v-for="key in columns" :key="key"><slot name="cell" :row="row" :column="key">{{ row[key] }}</slot></td>
           </tr>
           <tr v-if="!lookup.rows.length" class="state"><td :colspan="columns.length" role="status">{{ lookup.loading ? 'Memuat…' : lookup.error || 'Karyawan tidak ditemukan' }}</td></tr>
         </tbody>
@@ -65,6 +76,8 @@ th, td { padding: 6px; text-align: left; border-bottom: 1px solid var(--ds-borde
 td { background: var(--ds-surface-raised); }
 tbody tr:not(.state) { cursor: pointer; }
 tbody tr:not(.state):is(:hover, :focus) td { background: var(--ds-primary-50); }
+tbody tr.unselectable-row { cursor: not-allowed; }
+tbody tr.unselectable-row td, tbody tr.unselectable-row:hover td { background: var(--ds-surface); }
 .sort { width: 100%; display: flex; justify-content: space-between; gap: 8px; border: none; font-weight: 700; background: transparent; }
 input, select, button { font: inherit; color: var(--ds-text); }
 input, select { background: var(--ds-surface-raised); border: 1px solid var(--ds-border); padding: 4px; }

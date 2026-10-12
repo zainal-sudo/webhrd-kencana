@@ -50,6 +50,8 @@ const props = withDefaults(
     /** Opt-in inline detail slot. Disabled for all existing modules. */
     expandable?: boolean;
     rowNumberLabel?: string;
+    /** Letakkan nomor urut setelah kolom pertama (mis. TGL di Pinjaman). */
+    rowNumberAfterFirstColumn?: boolean;
     /** Kelas CSS tambahan per baris (mis. tandai karyawan sudah keluar). */
     rowClass?: (row: Record<string, any>, index: number) => string | undefined;
   }>(),
@@ -72,12 +74,13 @@ const props = withDefaults(
     compact: false,
     expandable: false,
     rowNumberLabel: 'No',
+    rowNumberAfterFirstColumn: false,
   }
 );
 
 const emit = defineEmits<{
   /** Optional module summaries refresh with the same successful browse lifecycle. */
-  (e: "loaded"): void;
+  (e: "loaded", pagination?: Record<string, any>): void;
   (e: "load-start"): void;
   (e: "load-error"): void;
   (e: "print", row: Record<string, any>): void;
@@ -182,7 +185,7 @@ function isFilterActive(col: BrowseColumn): boolean {
 }
 
 async function fetchDistinct(col: BrowseColumn): Promise<(string | number | null)[]> {
-  const params: Record<string, any> = { distinct: col.key };
+  const params: Record<string, any> = { ...props.extraQuery, distinct: col.key };
   if (search.value.trim()) params.search = search.value.trim();
   if (props.hasPeriod && startDate.value && endDate.value) {
     params[props.periodStartKey] = startDate.value;
@@ -224,8 +227,9 @@ async function fetchData() {
   emit("load-start");
   try {
     const { data } = await api.get(props.endpoint, { params: buildParams(true) });
+    if (request !== loadRequest) return;
     rows.value = data.data || [];
-    emit("loaded");
+    emit("loaded", data.pagination);
     // Foto yang sebelumnya gagal dimuat dicoba ulang — berkasnya bisa saja
     // baru saja diunggah/diperbaiki di server bukti.
     for (const k of Object.keys(brokenFotos)) delete brokenFotos[k];
@@ -241,7 +245,7 @@ async function fetchData() {
     if (request === loadRequest) emit("load-error");
     toast.error(getErrorMessage(e));
   } finally {
-    loading.value = false;
+    if (request === loadRequest) loading.value = false;
   }
 }
 
@@ -483,9 +487,12 @@ onActivated(() => {
           <MsIcon name="table_view" :size="16" />
         </span>
         <span class="module-title">{{ moduleTitle }}</span>
-        <span v-if="moduleSubtitle" class="module-sub">{{ moduleSubtitle }}</span>
+        <slot name="module-subtitle">
+          <span v-if="moduleSubtitle" class="module-sub">{{ moduleSubtitle }}</span>
+        </slot>
       </div>
       <div class="toolbar-right">
+        <slot name="toolbar-before-search"></slot>
         <div v-if="hasPeriod" class="period-fields">
           <label>Dari</label>
           <input v-model="startDate" type="date" @change="refresh" />
@@ -528,10 +535,14 @@ onActivated(() => {
           <span>{{ exporting ? "Menyiapkan..." : "Excel" }}</span>
         </button>
 
-        <button v-if="addFormPath" class="tool-btn primary" @click="addNew">
-          <MsIcon name="add" :size="15" />
-          <span>{{ addLabel }}</span>
-        </button>
+        <!-- Layout-only extension; default actions and navigation stay unchanged. -->
+        <slot name="toolbar-actions" :add-new="addNew" :add-form-path="addFormPath" :add-label="addLabel">
+          <slot name="toolbar-before-add"></slot>
+          <button v-if="addFormPath" class="tool-btn primary" @click="addNew">
+            <MsIcon name="add" :size="15" />
+            <span>{{ addLabel }}</span>
+          </button>
+        </slot>
 
         <!-- Tombol tambahan modul (mis. Ijin: tombol Kolektif V2 ala Delphi) -->
         <slot name="toolbar-extra"></slot>
@@ -543,17 +554,19 @@ onActivated(() => {
       <table class="browse-table" :style="{ minWidth: tableMinWidth }">
         <colgroup v-if="compact">
           <col v-if="expandable" style="width: 36px" />
-          <col style="width: 36px" />
-          <col v-for="col in cols" :key="col.key" :style="{ width: col.width || '100px' }" />
+          <col v-if="!rowNumberAfterFirstColumn || !cols.length" style="width: 36px" />
+          <template v-for="(col, colIndex) in cols" :key="col.key">
+            <col :style="{ width: col.width || '100px' }" />
+            <col v-if="rowNumberAfterFirstColumn && colIndex === 0" style="width: 36px" />
+          </template>
           <col v-if="showActions" style="width: 144px" />
         </colgroup>
         <thead>
           <tr>
             <th v-if="expandable" class="expand-col"><span class="sr-only">Rencana Potongan</span></th>
-            <th class="num-col">{{ rowNumberLabel }}</th>
+            <th v-if="!rowNumberAfterFirstColumn || !cols.length" class="num-col">{{ rowNumberLabel }}</th>
+            <template v-for="(col, colIndex) in cols" :key="col.key">
             <th
-              v-for="col in cols"
-              :key="col.key"
               :style="{ textAlign: col.align || 'left' }"
               :class="{ sortable: isSortable(col), sorted: sortBy === col.key }"
               :title="isSortable(col) ? 'Klik untuk mengurutkan' : ''"
@@ -591,6 +604,8 @@ onActivated(() => {
                 @click.stop
               />
             </th>
+            <th v-if="rowNumberAfterFirstColumn && colIndex === 0" class="num-col">{{ rowNumberLabel }}</th>
+            </template>
             <th v-if="showActions" class="action-col">Aksi</th>
           </tr>
         </thead>
@@ -615,10 +630,9 @@ onActivated(() => {
                 <MsIcon :name="expandedKeys.has(row[primaryKey]) ? 'expand_less' : 'expand_more'" :size="18" />
               </button>
             </td>
-            <td class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
+            <td v-if="!rowNumberAfterFirstColumn || !cols.length" class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
+            <template v-for="(col, colIndex) in cols" :key="col.key">
             <td
-              v-for="col in cols"
-              :key="col.key"
                :class="{ 'foto-cell': col.type === 'image', 'numeric-cell': col.align === 'right', 'nowrap-cell': col.key === 'Nik' }"
               :style="{ textAlign: col.align || 'left' }"
             >
@@ -647,6 +661,8 @@ onActivated(() => {
                 <slot name="cell" :row="row" :column="col" :text="cellText(row, col)">{{ cellText(row, col) }}</slot>
               </template>
             </td>
+            <td v-if="rowNumberAfterFirstColumn && colIndex === 0" class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
+            </template>
             <td v-if="showActions" class="action-col">
               <div class="row-actions">
                 <slot name="row-actions" :row="row"></slot>
@@ -666,6 +682,7 @@ onActivated(() => {
                 >
                   <MsIcon name="edit" :size="14" />
                 </button>
+                <slot name="row-actions-end" :row="row"></slot>
                 <button
                   v-if="canDelete"
                   class="row-btn del"

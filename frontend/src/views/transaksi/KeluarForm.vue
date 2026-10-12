@@ -5,6 +5,7 @@ import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
+import { useLiveSearch } from "@/composables/useLiveSearch";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
@@ -167,6 +168,7 @@ onMounted(async () => {
 watch(nomorEdit, () => muatDokumen());
 watch(() => values.tanggal, () => { if (siap.value) muatNomor(); });
 watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
+const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, invalidate: () => karyawanLookup.invalidate() });
 </script>
 
 <template>
@@ -231,8 +233,8 @@ watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
       <v-card-title class="dlg-head">Cari Karyawan</v-card-title>
       <v-card-text>
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @keyup.enter="cariNik()" />
-          <button class="btn-mini primary" :disabled="cariLoading" @click="cariNik()">Cari</button>
+          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <button class="btn-mini primary" :disabled="cariLoading" @click="liveSearch.run">Cari</button>
         </div>
         <p class="note">Daftar mencakup karyawan aktif dan nonaktif; status ditampilkan pada setiap baris.</p>
         <KaryawanLookupTable :lookup="karyawanLookup" :columns="['Nik','Nama','Pabrik','Jabatan','Bagian','Status']" @select="pilihKaryawan" />

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import {
     getPinjamanList, getRingkasanPinjaman, getOptionsPinjaman, getNomorPinjaman,
-    getDetailPinjaman, lookupKaryawanPinjaman, infoKaryawanPinjaman, savePinjaman, updatePinjaman, deletePinjaman,
+    getDetailPinjaman, lookupKaryawanPinjaman, infoKaryawanPinjaman, savePinjaman, updatePinjaman, deletePinjaman, getPengajuanPinjamanExcel,
 } from '../controllers/transaksi/pinjamanController.js'
 import { wajibHak } from '../middleware/permission.js'
 import { getPelunasan, postPelunasan } from '../controllers/transaksi/pelunasanPinjamanController.js'
@@ -102,6 +102,7 @@ import {
 const r = Router()
 // Pinjaman: permissions for each action; no payment routes.
 r.get('/pinjaman', wajibHak('frmPinjam'), getPinjamanList)
+r.get('/pinjaman/export-pengajuan', wajibHak('frmPinjam'), getPengajuanPinjamanExcel)
 r.get('/pinjaman/pelunasan', wajibHak('frmBayar'), getPelunasan)
 r.post('/pinjaman/pelunasan/proses', wajibHak('frmBayar', 'insert'), postPelunasan)
 r.get('/pinjaman/ringkasan', wajibHak('frmPinjam'), getRingkasanPinjaman)

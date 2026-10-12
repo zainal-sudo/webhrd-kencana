@@ -2,12 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
-import { nomorPinjamanBerikut, validasiPinjaman, tambahPinjaman, periodePinjaman, kalkulasiPinjaman, PINJAMAN_OPTIONS, PLAFON_PINJAMAN, revisionPinjaman, jadwalPinjaman } from '../src/helpers/pinjaman.js'
+import { nomorPinjamanBerikut, validasiPinjaman, tambahPinjaman, periodePinjaman, kalkulasiPinjaman, PINJAMAN_OPTIONS, PLAFON_PINJAMAN, revisionPinjaman, jadwalPinjaman, tanggalLayakPinjaman, validasiMasaKerjaPinjaman, infoMasaKerjaPinjaman } from '../src/helpers/pinjaman.js'
 import { tanggalKeluarValid } from '../src/helpers/keluar.js'
 import { buildOrderBy, applyAllColumnFilters } from '../src/helpers/browse.js'
 import { applyKaryawanLookup } from '../src/helpers/karyawanLookup.js'
 import { sendExcel } from '../src/helpers/excel.js'
 import ExcelJS from 'exceljs'
+import { DatabaseSync } from 'node:sqlite'
 
 // No live database connection/config imported: all SQL is exercised with mocks.
 const body = { nik: '001', tanggal: '2026-10-09', pinjam: 400000, angsuran: 2, bank: 'BSI', norek: '0012345678' }
@@ -27,7 +28,7 @@ function database(initial = [], employees = { '001': 1, '002': 1, '003': 1 }, se
                     return [[{ acquired: 1 }]]
                 }
                 if (sql.includes('RELEASE_LOCK')) { unlock(); if (settings.failRelease) throw Error('release failed'); return [[{ released: 1 }]] }
-                if (sql.includes('FROM tkaryawan')) return [Object.hasOwn(employees, params[0]) ? [{ Aktif: employees[params[0]] }] : []]
+                if (sql.includes('FROM tkaryawan')) return [Object.hasOwn(employees, params[0]) ? [{ Aktif: employees[params[0]], TglMasuk: settings.tglMasuk === undefined ? '2010-01-01' : settings.tglMasuk }] : []]
                 if (sql.includes('WHERE nik = ?')) return [rows.filter(r => r.nik === params[0] && r.bayar != null && r.pinjam - r.bayar > 0)]
                 if (sql.includes('AS melebihi')) {
                     assert.match(sql, /CAST\(bayar AS DECIMAL\(65,20\)\)/)
@@ -169,7 +170,7 @@ test('Legacy 6/10 installments, NULLs and status are derived without mutating re
 function controller(query, exportOutstanding = 0) {
     const scope = { pool: { query: (sql, params) => sql.includes('AS outstanding') && params === undefined && exportOutstanding !== null
         ? Promise.resolve([[{ outstanding: exportOutstanding }]]) : query(sql, params) }, nomorPinjamanBerikut, tambahPinjaman, kalkulasiPinjaman, PINJAMAN_OPTIONS, PLAFON_PINJAMAN, revisionPinjaman,
-        tanggalKeluarValid, buildOrderBy, applyAllColumnFilters, applyKaryawanLookup,
+        tanggalKeluarValid, buildOrderBy, applyAllColumnFilters, applyKaryawanLookup, validasiMasaKerjaPinjaman, infoMasaKerjaPinjaman,
         success: (res, data) => { res.data = data }, error: (res, message, status) => { res.error = { message, status } },
         paginated: (res, data, pagination) => { res.data = data; res.pagination = pagination },
         sendExcel: (res, title, columns, data) => { res.data = data; res.columns = columns }, }
@@ -177,10 +178,102 @@ function controller(query, exportOutstanding = 0) {
     vm.createContext(scope)
     const source = readFileSync(new URL('../src/controllers/transaksi/pinjamanController.js', import.meta.url), 'utf8')
     vm.runInContext(source.replace(/^import .*\r?\n/gm, '').replace(/^export /gm, '') +
-        '\nglobalThis.handlers = {getPinjamanList,getDetailPinjaman,getRingkasanPinjaman,lookupKaryawanPinjaman};', scope)
+        '\nglobalThis.handlers = {getPinjamanList,getDetailPinjaman,getRingkasanPinjaman,lookupKaryawanPinjaman,infoKaryawanPinjaman};', scope)
     return scope.handlers
 }
 const next = e => { throw e }
+for (const [masuk, layak] of [
+    ['2026-04-09', '2026-10-09'], ['2026-08-31', '2027-02-28'], ['2023-08-31', '2024-02-29'],
+    ['2026-10-12', '2027-04-12'], ['2026-03-31', '2026-09-30'],
+]) test(`Six calendar months from ${masuk} = ${layak}`, () => {
+    assert.equal(tanggalLayakPinjaman(masuk), layak)
+    assert.equal(validasiMasaKerjaPinjaman(masuk, layak), layak)
+    const previous = new Date(`${layak}T00:00:00Z`)
+    previous.setUTCDate(previous.getUTCDate() - 1)
+    assert.throws(() => validasiMasaKerjaPinjaman(masuk, previous.toISOString().slice(0, 10)), /minimal 6 bulan/)
+})
+for (const tglMasuk of [null, '', '0000-00-00', '2026-02-30', '2026-04-10', '2027-01-01']) {
+    test(`INSERT rejects ineligible/missing join date ${tglMasuk} with no write`, async () => {
+        const db = database([], undefined, { tglMasuk })
+        await assert.rejects(tambahPinjaman(db, body), /masa kerja minimal 6 bulan/)
+        assert.equal(db.rows.length, 0)
+        assert.ok(db.calls.some(call => call.sql === 'ROLLBACK'))
+        assert.ok(!db.calls.some(call => call.sql.startsWith('INSERT')))
+    })
+}
+test('INSERT permits exact six-month anniversary, uses DB join date not client join date', async () => {
+    const db = database([], undefined, { tglMasuk: '2026-04-09' })
+    await tambahPinjaman(db, { ...body, tgl_masuk: '2026-10-01' })
+    assert.equal(db.rows.length, 1)
+    const tooYoung = database([], undefined, { tglMasuk: '2026-04-10' })
+    await assert.rejects(tambahPinjaman(tooYoung, { ...body, tgl_masuk: '2000-01-01' }), /2026-10-10/)
+})
+test('Join date ignores time-of-day for DATETIME records', () => {
+    assert.equal(tanggalLayakPinjaman('2026-04-09 14:30:00'), '2026-10-09')
+    assert.equal(tanggalLayakPinjaman(new Date(2026, 3, 9)), '2026-10-09')
+})
+test('Lookup shows all active employees with tenure/status; search and pagination preserve eligibility information', async () => {
+    const db = new DatabaseSync(':memory:')
+    db.exec(`CREATE TABLE tkaryawan (kar_Nik TEXT, kar_nama TEXT, kar_status_aktif INTEGER, kar_tgl_masuk TEXT,
+        kar_pab_kode TEXT, kar_bagian TEXT, kar_jab_kode TEXT);
+        CREATE TABLE tjabatan (jab_kode TEXT, jab_nama TEXT);
+        INSERT INTO tkaryawan VALUES ('001','Exact',1,'2026-04-09','P01','HRD',NULL),
+        ('002','Young',1,'2026-04-10','P01','HRD',NULL), ('003','Missing',1,NULL,'P01','HRD',NULL),
+        ('004','Inactive',0,'2000-01-01','P01','HRD',NULL), ('005','Invalid',1,'0000-00-00','P01','HRD',NULL);`)
+    const handlers = controller(async (sql, params) => [db.prepare(sql).all(...params)])
+    try {
+        const res = {}
+        await handlers.lookupKaryawanPinjaman({ query: { tanggal: '2026-10-09' } }, res, next)
+        assert.deepEqual(Array.from(res.data, row => row.Nik).sort(), ['001', '002', '003', '005'])
+        assert.equal(res.pagination.total, 4)
+        const exact = res.data.find(row => row.Nik === '001'), young = res.data.find(row => row.Nik === '002')
+        assert.equal(exact.MasaKerja, '6 bulan')
+        assert.equal(exact.BisaDipilih, true)
+        assert.equal(young.MasaKerja, '5 bulan')
+        assert.equal(young.BisaDipilih, false)
+        assert.equal(young.StatusKelayakan, 'Belum memenuhi syarat')
+        assert.equal(res.data.find(row => row.Nik === '003').StatusKelayakan, 'Tanggal masuk tidak tersedia')
+        assert.equal(res.data.find(row => row.Nik === '005').BisaDipilih, false)
+        const later = {}
+        await handlers.lookupKaryawanPinjaman({ query: { tanggal: '2026-10-10' } }, later, next)
+        assert.equal(later.data.length, 4)
+        assert.equal(later.data.find(row => row.Nik === '002').BisaDipilih, true)
+        const searched = {}, paged = {}
+        await handlers.lookupKaryawanPinjaman({ query: { tanggal: '2026-10-09', search: 'Young' } }, searched, next)
+        assert.equal(searched.data.length, 1)
+        assert.equal(searched.data[0].BisaDipilih, false)
+        await handlers.lookupKaryawanPinjaman({ query: { tanggal: '2026-10-09', page: 2, per_page: 2 } }, paged, next)
+        assert.equal(paged.data.length, 2)
+        assert.equal(paged.pagination.total, 4)
+        const invalid = {}
+        await handlers.lookupKaryawanPinjaman({ query: {} }, invalid, next)
+        assert.equal(invalid.error.status, 400)
+    } finally { db.close() }
+})
+for (const [masuk, tanggal, label, eligible] of [
+    ['2025-08-09', '2026-10-09', '1 tahun 2 bulan', true],
+    ['2026-06-09', '2026-10-09', '4 bulan', false],
+    ['2026-04-09', '2026-10-08', '5 bulan', false],
+    ['2026-04-09', '2026-10-09', '6 bulan', true],
+    ['2026-08-31', '2027-02-28', '6 bulan', true],
+    ['2023-08-31', '2024-02-28', '5 bulan', false],
+    ['2023-08-31', '2024-02-29', '6 bulan', true],
+    ['2026-10-09', '2026-10-09', '0 bulan', false],
+    ['2027-01-01', '2026-10-09', 'Belum mulai bekerja', false],
+    [null, '2026-10-09', '—', false], ['0000-00-00', '2026-10-09', '—', false],
+]) test(`Lookup tenure ${masuk} to ${tanggal}: ${label}`, () => {
+    const info = infoMasaKerjaPinjaman(masuk, tanggal)
+    assert.equal(info.MasaKerja, label)
+    assert.equal(info.BisaDipilih, eligible)
+    if (eligible) assert.equal(info.StatusKelayakan, 'Memenuhi syarat')
+})
+test('Employee-info rechecks join date even when selecting employee outside filtered lookup', async () => {
+    const handlers = controller(async () => [[{ Nik: '001', TglMasuk: '2026-04-10' }]])
+    const res = {}
+    await handlers.infoKaryawanPinjaman({ query: { nik: '001', tanggal: '2026-10-09' } }, res, next)
+    assert.equal(res.error.status, 400)
+    assert.match(res.error.message, /minimal 6 bulan/)
+})
 for (const [tanggal, angsuran, first, second] of [
     ['2026-10-09', 2, 'Oktober 2026', 'November 2026'],
     ['2026-10-25', 2, 'November 2026', 'Desember 2026'],
@@ -255,8 +348,33 @@ test('Browse/detail/export preserve legacy and LEFT JOIN; export all same filter
     assert.equal(detail.data.Nomor, row.Nomor)
     assert.equal(detail.data.Periode.split(', ').length, 6)
     const frontend = readFileSync(new URL('../../frontend/src/views/transaksi/PinjamanView.vue', import.meta.url), 'utf8')
-    assert.deepEqual(Array.from(excel.columns), ['NO', ...[...frontend.matchAll(/\{ key: "[^"]+", label: "([^"]+)"/g)].map(m => m[1])])
+    // Writer export lengkap menambahkan TGL dari options.dates, bukan columns.
+    assert.deepEqual(Array.from(excel.columns), ['NO', ...[...frontend.matchAll(/\{ key: "[^"]+", label: "([^"]+)"/g)].map(m => m[1]).filter(label => label !== 'TGL')])
+    assert.deepEqual(Array.from(excel.options.dates), ['2020-03-21'])
 })
+test('Browse all-date range covers entire filtered result, not current page; empty range is NULL', async () => {
+    const calls = []
+    const handlers = controller(async (sql, params) => {
+        calls.push({ sql, params })
+        return sql.startsWith('SELECT COUNT')
+            ? [[{ c: 70, date_start: '2020-03-21', date_end: '2026-10-12' }]]
+            : [[{ Tanggal: '2026-10-01', Pinjam: 500000 }]]
+    })
+    const res = {}
+    await handlers.getPinjamanList({ query: { page: 2, per_page: 25, search: 'Riri' } }, res, next)
+    assert.equal(res.pagination.date_start, '2020-03-21')
+    assert.equal(res.pagination.date_end, '2026-10-12')
+    assert.match(calls[1].sql, /MIN\(NULLIF\(p.tanggal, '0000-00-00'\)\)/)
+    assert.match(calls[1].sql, /MAX\(NULLIF\(p.tanggal, '0000-00-00'\)\)/)
+    assert.doesNotMatch(calls[1].sql, /LIMIT|OFFSET/)
+    assert.ok(calls[1].params.includes('%Riri%'))
+    const empty = {}
+    await controller(async sql => sql.startsWith('SELECT COUNT') ? [[{ c: 0 }]] : [[]])
+        .getPinjamanList({ query: {} }, empty, next)
+    assert.equal(empty.pagination.date_start, null)
+    assert.equal(empty.pagination.date_end, null)
+})
+
 test('Summary ignores request filters; lookup enforces active search and safe sort', async () => {
     const calls = []
     const handlers = controller(async (sql, params) => {
@@ -268,7 +386,7 @@ test('Summary ignores request filters; lookup enforces active search and safe so
     await handlers.getRingkasanPinjaman({ query: { search: '001', start_date: '2026-10-01' } }, summary, next)
     assert.equal(summary.data.sisa_plafon, 300000)
     assert.match(calls[0].sql, /FROM tpinjaman WHERE pinjam - bayar > 0$/)
-    await handlers.lookupKaryawanPinjaman({ query: { search: 'HRD', sort_by: 'Nama', sort_dir: 'desc' } }, {}, next)
+    await handlers.lookupKaryawanPinjaman({ query: { tanggal: '2026-10-09', search: 'HRD', sort_by: 'Nama', sort_dir: 'desc' } }, {}, next)
     assert.match(calls[1].sql, /kar_status_aktif = 1/)
     assert.match(calls[1].sql, /j\.jab_nama LIKE \?/)
     assert.match(calls[1].sql, /ORDER BY k\.kar_nama DESC/)
@@ -342,7 +460,7 @@ test('Pinjaman export supplies transaction dates and global budget independent o
 test('Routes protect Pinjaman insert/edit/delete separately; updates never modify balance or document number', () => {
     const routes = readFileSync(new URL('../src/routes/transaksiRoutes.js', import.meta.url), 'utf8')
     const loanRoutes = routes.split('\n').filter(line => /r\.(get|post|put|patch|delete)\('\/pinjaman/.test(line) && !line.includes('/pelunasan'))
-    assert.equal(loanRoutes.length, 10)
+    assert.equal(loanRoutes.length, 11)
     assert.ok(loanRoutes.every(line => line.includes("wajibHak('frmPinjam'")))
     assert.ok(loanRoutes.some(line => line.includes("r.put('/pinjaman/:nomor', wajibHak('frmPinjam', 'edit')")))
     assert.ok(loanRoutes.some(line => line.includes("r.delete('/pinjaman/:nomor', wajibHak('frmPinjam', 'delete')")))

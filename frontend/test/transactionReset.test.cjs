@@ -23,6 +23,8 @@ function fixture(name, edit = false, fail = false) {
   const resetModule = compile(fs.readFileSync(path.join(root, 'composables/useTransactionReset.ts'), 'utf8'), () => vueModule,
     { window: { confirm: () => confirmed } });
   const jam = compile(fs.readFileSync(path.join(root, 'utils/jam.ts'), 'utf8'), require);
+  const liveSearchModule = compile(fs.readFileSync(path.join(root, 'composables/useLiveSearch.ts'), 'utf8'),
+    () => ({ ...vueModule, onActivated() {}, onDeactivated() {}, onUnmounted() {} }), { setTimeout, clearTimeout });
   const lookupModule = compile(fs.readFileSync(path.join(root, 'composables/useKaryawanLookup.ts'), 'utf8'),
     module => module === 'vue' ? vueModule : { api: { get: async () => { throw Error('unexpected lookup request'); } } });
   const doc = {
@@ -55,6 +57,7 @@ function fixture(name, edit = false, fail = false) {
     if (module === '@/utils/jam') return jam;
     if (module === '@/composables/useTransactionReset') return resetModule;
     if (module === '@/composables/useKaryawanLookup') return lookupModule;
+    if (module === '@/composables/useLiveSearch') return liveSearchModule;
     if (module === '@/stores/authStore') return { useAuthStore: () => ({ can: () => true }) };
     if (module === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
     return {};

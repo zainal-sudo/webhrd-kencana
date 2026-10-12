@@ -4,14 +4,15 @@ import { rupiah } from '@/utils/pinjaman';
 
 const props = withDefaults(defineProps<{
   rows?: Array<{ periode: string | null; nominal: number | null }>;
-}>(), { rows: () => [] });
+  showTitle?: boolean;
+}>(), { rows: () => [], showTitle: true });
 const total = computed(() => props.rows.length && props.rows.every(row => row.nominal != null)
   ? props.rows.reduce((sum, row) => sum + Number(row.nominal), 0) : null);
 </script>
 
 <template>
   <section class="loan-schedule" aria-label="Rencana Potongan">
-    <h3>Rencana Potongan</h3>
+    <h3 v-if="showTitle">Rencana Potongan</h3>
     <div class="schedule-scroll">
       <table>
         <thead><tr><th scope="col">Periode Potongan</th><th scope="col" class="amount">Nominal Potongan</th></tr></thead>

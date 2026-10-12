@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import TabBar from "@/components/TabBar.vue";
@@ -8,11 +8,15 @@ import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useThemeToggle } from "@/composables/useTheme";
+import { useTabPageCache } from "@/composables/useTabPageCache";
 
 const router = useRouter();
 const authStore = useAuthStore();
 const permissionStore = usePermissionStore();
 const tabsStore = useTabsStore();
+const route = useRoute();
+const currentTabId = computed(() => tabsStore.generateTabId(route.path, route.query));
+const { currentPage, includedPages } = useTabPageCache(() => currentTabId.value);
 const { dark, toggle } = useThemeToggle();
 
 const now = ref(new Date());
@@ -134,8 +138,8 @@ function toggleFullscreen() {
         <TabBar />
         <div class="content-area">
           <router-view v-slot="{ Component }">
-            <keep-alive :key="tabsStore.cacheVersion" :max="10">
-              <component :is="Component" :key="$route.fullPath" />
+            <keep-alive :key="tabsStore.cacheVersion" :include="includedPages" :max="12">
+              <component :is="currentPage" :key="currentTabId" :page="Component" />
             </keep-alive>
           </router-view>
         </div>

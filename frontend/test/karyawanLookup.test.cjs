@@ -12,6 +12,27 @@ function createLookup(get) {
   vm.runInNewContext(js, { module, exports: module.exports, require: name => name === 'vue' ? vue : { api: { get } } });
   return module.exports.useKaryawanLookup('/lookup');
 }
+test('Shared lookup selection predicate blocks pointer/Enter/Space path and preserves default selection elsewhere', () => {
+  const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/KaryawanLookupTable.vue'), 'utf8');
+  const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
+  const props = { lookup: { loading: false, pagination: { page: 1, last_page: 1 } }, columns: [], rowSelectable: row => row.BisaDipilih === true };
+  const events = [];
+  const module = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(script + '\nexport { selectRow };', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+    { module, exports: module.exports, require: () => vue, defineProps: () => props, defineEmits: () => (...args) => events.push(args) });
+  const { selectRow } = module.exports;
+  selectRow({ Nik: 'young', BisaDipilih: false }); selectRow({ Nik: 'unknown' });
+  assert.equal(events.length, 0);
+  selectRow({ Nik: 'eligible', BisaDipilih: true });
+  assert.equal(events.length, 1);
+  props.lookup.loading = true; selectRow({ Nik: 'eligible', BisaDipilih: true });
+  assert.equal(events.length, 1);
+  props.lookup.loading = false; delete props.rowSelectable;
+  selectRow({ Nik: 'normal-module' }); assert.equal(events.length, 2);
+  assert.match(source, /@click="selectRow\(row\)"/);
+  assert.match(source, /@keydown.enter.prevent="selectRow\(row\)"/);
+  assert.match(source, /@keydown.space.prevent="selectRow\(row\)"/);
+});
 const response = (page = 1, total = 60) => ({ data: { data: [{ Nik: String(page) }], pagination: { page, per_page: 25, total, last_page: Math.ceil(total / 25) } } });
 
 test('pagination and sort preserve search/pabrik; normal mode sends no sort or filters', async () => {

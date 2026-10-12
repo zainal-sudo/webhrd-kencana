@@ -9,6 +9,7 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
 import { safeGet, safePut, downloadFile } from "@/api";
+import { useLiveSearch } from "@/composables/useLiveSearch";
 
 /**
  * Setting Gaji — padanan `ufrmSettingGaji`.
@@ -31,6 +32,25 @@ const rows = ref<Record<string, any>[]>([]);
 const loading = ref(false);
 const menyimpan = ref(false);
 const grid = ref<InstanceType<typeof EditableGrid> | null>(null);
+const edited = ref(false);
+let loadRequest = 0;
+let loadedSearch = "", loadedPabrik = "";
+
+function confirmSearch() {
+  if (edited.value && !window.confirm("Perubahan setting gaji belum disimpan. Buang perubahan dan muat hasil pencarian?")) {
+    cari.value = loadedSearch;
+    pabrik.value = loadedPabrik;
+    return false;
+  }
+  edited.value = false;
+  return true;
+}
+function onSearchInput() {
+  if (confirmSearch()) liveSearch.schedule();
+}
+function refreshSearch() {
+  if (confirmSearch()) return liveSearch.run();
+}
 
 const columns: GridCol[] = [
   { key: "nik", label: "NIK", width: "100px" },
@@ -56,24 +76,30 @@ async function muatPabrik() {
 }
 
 async function muat() {
+  const request = ++loadRequest;
   if (!pabrik.value) {
     rows.value = [];
     return;
   }
   loading.value = true;
   try {
-    rows.value = await safeGet<Record<string, any>[]>("/gaji/setting", {
+    const result = await safeGet<Record<string, any>[]>("/gaji/setting", {
       params: { pabrik: pabrik.value, search: cari.value || undefined },
     });
+    if (request !== loadRequest) return;
+    rows.value = result;
+    loadedSearch = cari.value; loadedPabrik = pabrik.value;
+    edited.value = false;
     grid.value?.reset();
   } catch (e) {
-    toast.error(getErrorMessage(e, "Gagal memuat data"));
+    if (request === loadRequest) toast.error(getErrorMessage(e, "Gagal memuat data"));
   } finally {
-    loading.value = false;
+    if (request === loadRequest) loading.value = false;
   }
 }
 
 async function simpan() {
+  if (loading.value || liveSearch.pending.value || menyimpan.value) return;
   if (!rows.value.length) {
     toast.error("Pilih pabrik terlebih dahulu");
     return;
@@ -83,6 +109,7 @@ async function simpan() {
   try {
     const r = await safePut<{ jumlah: number }>("/gaji/setting", { rows: rows.value });
     toast.success(`${r.jumlah} karyawan berhasil disimpan`);
+    edited.value = false;
     await muat();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan setting gaji"));
@@ -107,6 +134,10 @@ function tutup() {
 onMounted(async () => {
   await muatPabrik();
 });
+const liveSearch = useLiveSearch(muat, {
+  enabled: () => !menyimpan.value,
+  invalidate: () => { ++loadRequest; loading.value = false; },
+});
 </script>
 
 <template>
@@ -120,20 +151,20 @@ onMounted(async () => {
       <div class="tb-right">
         <label class="fld">
           Pabrik
-          <select v-model="pabrik" @change="muat">
+          <select v-model="pabrik" :disabled="menyimpan" @change="refreshSearch">
             <option value="">— pilih pabrik —</option>
             <option v-for="p in pabrikList" :key="p.Kode" :value="p.Kode">{{ p.Kode }} — {{ p.Nama }}</option>
           </select>
         </label>
         <label class="fld">
           Cari
-          <input v-model="cari" type="search" placeholder="NIK / nama / jabatan" @keyup.enter="muat" />
+          <input v-model="cari" type="search" placeholder="NIK / nama / jabatan" :disabled="menyimpan" @input="onSearchInput" @keyup.enter="refreshSearch" />
         </label>
-        <button class="btn" title="Muat ulang" @click="muat"><MsIcon name="refresh" :size="15" /></button>
+        <button class="btn" title="Muat ulang" :disabled="menyimpan" @click="refreshSearch"><MsIcon name="refresh" :size="15" /></button>
         <button class="btn" title="Export Excel" @click="ekspor" :disabled="!pabrik">
           <MsIcon name="file_download" :size="15" />
         </button>
-        <button v-if="bisaSave" class="btn primary" :disabled="menyimpan || !rows.length" @click="simpan">
+        <button v-if="bisaSave" class="btn primary" :disabled="menyimpan || loading || liveSearch.pending.value || !rows.length" @click="simpan">
           <MsIcon name="save" :size="15" />
           {{ menyimpan ? "Menyimpan..." : "Simpan" }}
         </button>
@@ -144,9 +175,10 @@ onMounted(async () => {
     <div class="body">
       <EditableGrid
         ref="grid"
+        @update="edited = true"
         :columns="columns"
         :rows="rows"
-        :loading="loading"
+        :loading="loading || liveSearch.pending.value || menyimpan"
         primary-key="nik"
         max-height="100%"
       />

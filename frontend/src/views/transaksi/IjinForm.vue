@@ -6,6 +6,7 @@ import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
+import { useLiveSearch } from "@/composables/useLiveSearch";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
@@ -253,6 +254,7 @@ watch(
   () => values.nik,
   () => infoKaryawan()
 );
+const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, invalidate: () => karyawanLookup.invalidate() });
 </script>
 
 <template>
@@ -334,8 +336,8 @@ watch(
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @keyup.enter="cariNik" />
-          <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="cariNik">
+          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="liveSearch.run">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>
         </div>

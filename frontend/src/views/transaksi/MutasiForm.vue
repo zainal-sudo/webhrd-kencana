@@ -5,6 +5,7 @@ import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
+import { useLiveSearch } from "@/composables/useLiveSearch";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
@@ -137,19 +138,21 @@ function bukaCari(mode: "nik" | "bagian") {
   cari();
 }
 
+let searchRequest = 0;
 async function cari() {
+  const request = ++searchRequest;
   cariLoading.value = true;
   try {
     if (cariMode.value === "nik") {
       await karyawanLookup.search(kataCari.value);
     } else {
       const { data } = await api.get("/transaksi/mutasi/bagian", { params: { search: kataCari.value } });
-      hasilCari.value = (data.data || []).map((b: string) => ({ Bagian: b }));
+      if (request === searchRequest) hasilCari.value = (data.data || []).map((b: string) => ({ Bagian: b }));
     }
   } catch (e) {
-    toast.error(getErrorMessage(e, "Gagal mencari"));
+    if (request === searchRequest) toast.error(getErrorMessage(e, "Gagal mencari"));
   } finally {
-    cariLoading.value = false;
+    if (request === searchRequest) cariLoading.value = false;
   }
 }
 
@@ -199,6 +202,10 @@ onMounted(async () => {
   await muatEdit();
   if (!isEdit.value) await muatNomor();
   await resetState.initialize();
+});
+const liveSearch = useLiveSearch(cari, {
+  enabled: () => cariOpen.value,
+  invalidate: () => { ++searchRequest; karyawanLookup.invalidate(); hasilCari.value = []; cariLoading.value = false; },
 });
 </script>
 
@@ -261,8 +268,8 @@ onMounted(async () => {
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" :placeholder="cariMode === 'nik' ? 'NIK / nama / jabatan / bagian / pabrik...' : 'Kata kunci...'" @keyup.enter="cari" />
-          <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="cari">
+          <input v-model="kataCari" :placeholder="cariMode === 'nik' ? 'NIK / nama / jabatan / bagian / pabrik...' : 'Kata kunci...'" @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="liveSearch.run">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>
         </div>

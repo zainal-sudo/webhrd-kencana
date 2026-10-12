@@ -1,17 +1,71 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import PinjamanSchedule from "@/components/PinjamanSchedule.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { api, getErrorMessage } from "@/api/axios";
+import { downloadFile } from "@/api";
 import { useAuthStore } from "@/stores/authStore";
 import { rupiah } from "@/utils/pinjaman";
 import type { BrowseColumn } from "@/types";
 
 const auth = useAuthStore();
 const toast = useToast();
-const browse = ref<{ refreshAfterDelete: () => void } | null>(null);
+const exporting = ref(false);
+const exportStart = ref("");
+const exportEnd = ref("");
+const allDateRange = ref<{ start: string; end: string }>({ start: "", end: "" });
+const appliedPeriod = ref<{ start_date: string; end_date: string } | null>(null);
+const periodQuery = computed(() => appliedPeriod.value ?? {});
+function validExportDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1000-01-01') return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+const exportPeriodValid = computed(() => validExportDate(exportStart.value) && validExportDate(exportEnd.value) && exportStart.value <= exportEnd.value);
+const canExport = computed(() => exportPeriodValid.value);
+function showAllDateRange() {
+  exportStart.value = allDateRange.value.start;
+  exportEnd.value = allDateRange.value.end;
+}
+function browseLoaded(pagination?: Record<string, any>) {
+  if (appliedPeriod.value) return;
+  const start = String(pagination?.date_start ?? '').slice(0, 10);
+  const end = String(pagination?.date_end ?? '').slice(0, 10);
+  allDateRange.value = { start: validExportDate(start) ? start : '', end: validExportDate(end) ? end : '' };
+  showAllDateRange();
+}
+async function applyPeriod() {
+  if (!exportPeriodValid.value || exporting.value) return;
+  appliedPeriod.value = { start_date: exportStart.value, end_date: exportEnd.value };
+  await nextTick();
+  browse.value?.refresh();
+}
+async function allDates() {
+  if (exporting.value) return;
+  appliedPeriod.value = null;
+  showAllDateRange();
+  await nextTick();
+  browse.value?.refresh();
+}
+async function exportPengajuan() {
+  if (exporting.value || !canExport.value) return;
+  exporting.value = true;
+  try {
+    const params = new URLSearchParams({ start_date: exportStart.value, end_date: exportEnd.value });
+    await downloadFile(`/transaksi/pinjaman/export-pengajuan?${params}`, "Pengajuan-Pinjaman.xlsx");
+    toast.success("Excel pengajuan pinjaman berhasil diunduh.");
+  } catch (err) {
+    let message = getErrorMessage(err, "Gagal mengunduh pengajuan pinjaman.");
+    const body = (err as { response?: { data?: unknown } }).response?.data;
+    if (body instanceof Blob) {
+      try { message = JSON.parse(await body.text()).message || message; } catch { /* Non-JSON download error. */ }
+    }
+    toast.error(message);
+  } finally { exporting.value = false; }
+}
+const browse = ref<{ refresh: () => void; refreshAfterDelete: () => void } | null>(null);
 const deleteTarget = ref<Record<string, any> | null>(null);
 const deleteOpen = ref(false);
 const deleteLoading = ref(false);
@@ -28,6 +82,7 @@ const detailLoading = ref(false);
 let detailRequest = 0;
 const money = new Set(["Pinjam", "NominalCicilan", "Bayar", "SisaBayar"]);
 const columns: BrowseColumn[] = [
+  { key: "Tanggal", label: "TGL", width: "105px", type: "date" },
   { key: "Nik", label: "NIK", width: "112px" },
   { key: "Nama", label: "NAMA KARYAWAN", width: "155px" },
   { key: "Pabrik", label: "UNIT", width: "65px" },
@@ -102,13 +157,17 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
   }
   if (money.has(column.key)) return rupiah(value);
   if (value == null || value === "") return "—";
+  if (column.key === "Tanggal") {
+    const date = String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.split('-').reverse().join('/') : String(value);
+  }
   if (column.key === "Cicilan") return `${value}x`;
   return text ?? String(value);
 }
 </script>
 
 <template>
-  <section>
+  <section class="pinjaman-page">
     <div class="loan-summary" aria-live="polite">
       <div><span>Plafon Perusahaan</span><strong>{{ rupiah(summary?.plafon ?? 30000000) }}</strong></div>
       <div><span>Pinjaman Berjalan</span><strong>{{ rupiah(summary?.outstanding) }}</strong></div>
@@ -116,15 +175,33 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
     </div>
     <p v-if="summaryError" role="alert">Ringkasan gagal dimuat. Klik Refresh untuk mencoba kembali.</p>
     <p v-else-if="summaryLoading" role="status">Memuat ringkasan…</p>
-    <BaseBrowse ref="browse" module-title="Pinjaman" module-subtitle="Histori pinjaman · Bayar = jumlah yang sudah dibayar" endpoint="/transaksi/pinjaman"
-      :columns="columns" primary-key="Nomor" refresh-on-activate compact expandable row-number-label="NO" :can-delete="false"
+    <BaseBrowse ref="browse" module-title="Pinjaman" endpoint="/transaksi/pinjaman"
+      :columns="columns" :extra-query="periodQuery" primary-key="Nomor" refresh-on-activate compact expandable row-number-label="NO" row-number-after-first-column :can-delete="false" :exportable="false"
       :add-form-path="auth.can('frmPinjam', 'insert') ? '/transaksi/pinjaman/form' : undefined"
       :edit-form-path="auth.can('frmPinjam', 'edit') ? '/transaksi/pinjaman/form' : undefined"
-      search-placeholder="Cari nomor / NIK / nama / bagian / bank / rekening..." @load-start="refreshSummary" @load-error="browseFailed">
+      search-placeholder="Cari nomor / NIK / nama / bagian / bank / rekening..." @load-start="refreshSummary" @load-error="browseFailed" @loaded="browseLoaded">
+      <template #toolbar-before-search>
+        <div class="loan-period">
+          <div class="period-fields">
+            <div class="date-field"><label for="loan-export-start">DARI</label><input id="loan-export-start" v-model="exportStart" type="date" :max="exportEnd || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+            <div class="date-field"><label for="loan-export-end">SAMPAI</label><input id="loan-export-end" v-model="exportEnd" type="date" :min="exportStart || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+          </div>
+          <button type="button" class="all-dates-button" :class="{ active: !appliedPeriod }" :aria-pressed="!appliedPeriod" :disabled="exporting" @click="allDates"><MsIcon v-if="!appliedPeriod" name="check" :size="14" />Semua periode</button>
+          <span v-if="(exportStart || exportEnd) && !exportPeriodValid" class="period-error" role="alert">Rentang tanggal tidak valid.</span>
+        </div>
+      </template>
+      <template #toolbar-actions="{ addNew, addFormPath, addLabel }">
+        <div class="loan-toolbar-actions" role="group" aria-label="Aksi pinjaman">
+          <button type="button" class="export-button" :disabled="exporting || !canExport" :title="canExport ? 'Export seluruh pinjaman dalam rentang DARI–SAMPAI; pencarian dan filter kolom tidak diterapkan' : 'Pilih rentang tanggal yang valid terlebih dahulu'" @click="exportPengajuan"><MsIcon name="download" :size="16" />{{ exporting ? 'Menyiapkan…' : 'Export Pengajuan' }}</button>
+          <button v-if="addFormPath" type="button" class="tool-btn primary" @click="addNew"><MsIcon name="add" :size="15" /><span>{{ addLabel }}</span></button>
+        </div>
+      </template>
       <template #cell="{ row, column, text }">{{ display(row, column, text) }}</template>
       <template #expanded-row="{ row }"><PinjamanSchedule :rows="row.Potongan || []" /></template>
       <template #row-actions="{ row }">
         <button type="button" class="detail-button" @click="openDetail(row)">Detail</button>
+      </template>
+      <template #row-actions-end="{ row }">
         <button v-if="auth.can('frmPinjam', 'delete')" type="button" class="delete-button" :title="row.potong1_diproses_pada != null || row.potong2_diproses_pada != null ? 'Pinjaman sudah memiliki pelunasan yang diproses' : 'Hapus permanen'" aria-label="Hapus permanen pinjaman" :disabled="deleting || row.potong1_diproses_pada != null || row.potong2_diproses_pada != null" @click="requestDelete(row)"><MsIcon name="delete" :size="18" /></button>
       </template>
     </BaseBrowse>
@@ -148,7 +225,6 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
           <p v-if="detailLoading" role="status">Memuat detail…</p>
           <dl v-else-if="detail">
             <dt>Nomor Pinjaman</dt><dd>{{ detail.Nomor || '—' }}</dd>
-            <dt>Tanggal Pinjaman</dt><dd>{{ detail.Tanggal || '—' }}</dd>
             <template v-for="col in columns" :key="col.key"><dt>{{ col.label }}</dt><dd>{{ display(detail, col) }}</dd></template>
             <dt>Status</dt><dd>{{ detail.Status || '—' }}</dd>
           </dl>
@@ -162,7 +238,48 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 </template>
 
 <style scoped>
+.pinjaman-page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pinjaman-page > .loan-summary, .pinjaman-page > p { flex-shrink: 0; }
+.pinjaman-page > :deep(.browse-panel) { flex: 1; height: auto; min-height: 0; }
 .loan-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.loan-period { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.period-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0; border: 0; background: transparent; }
+.date-field { display: flex; align-items: center; gap: 4px; }
+.loan-period label { font-size: 10px; font-weight: 700; color: var(--ds-text-secondary, #55637a); }
+.loan-period input { height: 32px; box-sizing: border-box; width: 112px; min-width: 0; padding: 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 0; font: inherit; font-size: 11px; }
+.all-dates-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 999px; background: var(--ds-surface-raised, white); color: var(--ds-text-secondary, #55637a); font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.all-dates-button.active { color: var(--ds-success, #15803d); border-color: color-mix(in srgb, var(--ds-success, #15803d) 65%, var(--ds-border)); background: color-mix(in srgb, var(--ds-success, #15803d) 10%, var(--ds-surface-raised, white)); }
+/* Pengecualian lokal terhadap aturan global .app-shell * zero-radius. */
+.pinjaman-page .all-dates-button { border-radius: 999px !important; }
+.all-dates-button:not(:disabled):hover { border-color: var(--ds-success, #15803d); background: color-mix(in srgb, var(--ds-success, #15803d) 14%, var(--ds-surface-raised, white)); }
+.loan-toolbar-actions { display: flex; align-items: center; flex-wrap: nowrap; flex: 0 0 auto; gap: 8px; margin-left: auto; }
+.export-button, .loan-toolbar-actions .tool-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 0; font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.export-button { background: var(--ds-surface-raised, white); color: var(--ds-text, #263238); }
+.export-button:not(:disabled):hover { background: var(--ds-surface-inset, #e8edf4); }
+.loan-toolbar-actions .tool-btn.primary { background: var(--ds-action, #3b5998); border-color: var(--ds-action, #3b5998); color: white; }
+.loan-toolbar-actions .tool-btn.primary:hover { background: var(--ds-primary-darken-1, #2c4472); }
+.loan-period input:focus-visible, .all-dates-button:focus-visible, .export-button:focus-visible, .loan-toolbar-actions .tool-btn:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+.export-button:disabled { opacity: .5; cursor: not-allowed; }
+.period-error { color: var(--ds-error, #dc2626); font-size: 12px; }
+:deep(.toolbar) { flex-direction: column; align-items: stretch; }
+:deep(.toolbar-right) { justify-content: flex-start; align-items: center; gap: 6px; min-width: 0; }
+:deep(.search-box) { flex: 1 1 100px; min-width: 100px; height: 32px; box-sizing: border-box; background: var(--ds-surface-raised, white); }
+:deep(.search-box input) { width: 100%; min-width: 0; color: var(--ds-text, #263238); }
+:deep(.search-box:focus-within) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+:deep(.toolbar-right > .tool-btn) { height: 32px; box-sizing: border-box; flex: 0 0 auto; }
+:deep(.toolbar-right > .tool-btn:focus-visible) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+:deep(.toolbar-left) { flex-wrap: wrap; min-width: 0; }
+:deep(.row-actions) { align-items: center; }
+@media (min-width: 1100px) {
+  :deep(.toolbar-right) { flex-wrap: nowrap; }
+  .loan-period { flex: 0 0 auto; flex-wrap: nowrap; }
+  .period-fields { flex-wrap: nowrap; }
+}
+@media (max-width: 600px) {
+  .loan-period { flex-basis: 100%; }
+  .period-fields { flex-wrap: wrap; }
+  .loan-toolbar-actions { margin-left: auto; }
+}
 .loan-summary > div { background: var(--ds-surface, white); border: 1px solid var(--ds-border, #dde3ec); padding: 16px; border-radius: 8px; }
 .loan-summary span { display: block; font-size: 12px; margin-bottom: 8px; }
 .loan-summary strong { font-size: 20px; }

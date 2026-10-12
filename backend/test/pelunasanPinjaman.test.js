@@ -13,8 +13,8 @@ function fixture() {
     db.exec(`CREATE TABLE tpinjaman (nomor_pinjam TEXT PRIMARY KEY, nik TEXT, tanggal TEXT, pinjam REAL, bayar REAL,
         angsuran INTEGER, bank TEXT, norek TEXT, periode_potong1 TEXT, nilai_potong1 REAL,
         periode_potong2 TEXT, nilai_potong2 REAL, potong1_diproses_pada TEXT, potong2_diproses_pada TEXT);
-        CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_nama TEXT, kar_status_aktif INTEGER);
-        INSERT INTO tkaryawan VALUES ('001','Riri',1), ('002','Budi',1);`)
+        CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_nama TEXT, kar_status_aktif INTEGER, kar_tgl_masuk TEXT);
+        INSERT INTO tkaryawan VALUES ('001','Riri',1,'2010-01-01'), ('002','Budi',1,'2010-01-01');`)
     const add = (nomor = 'PJ.2610.0001', change = {}) => {
         const row = { nomor_pinjam: nomor, nik: '001', tanggal: '2026-10-09', pinjam: 400000, bayar: 0,
             angsuran: 2, bank: 'BSI', norek: '001234', periode_potong1: 'November 2026', nilai_potong1: 200000,

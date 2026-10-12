@@ -3,8 +3,9 @@ import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { sendPinjamanExcel } from '../../helpers/pinjamanExcel.js'
+import { sendPengajuanPinjamanExcel } from '../../helpers/pengajuanPinjamanExcel.js'
 import { tanggalKeluarValid } from '../../helpers/keluar.js'
-import { PLAFON_PINJAMAN, PINJAMAN_OPTIONS, nomorPinjamanBerikut, tambahPinjaman, kalkulasiPinjaman, revisionPinjaman, editPinjaman, hapusPinjaman } from '../../helpers/pinjaman.js'
+import { PLAFON_PINJAMAN, PINJAMAN_OPTIONS, nomorPinjamanBerikut, tambahPinjaman, kalkulasiPinjaman, revisionPinjaman, editPinjaman, hapusPinjaman, validasiMasaKerjaPinjaman, infoMasaKerjaPinjaman } from '../../helpers/pinjaman.js'
 
 const COLUMNS = {
     Nomor: 'p.nomor_pinjam', Tanggal: 'p.tanggal', Nik: 'p.nik', Nama: 'k.kar_nama', Pabrik: 'k.kar_pab_kode', Bagian: 'k.kar_bagian',
@@ -61,8 +62,26 @@ export const getPinjamanList = handle(async (req, res) => {
         })
     }
     const [rows] = await pool.query(`${SELECT}${where} ${order} LIMIT ? OFFSET ?`, [...params, per_page, (page - 1) * per_page])
-    const [count] = await pool.query(`SELECT COUNT(*) AS c ${FROM}${where}`, params)
-    return paginated(res, rows.map(kalkulasiPinjaman), { page, per_page, total: count[0].c, last_page: Math.max(1, Math.ceil(count[0].c / per_page)) })
+    const [count] = await pool.query(`SELECT COUNT(*) AS c,
+        MIN(NULLIF(p.tanggal, '0000-00-00')) AS date_start,
+        MAX(NULLIF(p.tanggal, '0000-00-00')) AS date_end ${FROM}${where}`, params)
+    return paginated(res, rows.map(kalkulasiPinjaman), { page, per_page, total: count[0].c, last_page: Math.max(1, Math.ceil(count[0].c / per_page)),
+        date_start: count[0].date_start ?? null, date_end: count[0].date_end ?? null })
+})
+
+// Export pengajuan terpisah: seluruh transaksi periode, tanpa filter browse,
+// pagination, filter belum lunas, maupun perubahan status pengajuan/pembayaran.
+export const getPengajuanPinjamanExcel = handle(async (req, res) => {
+    const { start_date: start, end_date: end } = req.query
+    if (typeof start !== 'string' || typeof end !== 'string' || !tanggalKeluarValid(start) || !tanggalKeluarValid(end) || start > end) {
+        return error(res, 'Tanggal awal dan akhir wajib valid; tanggal akhir tidak boleh mendahului tanggal awal.', 400)
+    }
+    const [rows] = await pool.query(`SELECT p.nomor_pinjam AS Nomor, p.tanggal AS Tanggal,
+        p.nik AS Nik, k.kar_nama AS Nama, k.kar_pab_kode AS Pabrik,
+        p.bank AS Bank, p.norek AS Norek, p.pinjam AS Pinjam
+        ${FROM} WHERE p.tanggal BETWEEN ? AND ?
+        ORDER BY p.tanggal ASC, p.nomor_pinjam ASC`, [start, end])
+    return sendPengajuanPinjamanExcel(res, rows, { start, end })
 })
 
 export const getRingkasanPinjaman = handle(async (_req, res) => {
@@ -79,6 +98,8 @@ export const getDetailPinjaman = handle(async (req, res) => {
 })
 export const lookupKaryawanPinjaman = handle(async (req, res) => {
     const { page, per_page } = paging(req.query)
+    const tanggal = String(req.query.tanggal ?? '')
+    if (!tanggalKeluarValid(tanggal)) return error(res, 'Tanggal pinjaman wajib valid untuk mencari karyawan.', 400)
     let where = ' WHERE k.kar_status_aktif = 1'
     const params = []
     if (req.query.search) {
@@ -88,17 +109,21 @@ export const lookupKaryawanPinjaman = handle(async (req, res) => {
     const filtered = applyKaryawanLookup(req.query, where, params)
     const from = 'FROM tkaryawan k LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode'
     const [rows] = await pool.query(`SELECT k.kar_Nik AS Nik, k.kar_nama AS Nama, k.kar_pab_kode AS Pabrik,
-        k.kar_bagian AS Bagian, j.jab_nama AS Jabatan ${from}${filtered.where} ${filtered.orderBy} LIMIT ? OFFSET ?`, [...params, per_page, (page - 1) * per_page])
+        k.kar_bagian AS Bagian, j.jab_nama AS Jabatan, k.kar_tgl_masuk AS TglMasuk ${from}${filtered.where} ${filtered.orderBy} LIMIT ? OFFSET ?`, [...params, per_page, (page - 1) * per_page])
     const [count] = await pool.query(`SELECT COUNT(*) AS c ${from}${filtered.where}`, params)
-    paginated(res, rows, { page, per_page, total: count[0].c, last_page: Math.max(1, Math.ceil(count[0].c / per_page)) })
+    paginated(res, rows.map(row => ({ ...row, ...infoMasaKerjaPinjaman(row.TglMasuk, tanggal) })),
+        { page, per_page, total: count[0].c, last_page: Math.max(1, Math.ceil(count[0].c / per_page)) })
 })
 export const infoKaryawanPinjaman = handle(async (req, res) => {
     const nik = String(req.query.nik ?? '').trim()
-    const [rows] = await pool.query(`SELECT kar_Nik AS Nik, kar_nama AS Nama, kar_pab_kode AS Pabrik, kar_bagian AS Bagian
+    const tanggal = String(req.query.tanggal ?? '')
+    if (!tanggalKeluarValid(tanggal)) return error(res, 'Tanggal pinjaman wajib valid untuk memilih karyawan.', 400)
+    const [rows] = await pool.query(`SELECT kar_Nik AS Nik, kar_nama AS Nama, kar_pab_kode AS Pabrik, kar_bagian AS Bagian, kar_tgl_masuk AS TglMasuk
         FROM tkaryawan WHERE kar_Nik = ? AND kar_status_aktif = 1`, [nik])
     if (!rows.length) return error(res, 'Karyawan aktif tidak ditemukan', 404)
+    const layak = validasiMasaKerjaPinjaman(rows[0].TglMasuk, tanggal)
     const [aktif] = await pool.query('SELECT nomor_pinjam AS Nomor, bayar AS Bayar, GREATEST(pinjam - bayar, 0) AS SisaBayar FROM tpinjaman WHERE nik = ? AND pinjam - bayar > 0', [nik])
-    success(res, { ...rows[0], pinjaman_aktif: aktif })
+    success(res, { ...rows[0], TanggalLayakPinjaman: layak, pinjaman_aktif: aktif })
 })
 export const savePinjaman = handle(async (req, res) => success(res, await tambahPinjaman(pool, req.body), 'Pinjaman berhasil disimpan.', 201))
 export const updatePinjaman = handle(async (req, res) => success(res, await editPinjaman(pool, req.params.nomor, req.body), 'Pinjaman berhasil diubah.'))

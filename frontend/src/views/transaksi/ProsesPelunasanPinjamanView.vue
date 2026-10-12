@@ -5,6 +5,7 @@ import MsIcon from '@/components/MsIcon.vue';
 import { api, getErrorMessage } from '@/api/axios';
 import { useAuthStore } from '@/stores/authStore';
 import { rupiah } from '@/utils/pinjaman';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 
 interface PotonganRow {
   Key: string; Nomor: string; Nik: string; Nama: string | null;
@@ -18,6 +19,13 @@ const bulan = ref(now.getMonth() + 1), tahun = ref(now.getFullYear());
 const years = Array.from({ length: now.getFullYear() + 6 - 2000 }, (_, i) => now.getFullYear() + 5 - i);
 const search = ref(''), rows = ref<PotonganRow[]>([]), selected = ref(new Set<string>());
 const page = ref(1), lastPage = ref(1), total = ref(0);
+const perPage = ref(25), pageInput = ref<number | string>(1);
+const pageSizes = [25, 50, 100];
+const visiblePages = computed(() => {
+  const start = Math.max(1, Math.min(page.value - 2, lastPage.value - 4));
+  return Array.from({ length: Math.min(5, lastPage.value) }, (_, i) => start + i);
+});
+watch(page, value => { pageInput.value = value; });
 const loading = ref(false), processing = ref(false), ready = ref(false), loadError = ref(false);
 const canProcess = computed(() => auth.can('frmBayar', 'insert'));
 const periode = computed(() => `${bulanNames[bulan.value - 1]} ${tahun.value}`);
@@ -45,14 +53,31 @@ async function load(target = 1) {
   const current = ++request;
   selected.value = new Set(); ready.value = false; loading.value = true; loadError.value = false;
   try {
-    const { data } = await api.get('/transaksi/pinjaman/pelunasan', { params: { bulan: bulan.value, tahun: tahun.value, search: search.value, page: target, per_page: 25 } });
+    const { data } = await api.get('/transaksi/pinjaman/pelunasan', { params: { bulan: bulan.value, tahun: tahun.value, search: search.value, page: target, per_page: perPage.value } });
     if (current !== request) return;
     rows.value = data.data || []; page.value = data.pagination.page;
-    lastPage.value = data.pagination.last_page; total.value = data.pagination.total; ready.value = true;
+    lastPage.value = Math.max(1, Number(data.pagination.last_page) || 1); total.value = data.pagination.total; ready.value = true;
     if (!rows.value.length && total.value > 0 && target > lastPage.value) await load(lastPage.value);
   } catch (e) {
     if (current === request) { rows.value = []; total.value = 0; loadError.value = true; toast.error(getErrorMessage(e)); }
   } finally { if (current === request) loading.value = false; }
+}
+function goToPage(target: number) {
+  if (loading.value || processing.value || !ready.value) return;
+  if (!Number.isInteger(target) || target < 1 || target > lastPage.value || target === page.value) {
+    pageInput.value = page.value;
+    return;
+  }
+  return load(target);
+}
+function jumpToPage() {
+  return goToPage(Number(pageInput.value));
+}
+function changePerPage(value: number) {
+  if (loading.value || processing.value || !ready.value || !pageSizes.includes(value) || value === perPage.value) return;
+  perPage.value = value;
+  pageInput.value = 1;
+  return load(1);
 }
 function invalidate() {
   ++request; rows.value = []; selected.value = new Set(); ready.value = false;
@@ -74,15 +99,22 @@ async function processSelected() {
 }
 onMounted(() => load());
 onActivated(() => { if (firstActivation) { firstActivation = false; return; } if (!processing.value) load(page.value); });
+const liveSearch = useLiveSearch(() => load(1), { enabled: () => !processing.value, invalidate });
 </script>
 
 <template>
   <section class="pelunasan-page">
     <header class="page-title"><MsIcon name="payments" :size="22" /><h1>Proses Pelunasan Pinjaman</h1></header>
-    <form class="period-tools" @submit.prevent="load()">
-      <label>Bulan<select v-model="bulan" :disabled="loading || processing"><option v-for="(name, i) in bulanNames" :key="name" :value="i + 1">{{ name }}</option></select></label>
-      <label>Tahun<select v-model="tahun" :disabled="loading || processing"><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select></label>
-      <label class="search">Cari<input v-model="search" :disabled="loading || processing" placeholder="NIK / nama / nomor pinjaman" /></label>
+    <form class="period-tools" @submit.prevent="liveSearch.run">
+      <label>Bulan<span class="period-select month-select">
+        <select v-model="bulan" :disabled="loading || processing"><option v-for="(name, i) in bulanNames" :key="name" :value="i + 1">{{ name }}</option></select>
+        <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
+      </span></label>
+      <label>Tahun<span class="period-select year-select">
+        <select v-model="tahun" :disabled="loading || processing"><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select>
+        <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
+      </span></label>
+      <label class="search">Cari<input v-model="search" :disabled="processing" placeholder="NIK / nama / nomor pinjaman" @input="liveSearch.schedule" /></label>
       <button type="submit" :disabled="loading || processing"><MsIcon name="refresh" :size="16" />Tampilkan / Refresh</button>
     </form>
     <div class="selection-tools"><span>Dipilih: <strong>{{ chosen.length }}</strong> potongan · Total: <strong>{{ rupiah(amount) }}</strong></span>
@@ -105,10 +137,22 @@ onActivated(() => { if (firstActivation) { firstActivation = false; return; } if
         </tr>
       </tbody></table>
     </div>
-    <footer class="pager"><span>{{ total }} potongan · Halaman {{ page }} / {{ lastPage }}</span><div>
-      <button type="button" :disabled="loading || processing || page <= 1" @click="load(page - 1)">Sebelumnya</button>
-      <button type="button" :disabled="loading || processing || page >= lastPage" @click="load(page + 1)">Berikutnya</button>
-    </div></footer>
+    <footer class="pager">
+      <span>{{ total }} hasil · Halaman {{ page }} / {{ lastPage }}</span>
+      <nav v-if="lastPage > 1" class="pagination-controls" aria-label="Navigasi halaman potongan pinjaman">
+        <button type="button" aria-label="Halaman pertama" title="Halaman pertama" :disabled="loading || processing || !ready || page <= 1" @click="goToPage(1)">«</button>
+        <button type="button" aria-label="Halaman sebelumnya" title="Halaman sebelumnya" :disabled="loading || processing || !ready || page <= 1" @click="goToPage(page - 1)">‹</button>
+        <button v-for="number in visiblePages" :key="number" type="button" :aria-label="`Halaman ${number}`" :aria-current="number === page ? 'page' : undefined" :class="{ 'active-page': number === page }" :disabled="loading || processing || !ready" @click="goToPage(number)">{{ number }}</button>
+        <button type="button" aria-label="Halaman berikutnya" title="Halaman berikutnya" :disabled="loading || processing || !ready || page >= lastPage" @click="goToPage(page + 1)">›</button>
+        <button type="button" aria-label="Halaman terakhir" title="Halaman terakhir" :disabled="loading || processing || !ready || page >= lastPage" @click="goToPage(lastPage)">»</button>
+        <label class="page-jump">Ke <input v-model.number="pageInput" type="number" min="1" :max="lastPage" aria-label="Nomor halaman tujuan" :disabled="loading || processing || !ready" @keydown.enter.prevent="jumpToPage" /></label>
+        <button type="button" :disabled="loading || processing || !ready" @click="jumpToPage">Go</button>
+        <label class="page-size">Baris <span class="period-select">
+          <select :value="perPage" aria-label="Jumlah baris per halaman" :disabled="loading || processing || !ready" @change="changePerPage(Number(($event.target as HTMLSelectElement).value))"><option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option></select>
+          <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
+        </span></label>
+      </nav>
+    </footer>
   </section>
 </template>
 
@@ -119,11 +163,24 @@ h1 { font-size: 16px; margin: 0; }
 .period-tools { flex-wrap: wrap; align-items: end; }
 label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; }
 select, input:not([type=checkbox]) { height: 32px; padding: 0 8px; border: 1px solid var(--ds-border); border-radius: 4px; background: var(--ds-surface-raised); color: var(--ds-text); font-size: 12px; }
+.period-select { position: relative; display: block; }
+.month-select { min-width: 140px; }
+.year-select { min-width: 100px; }
+.period-select select { width: 100%; appearance: none; padding-right: 32px; cursor: pointer; }
+.period-select select:disabled { cursor: not-allowed; }
+.select-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; color: var(--ds-text-muted, var(--ds-text)); pointer-events: none; }
 .search { flex: 1; min-width: 180px; max-width: 420px; }
 button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--ds-border); border-radius: 4px; background: var(--ds-surface); color: var(--ds-text); cursor: pointer; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .process-btn { background: var(--ds-primary); color: white; border-color: var(--ds-primary); }
 .selection-tools, .pager { justify-content: space-between; font-size: 12px; flex-wrap: wrap; }
+.pager { flex-shrink: 0; }
+.pagination-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.pagination-controls button { min-width: 32px; }
+.pagination-controls .active-page { background: var(--ds-primary); border-color: var(--ds-primary); color: white; }
+.page-jump, .page-size { flex-direction: row; align-items: center; gap: 6px; font-size: 12px; font-weight: 400; }
+.page-jump input { width: 64px; }
+.page-size select { min-width: 70px; }
 .note { font-size: 11px; color: var(--ds-text-muted, var(--ds-text)); margin: 0; }
 .table-scroll { flex: 1; min-height: 120px; overflow: auto; border: 1px solid var(--ds-border); border-radius: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -132,7 +189,8 @@ th, td { padding: 8px; border-bottom: 1px solid var(--ds-border-light, var(--ds-
 .money { text-align: right; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 .check { width: 32px; text-align: center; }
-input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--ds-primary); }
+input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--ds-primary); cursor: pointer; }
+input[type=checkbox]:disabled { cursor: not-allowed; }
 small { display: block; font-size: 10px; color: var(--ds-text-muted, var(--ds-text)); margin-top: 3px; }
 .processed { background: var(--ds-surface); }
 .status { font-size: 11px; font-weight: 600; }

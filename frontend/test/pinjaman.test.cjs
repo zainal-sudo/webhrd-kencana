@@ -41,10 +41,11 @@ function fixture(kind, settings = {}) {
   };
   const resetModule = compile(read('composables/useTransactionReset.ts'), () => vueModule, { window: { confirm: () => confirm } });
   const lookupModule = compile(read('composables/useKaryawanLookup.ts'), name => name === 'vue' ? vueModule : { api });
+  const liveSearchModule = compile(read('composables/useLiveSearch.ts'), () => ({ ...vueModule, onDeactivated() {}, onUnmounted() {} }), { setTimeout, clearTimeout });
   const files = { form: 'views/transaksi/PinjamanForm.vue', view: 'views/transaksi/PinjamanView.vue', browse: 'components/BaseBrowse.vue' };
   const extras = {
-    form: 'values, info, original, potongan, isEdit, resetState, selectEmployee, simpan, saved, ready, previewNomor, cariOpen, keyword, lookup',
-    view: 'columns, summary, summaryError, summaryLoading, refreshSummary, browseFailed, display, openDetail, detail, closeDetail, detailOpen, requestDelete, confirmPermanentDelete, deleteTarget, deleteVerification, deleteOpen, browse',
+    form: 'values, info, original, potongan, isEdit, resetState, search, selectEmployee, inputRekening, simpan, saved, ready, previewNomor, cariOpen, keyword, lookup',
+    view: 'columns, summary, summaryError, summaryLoading, refreshSummary, browseFailed, display, openDetail, detail, closeDetail, detailOpen, requestDelete, confirmPermanentDelete, deleteTarget, deleteVerification, deleteOpen, browse, exporting, exportStart, exportEnd, exportPeriodValid, appliedPeriod, periodQuery, canExport, applyPeriod, allDates, browseLoaded, exportPengajuan',
     browse: 'fetchData, refresh, props, tableMinWidth, filterSets, buildParams, fetchDistinct, toggleExpand, expandedKeys, columnCount, page, lastPage, goToPage, cols, toggleSort, applyFilterSet',
   };
   const source = read(files[kind]).match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
@@ -53,24 +54,155 @@ function fixture(kind, settings = {}) {
     if (name === 'vue-router') return { useRouter: () => ({}), useRoute: () => ({ query: settings.id ? { id: settings.id } : {} }) };
     if (name === 'vue-toastification') return { useToast: () => ({ error() {}, success() {} }) };
     if (name === '@/api/axios') return { api, getErrorMessage: () => 'error' };
+    if (name === '@/api') return { downloadFile: async (url, filename) => { calls.push({ method: 'download', url, filename }); if (settings.failExport) throw Error('download failed'); } };
     if (name === '@/stores/authStore') return { useAuthStore: () => ({ can: (_form, action) => settings.denied !== action }) };
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
-    if (name === '@/utils/format') return { todaySql: () => '2026-10-09', formatDateInput: value => value };
+    if (name === '@/utils/format') return { todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01', formatDateInput: value => value };
     if (name === '@/utils/pinjaman') return utility;
     if (name === '@/utils/columnFilter') return columnFilter;
     if (name === '@/composables/useTransactionReset') return resetModule;
     if (name === '@/composables/useKaryawanLookup') return lookupModule;
+    if (name === '@/composables/useLiveSearch') return liveSearchModule;
     return {};
   }, {
     defineProps: () => ({ endpoint: '/transaksi/pinjaman', moduleTitle: 'Pinjaman', primaryKey: 'Nomor', ...settings.props }),
     withDefaults: (props, defaults) => ({ ...Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key, typeof value === 'function' ? value() : value])), ...props }),
     defineEmits: () => (...args) => { events.push(args); settings.onEvent?.(...args); },
-    defineExpose() {}, window: { confirm: () => confirm },
+    defineExpose() {}, window: { confirm: () => confirm }, URLSearchParams, Blob,
   });
   return { ...result, calls, events, async mount() { for (const fn of mounted) await fn(); },
     async activate() { for (const fn of activated) await fn(); }, cancel() { confirm = false; }, fail() { fail = true; }, recover() { fail = false; },
     dispose() { stops.forEach(stop => stop()); } };
 }
+
+test('Export Pengajuan uses visible dates even when they differ from applied browse period', async () => {
+  const f = fixture('view');
+  let refreshes = 0;
+  f.browse.value = { refresh() { refreshes++; } };
+  assert.equal(f.canExport.value, false);
+  assert.deepEqual(Object.keys(f.periodQuery.value), []);
+  f.exportStart.value = '2026-10-05';
+  f.exportEnd.value = '2026-10-06';
+  await f.applyPeriod();
+  assert.equal(refreshes, 1);
+  assert.equal(f.periodQuery.value.start_date, '2026-10-05');
+  assert.equal(f.periodQuery.value.end_date, '2026-10-06');
+  await f.exportPengajuan();
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].method, 'download');
+  assert.equal(f.calls[0].url, '/transaksi/pinjaman/export-pengajuan?start_date=2026-10-05&end_date=2026-10-06');
+  assert.equal(f.exporting.value, false);
+  f.exportEnd.value = '2026-10-07';
+  assert.equal(f.canExport.value, true);
+  await f.exportPengajuan();
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.calls[1].url, '/transaksi/pinjaman/export-pengajuan?start_date=2026-10-05&end_date=2026-10-07');
+  assert.equal(f.periodQuery.value.end_date, '2026-10-06');
+  await f.allDates();
+  assert.equal(refreshes, 2);
+  assert.deepEqual(Object.keys(f.periodQuery.value), []);
+  assert.equal(f.canExport.value, false);
+  const source = read('views/transaksi/PinjamanView.vue');
+  assert.match(source, /:exportable="false"/);
+  assert.match(source, /#toolbar-actions/);
+  assert.match(source, /Export Pengajuan/);
+  f.dispose();
+});
+test('Invalid period is not applied/downloaded; download error releases loading', async () => {
+  const f = fixture('view', { failExport: true });
+  f.exportEnd.value = '2026-09-30';
+  assert.equal(f.exportPeriodValid.value, false);
+  await f.applyPeriod();
+  assert.equal(f.appliedPeriod.value, null);
+  await f.exportPengajuan();
+  assert.equal(f.calls.length, 0);
+  f.exportStart.value = '2026-10-01';
+  f.exportEnd.value = '2026-10-06';
+  await f.applyPeriod();
+  await f.exportPengajuan();
+  assert.equal(f.appliedPeriod.value.end_date, '2026-10-06');
+  assert.equal(f.exporting.value, false);
+  f.dispose();
+});
+
+test('All dates range can be exported without applying any browse date filter', async () => {
+  const f = fixture('view');
+  f.browseLoaded({ date_start: '2020-03-21', date_end: '2026-10-12', page: 3 });
+  assert.equal(f.exportStart.value, '2020-03-21');
+  assert.equal(f.exportEnd.value, '2026-10-12');
+  assert.equal(f.appliedPeriod.value, null);
+  assert.deepEqual(Object.keys(f.periodQuery.value), []);
+  assert.equal(f.canExport.value, true);
+  await f.exportPengajuan();
+  assert.equal(f.calls[0].url, '/transaksi/pinjaman/export-pengajuan?start_date=2020-03-21&end_date=2026-10-12');
+  assert.equal(f.appliedPeriod.value, null);
+  assert.deepEqual(Object.keys(f.periodQuery.value), []);
+  f.exportStart.value = '2026-10-01';
+  await f.applyPeriod();
+  f.browseLoaded({ date_start: '2026-10-05', date_end: '2026-10-06' });
+  assert.equal(f.exportStart.value, '2026-10-01');
+  await f.allDates();
+  assert.equal(f.exportStart.value, '2020-03-21');
+  assert.equal(f.canExport.value, true);
+  f.browseLoaded({ date_start: null, date_end: null });
+  assert.equal(f.exportStart.value, '');
+  assert.equal(f.exportEnd.value, '');
+  assert.equal(f.canExport.value, false);
+  f.dispose();
+});
+
+test('Export rejects missing, reversed, impossible dates and duplicate requests while downloading', async () => {
+  const f = fixture('view');
+  for (const [start, end] of [['', '2026-10-12'], ['2026-10-12', ''], ['2026-10-12', '2026-10-01'], ['2026-02-30', '2026-03-01']]) {
+    f.exportStart.value = start;
+    f.exportEnd.value = end;
+    assert.equal(f.canExport.value, false);
+    await f.exportPengajuan();
+  }
+  assert.equal(f.calls.length, 0);
+  f.exportStart.value = '2026-10-12';
+  f.exportEnd.value = '2026-10-12';
+  assert.equal(f.canExport.value, true);
+  f.exporting.value = true;
+  await f.exportPengajuan();
+  assert.equal(f.calls.length, 0);
+  f.exporting.value = false;
+  await f.exportPengajuan();
+  assert.equal(f.calls.length, 1);
+  f.dispose();
+});
+
+test('Browse sends applied period to list and column choices, clears it for all dates', async () => {
+  const f = fixture('browse', { props: { extraQuery: { start_date: '2026-10-05', end_date: '2026-10-06' } } });
+  await f.mount();
+  assert.equal(f.calls[0].config.params.start_date, '2026-10-05');
+  assert.equal(f.calls[0].config.params.end_date, '2026-10-06');
+  await f.fetchDistinct({ key: 'Bank', label: 'BANK' });
+  assert.equal(f.calls[1].config.params.start_date, '2026-10-05');
+  assert.equal(f.calls[1].config.params.distinct, 'Bank');
+  f.page.value = 3;
+  f.props.extraQuery = {};
+  f.refresh();
+  await settle();
+  assert.equal(f.page.value, 1);
+  assert.equal(f.calls.at(-1).config.params.start_date, undefined);
+  f.dispose();
+});
+
+test('Account input accepts only ASCII digits on typing/paste and preserves leading zeros as text', () => {
+  const f = fixture('form');
+  try {
+    for (const [raw, expected] of [['001234', '001234'], ['00 AB-12.34 +e5', '0012345'], ['letters', ''], ['', ''], ['0'.repeat(60), '0'.repeat(50)]]) {
+      const input = { value: raw };
+      f.inputRekening({ target: input });
+      assert.equal(input.value, expected);
+      assert.equal(f.values.norek, expected);
+      assert.equal(typeof f.values.norek, 'string');
+    }
+    const source = read('views/transaksi/PinjamanForm.vue');
+    assert.match(source, /id="pinjaman-norek"[^>]*type="text"[^>]*inputmode="numeric"[^>]*pattern="\[0-9\]\*"[^>]*@input="inputRekening"/);
+  } finally { f.dispose(); }
+});
 
 test('Compact Pinjaman keeps all columns, reduces width, and leaves other browse defaults unchanged', () => {
   const view = fixture('view');
@@ -78,7 +210,7 @@ test('Compact Pinjaman keeps all columns, reduces width, and leaves other browse
   const oldWidths = [145, 125, 120, 200, 150, 150, 80, 150, 260, 80, 170, 150, 120];
   const normal = fixture('browse', { props: { columns: oldWidths.map((width, i) => ({ key: String(i), width: `${width}px` })) } });
   try {
-    assert.equal(view.columns.length, 10);
+    assert.equal(view.columns.length, 11);
     assert.ok(parseInt(compact.tableMinWidth.value) < 1500);
     assert.equal(normal.props.compact, false);
     assert.equal(normal.tableMinWidth.value, '2334px');
@@ -93,7 +225,8 @@ test('Compact Pinjaman keeps all columns, reduces width, and leaves other browse
 test('Browse headers map payment and outstanding without changing semantics', () => {
   const f = fixture('view');
   try {
-    assert.deepEqual(Array.from(f.columns, col => col.label), ['NIK', 'NAMA KARYAWAN', 'UNIT', 'BAGIAN', 'BANK', 'NO REK', 'PINJAMAN UANG KOPERASI', 'ANGSURAN', 'POTONGAN', 'SALDO POTONGAN']);
+    assert.deepEqual(Array.from(f.columns, col => col.label), ['TGL', 'NIK', 'NAMA KARYAWAN', 'UNIT', 'BAGIAN', 'BANK', 'NO REK', 'PINJAMAN UANG KOPERASI', 'ANGSURAN', 'POTONGAN', 'SALDO POTONGAN']);
+    assert.equal(f.display({ Tanggal: '2026-10-05' }, f.columns[0]), '05/10/2026');
     assert.equal(f.columns.find(col => col.label === 'POTONGAN').key, 'Bayar');
     assert.equal(f.columns.find(col => col.label === 'SALDO POTONGAN').key, 'SisaBayar');
     assert.equal(f.columns.find(col => col.label === 'UNIT').key, 'Pabrik');
@@ -165,6 +298,37 @@ test('Calendar previews match backend including day 20/21, year rollover and leg
   assert.equal(utility.rupiah(null), '—');
   assert.equal(utility.rupiah(400000), 'Rp400.000');
 });
+test('Ineligible/missing eligibility metadata cannot select an employee or replace current selection', async () => {
+  const f = fixture('form');
+  try {
+    await f.mount();
+    f.values.nik = 'CURRENT'; f.info.value = { Nama: 'Current Employee' };
+    for (const row of [{ Nik: 'YOUNG', BisaDipilih: false }, { Nik: 'UNKNOWN' }]) await f.selectEmployee(row);
+    assert.equal(f.values.nik, 'CURRENT');
+    assert.equal(f.info.value.Nama, 'Current Employee');
+    assert.equal(f.calls.filter(call => call.url.endsWith('/karyawan-info')).length, 0);
+    await f.selectEmployee({ Nik: '001', BisaDipilih: true });
+    assert.equal(f.values.nik, '001');
+  } finally { f.dispose(); }
+});
+test('Loan lookup and employee-info use transaction date; changing date invalidates cached lookup', async () => {
+  const f = fixture('form');
+  try {
+    await f.mount(); f.values.tanggal = '2026-10-09'; await settle();
+    await f.search();
+    const lookup = f.calls.find(call => call.url.endsWith('/karyawan'));
+    assert.equal(lookup.config.params.tanggal, '2026-10-09');
+    await f.selectEmployee({ Nik: '001', BisaDipilih: true });
+    const info = f.calls.find(call => call.url.endsWith('/karyawan-info'));
+    assert.equal(info.config.params.tanggal, '2026-10-09');
+    f.cariOpen.value = true; f.lookup.rows = [{ Nik: 'STALE' }];
+    f.values.tanggal = '2026-10-08'; await settle();
+    assert.equal(f.cariOpen.value, false);
+    assert.equal(f.lookup.rows.length, 0);
+    await f.search();
+    assert.equal(f.calls.filter(call => call.url.endsWith('/karyawan')).at(-1).config.params.tanggal, '2026-10-08');
+  } finally { f.dispose(); }
+});
 test('Form initial mount makes exactly one preview; date change updates preview', async () => {
   const f = fixture('form');
   try {
@@ -180,7 +344,7 @@ test('Reset restores initial state, confirms, clears lookup, and sends zero requ
   try {
     await f.mount();
     const initial = JSON.stringify(f.values);
-    await f.selectEmployee({ Nik: '001' });
+    await f.selectEmployee({ Nik: '001', BisaDipilih: true });
     f.values.tanggal = '2026-11-02'; f.values.pinjam = '400000'; f.values.norek = '001234';
     await settle();
     const before = f.calls.length;
@@ -188,7 +352,7 @@ test('Reset restores initial state, confirms, clears lookup, and sends zero requ
     // Fresh fixture for accepted confirmation; cancellation fixture remains dirty.
     const accepted = fixture('form');
     try {
-      await accepted.mount(); await accepted.selectEmployee({ Nik: '001' });
+      await accepted.mount(); await accepted.selectEmployee({ Nik: '001', BisaDipilih: true });
       accepted.values.tanggal = '2026-11-02'; accepted.values.norek = '000123'; accepted.cariOpen.value = true;
       await settle();
       const count = accepted.calls.length;
@@ -205,7 +369,7 @@ test('Reset restores initial state, confirms, clears lookup, and sends zero requ
 test('POST payload excludes number/balance/calculations, keeps leading zero; final number replaces preview', async () => {
   const f = fixture('form');
   try {
-    await f.mount(); await f.selectEmployee({ Nik: '001' });
+    await f.mount(); await f.selectEmployee({ Nik: '001', BisaDipilih: true });
     Object.assign(f.values, { pinjam: '400000', angsuran: '2', bank: 'BSI', norek: '001234' });
     await f.simpan();
     const call = f.calls.find(c => c.method === 'post');
@@ -414,7 +578,8 @@ test('Actual ColumnFilterPopup retains NULL and empty choices, emits typed keys,
 });
 test('Pinjaman and Pelunasan reuse separate legacy permissions; saldo report remains disabled', () => {
   const menu = compile(read('utils/menuMap.ts'), require);
-  assert.equal(menu.definisiMenu('frmPinjam').grup, 'transaksi');
+  assert.equal(menu.definisiMenu('frmPinjam').grup, 'koperasi');
+  assert.equal(menu.definisiMenu('frmBayar').grup, 'koperasi');
   assert.equal(menu.MENU_DIABAIKAN.includes('frmPinjam'), false);
   assert.equal(menu.MENU_DIABAIKAN.includes('frmBayar'), false);
   assert.equal(menu.definisiMenu('frmBayar').label, 'Proses Pelunasan Pinjaman');

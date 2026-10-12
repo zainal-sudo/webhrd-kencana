@@ -10,9 +10,9 @@ function fixture(balance = 150000, installments = 2) {
         pinjam REAL, bayar REAL, angsuran INTEGER, bank TEXT, norek TEXT,
         periode_potong1 TEXT, nilai_potong1 REAL, periode_potong2 TEXT, nilai_potong2 REAL,
         potong1_diproses_pada TEXT, potong2_diproses_pada TEXT);
-        CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_status_aktif INTEGER);`)
+        CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_status_aktif INTEGER, kar_tgl_masuk TEXT);`)
     db.prepare('INSERT INTO tpinjaman VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL)').run('PJ.2610.0001', '001', '2026-10-09', 400000, balance, installments, 'BSI', '001234')
-    db.exec("INSERT INTO tkaryawan VALUES ('001', 1), ('002', 1), ('003', 0)")
+    db.exec("INSERT INTO tkaryawan VALUES ('001', 1, '2010-01-01'), ('002', 1, '2010-01-01'), ('003', 0, '2010-01-01')")
     const calls = []
     let tail = Promise.resolve()
     const pool = { async getConnection() {
@@ -185,5 +185,19 @@ test('Non-schedule edit preserves stored values and legacy NULL, revision covers
         const stale = f.payload()
         f.db.exec('UPDATE tpinjaman SET nilai_potong1 = 124000')
         await assert.rejects(editPinjaman(f.pool, 'PJ.2610.0001', stale), /telah berubah/)
+    } finally { f.close() }
+})
+test('Edit employee/date rechecks six months; existing bank correction remains allowed', async () => {
+    const f = fixture()
+    try {
+        f.db.exec("UPDATE tkaryawan SET kar_tgl_masuk = '2026-04-10' WHERE kar_Nik = '002'")
+        await assert.rejects(editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), nik: '002' }), /minimal 6 bulan/)
+        f.db.exec("UPDATE tkaryawan SET kar_tgl_masuk = '2026-04-09' WHERE kar_Nik = '001'")
+        await assert.rejects(editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), tanggal: '2026-10-08' }), /minimal 6 bulan/)
+        assert.equal(f.read().Nik, '001')
+        assert.equal(f.read().Tanggal, '2026-10-09')
+        f.db.exec('UPDATE tkaryawan SET kar_tgl_masuk = NULL')
+        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), bank: 'CIMB' })
+        assert.equal(f.read().Bank, 'CIMB')
     } finally { f.close() }
 })

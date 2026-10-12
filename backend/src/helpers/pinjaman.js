@@ -6,6 +6,55 @@ export const PINJAMAN_OPTIONS = Object.freeze({ nominal: [200000, 300000, 400000
 const gagal = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode })
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 
+function tanggalMasukSql(tglMasuk) {
+    const raw = tglMasuk instanceof Date
+        ? `${tglMasuk.getFullYear()}-${String(tglMasuk.getMonth() + 1).padStart(2, '0')}-${String(tglMasuk.getDate()).padStart(2, '0')}`
+        : String(tglMasuk ?? '')
+    const masuk = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw) ? raw.slice(0, 10) : raw
+    return tanggalKeluarValid(masuk) ? masuk : null
+}
+
+function tambahBulanKalender(masuk, jumlah) {
+    const [tahun, bulan, hari] = masuk.split('-').map(Number)
+    const month = tahun * 12 + bulan - 1 + jumlah
+    const year = Math.floor(month / 12), m = month % 12
+    if (year > 9999) return null
+    const lastDay = new Date(Date.UTC(year, m + 1, 0)).getUTCDate()
+    return `${year}-${String(m + 1).padStart(2, '0')}-${String(Math.min(hari, lastDay)).padStart(2, '0')}`
+}
+
+/** Six calendar months, matching MySQL DATE_ADD(..., INTERVAL 6 MONTH), including month-end clamp. */
+export function tanggalLayakPinjaman(tglMasuk) {
+    const masuk = tanggalMasukSql(tglMasuk)
+    return masuk ? tambahBulanKalender(masuk, 6) : null
+}
+
+export function infoMasaKerjaPinjaman(tglMasuk, tanggal) {
+    const masuk = tanggalMasukSql(tglMasuk)
+    const layak = tanggalLayakPinjaman(tglMasuk)
+    if (!masuk || !layak) return { MasaKerja: '—', MasaKerjaBulan: null,
+        StatusKelayakan: tglMasuk == null || tglMasuk === '' ? 'Tanggal masuk tidak tersedia' : 'Tanggal masuk tidak valid',
+        BisaDipilih: false, TanggalLayakPinjaman: null }
+    if (!tanggalKeluarValid(tanggal)) throw gagal('Tanggal pinjaman tidak valid.')
+    if (masuk > tanggal) return { MasaKerja: 'Belum mulai bekerja', MasaKerjaBulan: 0,
+        StatusKelayakan: 'Belum memenuhi syarat', BisaDipilih: false, TanggalLayakPinjaman: layak }
+    const [y, m] = tanggal.split('-').map(Number), [my, mm] = masuk.split('-').map(Number)
+    let months = (y - my) * 12 + m - mm
+    if (tanggal < tambahBulanKalender(masuk, months)) months--
+    const years = Math.floor(months / 12), remainder = months % 12
+    const label = years ? `${years} tahun${remainder ? ` ${remainder} bulan` : ''}` : `${remainder} bulan`
+    return { MasaKerja: label, MasaKerjaBulan: months, StatusKelayakan: tanggal >= layak ? 'Memenuhi syarat' : 'Belum memenuhi syarat',
+        BisaDipilih: tanggal >= layak, TanggalLayakPinjaman: layak }
+}
+
+export function validasiMasaKerjaPinjaman(tglMasuk, tanggal) {
+    const layak = tanggalLayakPinjaman(tglMasuk)
+    if (!layak) throw gagal('Tanggal masuk karyawan tidak tersedia atau tidak valid. Pinjaman membutuhkan masa kerja minimal 6 bulan.')
+    if (!tanggalKeluarValid(tanggal)) throw gagal('Tanggal pinjaman tidak valid.')
+    if (tanggal < layak) throw gagal(`Karyawan belum memenuhi masa kerja minimal 6 bulan. Pinjaman dapat dilakukan mulai ${layak}.`)
+    return layak
+}
+
 export function periodePinjaman(tanggal, angsuran) {
     if (!tanggalKeluarValid(tanggal) || !Number.isInteger(angsuran) || angsuran <= 0) return null
     const [tahun, bulan, hari] = tanggal.split('-').map(Number)
@@ -86,9 +135,10 @@ export async function tambahPinjaman(pool, body) {
         locked = true
         await conn.beginTransaction()
         transaction = true
-        const [karyawan] = await conn.query('SELECT kar_status_aktif AS Aktif FROM tkaryawan WHERE kar_Nik = ? LIMIT 1', [data.nik])
+        const [karyawan] = await conn.query('SELECT kar_status_aktif AS Aktif, kar_tgl_masuk AS TglMasuk FROM tkaryawan WHERE kar_Nik = ? LIMIT 1', [data.nik])
         if (!karyawan.length) throw gagal('NIK karyawan tidak ditemukan.')
         if (Number(karyawan[0].Aktif) !== 1) throw gagal('Pinjaman baru hanya untuk karyawan aktif.')
+        validasiMasaKerjaPinjaman(karyawan[0].TglMasuk, data.tanggal)
         const [aktif] = await conn.query('SELECT nomor_pinjam FROM tpinjaman WHERE nik = ? AND pinjam - bayar > 0 LIMIT 1', [data.nik])
         if (aktif.length) throw gagal('Karyawan masih memiliki pinjaman yang belum lunas.', 409)
         // Compare in decimal SQL, not floating-point JS; preserve existing double balances.
@@ -190,10 +240,12 @@ export async function editPinjaman(pool, nomor, body) {
                 [row.Bayar == null ? 0 : Math.max(0, data.pinjam - Number(row.Bayar)), PLAFON_PINJAMAN, nomor])
             if (Number(saldo[0].melebihi)) throw gagal('Perubahan pinjaman melebihi sisa plafon perusahaan.', 409)
         }
-        if (data.nik !== row.Nik) {
-            const [karyawan] = await conn.query('SELECT kar_status_aktif AS Aktif FROM tkaryawan WHERE kar_Nik = ? LIMIT 1', [data.nik])
+        // Preserve historical records/nonfinancial corrections; recheck employee/date replacements.
+        if (data.nik !== row.Nik || data.tanggal !== kalkulasiPinjaman(row).Tanggal) {
+            const [karyawan] = await conn.query('SELECT kar_status_aktif AS Aktif, kar_tgl_masuk AS TglMasuk FROM tkaryawan WHERE kar_Nik = ? LIMIT 1', [data.nik])
             if (!karyawan.length) throw gagal('NIK karyawan tidak ditemukan.')
-            if (Number(karyawan[0].Aktif) !== 1) throw gagal('Karyawan pengganti harus aktif.')
+            if (data.nik !== row.Nik && Number(karyawan[0].Aktif) !== 1) throw gagal('Karyawan pengganti harus aktif.')
+            validasiMasaKerjaPinjaman(karyawan[0].TglMasuk, data.tanggal)
         }
         if ((data.nik !== row.Nik || nominalChanged) && row.Bayar != null && data.pinjam - Number(row.Bayar) > 0) {
             const [aktif] = await conn.query('SELECT nomor_pinjam FROM tpinjaman WHERE nik = ? AND pinjam - bayar > 0 AND nomor_pinjam <> ? LIMIT 1', [data.nik, nomor])
