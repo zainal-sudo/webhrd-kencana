@@ -139,7 +139,7 @@ function go(routePath?: string) {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 0;
+  border-radius: 8px;
   background: transparent;
   color: rgba(255, 255, 255, 0.65);
   cursor: pointer;

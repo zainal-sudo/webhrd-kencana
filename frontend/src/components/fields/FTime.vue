@@ -139,7 +139,7 @@ async function keydown(event: KeyboardEvent) {
 .time-label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary); }
 .req, small { color: var(--ds-error); }
 .time-control { position: relative; flex: 1; min-width: 0; }
-input { width: 100%; box-sizing: border-box; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--ds-border); background: var(--ds-surface-raised); font-family: inherit; font-size: 12px; color: var(--ds-text); outline: none; }
+input { width: 100%; box-sizing: border-box; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--ds-border); border-radius: 8px; background: var(--ds-surface-raised); font-family: inherit; font-size: 12px; color: var(--ds-text); outline: none; }
 .time-guide { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: inherit; font-size: 12px; white-space: pre; pointer-events: none; color: var(--ds-text-muted, var(--ds-text-secondary)); opacity: .65; }
 .typed-guide { visibility: hidden; }
 input::placeholder { color: var(--ds-text-muted, var(--ds-text-secondary)); opacity: .65; }

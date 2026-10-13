@@ -116,7 +116,9 @@ async function doLogin() {
   max-width: 100%;
   background: var(--ds-surface, #f0f3f8);
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 16px;
   box-shadow: 0 12px 40px rgba(15, 26, 46, 0.28);
+  overflow: hidden;
 }
 .brand {
   display: flex;
@@ -135,6 +137,7 @@ async function doLogin() {
   background: linear-gradient(135deg, #4c9bd6, #1b5e9e);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
 }
 .brand-text {
   display: flex;
@@ -183,6 +186,7 @@ async function doLogin() {
   height: 38px;
   padding: 0 10px;
   border: 1px solid #b0b8c4;
+  border-radius: 10px;
   background: #fff;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 13px;
@@ -208,6 +212,7 @@ async function doLogin() {
   width: 30px;
   height: 30px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   color: #6b7a90;
   cursor: pointer;
@@ -224,6 +229,7 @@ async function doLogin() {
   gap: 6px;
   padding: 8px 10px;
   border: 1px solid #f5b5b5;
+  border-radius: 8px;
   background: #fdeaea;
   color: #b91c1c;
   font-size: 12px;
@@ -231,6 +237,7 @@ async function doLogin() {
 .login-btn {
   height: 42px;
   border: none;
+  border-radius: 10px;
   background: linear-gradient(180deg, #2777c0 0%, #1b5e9e 100%);
   color: #fff;
   font-family: "Plus Jakarta Sans", sans-serif;

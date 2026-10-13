@@ -838,6 +838,7 @@ onActivated(() => {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 12px;
   background: var(--ds-surface, #f0f3f8);
   display: flex;
   flex-direction: column;
@@ -896,6 +897,7 @@ onActivated(() => {
   gap: 4px;
   padding: 3px 8px;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 8px;
   background: #fff;
 }
 .period-fields label {
@@ -906,6 +908,7 @@ onActivated(() => {
 }
 .period-fields :deep(input[type="text"]) {
   border: 1px solid #c3cad4;
+  border-radius: 6px;
   padding: 3px 28px 3px 6px;
   width: 130px;
   font-size: 11px;
@@ -917,6 +920,7 @@ onActivated(() => {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 8px;
   background: #fff;
   padding: 0 8px;
   height: 28px;
@@ -941,7 +945,7 @@ onActivated(() => {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 8px;
 }
 .tool-btn.ghost {
   background: #fff;
@@ -982,7 +986,7 @@ onActivated(() => {
 .compact .num-col { width: 36px; }
 .compact .action-col { width: 144px; min-width: 144px; }
 .expand-col { width: 36px; text-align: center !important; }
-.expand-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--ds-border-light, var(--ds-border)); border-radius: 5px; background: var(--ds-surface-raised); color: var(--ds-text); cursor: pointer; }
+.expand-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--ds-border-light, var(--ds-border)); border-radius: 6px; background: var(--ds-surface-raised); color: var(--ds-text); cursor: pointer; }
 .expand-btn:hover { background: var(--ds-surface-inset); }
 .expand-btn:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
 .browse-table .expanded-row > td { padding: 10px 12px 10px 48px; background: var(--ds-surface); }
@@ -1106,7 +1110,7 @@ th.sorted .th-sort {
   height: 30px;
   padding: 0;
   border: 1px solid var(--ds-border, #b0b8c4);
-  border-radius: 3px;
+  border-radius: 6px;
   background: #fff;
   overflow: hidden;
   cursor: zoom-in;
@@ -1182,7 +1186,7 @@ tbody tr:hover td.action-col {
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 6px;
 }
 .row-btn.edit {
   color: var(--ds-primary, #3b5998);
@@ -1252,6 +1256,7 @@ tbody tr:hover td.action-col {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 6px;
   background: #fff;
   cursor: pointer;
   color: var(--ds-on-surface, #1b2d4a);
@@ -1279,6 +1284,7 @@ tbody tr:hover td.action-col {
   width: 52px;
   height: 24px;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 6px;
   background: #fff;
   text-align: center;
   color: var(--ds-on-surface, #1b2d4a);

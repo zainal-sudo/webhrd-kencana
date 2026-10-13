@@ -90,6 +90,7 @@ async function simpan() {
 <style scoped>
 .fs {
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 12px;
   background: #fff;
   padding: 10px 12px 14px;
 }
@@ -114,6 +115,7 @@ async function simpan() {
   height: 32px;
   padding: 0 16px;
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-radius: 8px;
   background: #fff;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 12px;

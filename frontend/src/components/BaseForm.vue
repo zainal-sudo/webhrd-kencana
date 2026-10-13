@@ -290,7 +290,7 @@ function goCrumb(path?: string) {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 8px;
 }
 .form-btn.ghost {
   background: #fff;

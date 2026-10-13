@@ -186,15 +186,18 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <div class="grid">
             <FText v-model="values.nomor" label="Nomor" disabled placeholder="Otomatis saat simpan" />
             <FDate v-model="values.tanggal" label="Tanggal Keluar" required />
-            <div>
+            <div class="nik-cari">
               <FText v-model="values.nik" label="NIK" required :disabled="isEdit" placeholder="Ketik NIK atau cari karyawan" />
-              <button v-if="!isEdit" class="btn-mini lookup" type="button" @click="bukaCari">Cari karyawan</button>
+              <button v-if="!isEdit" class="btn-mini cari-inline" type="button" @click="bukaCari">Cari karyawan</button>
             </div>
             <FText :model-value="info.nama" label="Nama" disabled />
             <FText :model-value="info.pabrik" label="Pabrik" disabled />
-            <div class="jabatan">
-              <FText :model-value="info.jabatan_kode" label="Kode Jabatan" disabled />
-              <FText :model-value="info.jabatan" label="Jabatan" disabled />
+            <div class="field jabatan-wrap">
+              <label class="jabatan-label">Kode Jabatan</label>
+              <div class="jabatan-inputs">
+                <input :value="info.jabatan_kode" disabled aria-label="Kode jabatan" class="jabatan-kode" />
+                <input :value="info.jabatan" disabled aria-label="Jabatan" class="jabatan-nama" />
+              </div>
             </div>
             <FText :model-value="info.bagian" label="Bagian" disabled />
           </div>
@@ -235,24 +238,32 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 </template>
 
 <style scoped>
-.fs { border: 1px solid var(--ds-border, #b0b8c4); background: #fff; padding: 10px 12px 14px; margin-bottom: 12px; }
+.fs { border: 1px solid var(--ds-border, #b0b8c4); border-radius: 12px; background: #fff; padding: 10px 12px 14px; margin-bottom: 12px; }
 .fs > legend { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--ds-primary, #3b5998); padding: 0 6px; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
-.jabatan { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+/* Baris kode + nama jabatan sejajar seperti satu field FText. */
+.jabatan-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.jabatan-label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
+.jabatan-inputs { flex: 1; min-width: 0; display: flex; gap: 8px; }
+.jabatan-inputs input { height: 30px; min-width: 0; padding: 0 9px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: var(--ds-surface-variant, #e6e9ef); font-family: "Plus Jakarta Sans", sans-serif; font-size: 12px; color: #6b7a90; outline: none; }
+.jabatan-kode { flex: 0 0 110px; width: 110px; }
+.jabatan-nama { flex: 1; }
 .note { font-size: 11px; color: #64748b; margin: 8px 0; }
 .loading { padding: 24px; text-align: center; }
-.btn-mini { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); background: #fff; font-family: inherit; font-size: 12px; cursor: pointer; }
+.btn-mini { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: inherit; font-size: 12px; cursor: pointer; }
 .btn-mini.primary { background: var(--ds-primary, #3b5998); color: #fff; }
 .btn-mini:disabled { opacity: .6; cursor: not-allowed; }
-.lookup { margin-top: 6px; }
+.nik-cari { display: flex; gap: 8px; align-items: flex-end; min-width: 0; }
+.nik-cari > :first-child { flex: 1; min-width: 0; }
+.cari-inline { height: 30px; flex-shrink: 0; }
 .dlg-head { font-size: 14px; font-weight: 800; background: var(--ds-surface-variant, #e0e4ea); }
 .cari-bar { display: flex; gap: 8px; margin-bottom: 10px; }
-.cari-bar input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--ds-border, #b0b8c4); }
+.cari-bar input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; }
 .mini { width: 100%; border-collapse: collapse; font-size: 11px; }
 .mini th, .mini td { padding: 6px; border: 1px solid var(--ds-border, #b0b8c4); }
 .mini th { background: var(--ds-surface-variant, #e0e4ea); text-align: left; }
 .klik { cursor: pointer; }
 .klik:hover { background: #eef4fc; }
 .pager { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; }
-@media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .grid { grid-template-columns: 1fr; } .jabatan-wrap { flex-wrap: wrap; } .jabatan-label { flex: 1 1 100%; } }
 </style>

@@ -43,10 +43,11 @@
   --ds-gap-md: 8px;
   --ds-gap-lg: 12px;
 
-  /* ── Radius ── */
-  --ds-radius-sm: 0;
-  --ds-radius-md: 0;
-  --ds-radius-lg: 0;
+  /* ── Radius (lengkung ala pocokan: tombol 8px, kartu 10–12px) ── */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 12px;
+  --ds-radius-pill: 999px;
 
   /* ── Shadow ── */
   --ds-shadow-sm: none;
@@ -310,6 +311,11 @@
 
 .ds-btn-group .ds-toolbar-btn:first-child {
   margin-left: 0;
+  border-radius: var(--ds-radius-md) 0 0 var(--ds-radius-md);
+}
+
+.ds-btn-group .ds-toolbar-btn:last-child {
+  border-radius: 0 var(--ds-radius-md) var(--ds-radius-md) 0;
 }
 
 .ds-btn-group .ds-toolbar-btn:last-child {
@@ -322,7 +328,7 @@
   align-items: center;
   gap: 2px;
   padding: 0 5px;
-  border-radius: 0;
+  border-radius: var(--ds-radius-pill);
   font-size: 10px;
   font-weight: 600;
   line-height: 1.5;
@@ -368,7 +374,7 @@
   height: 16px;
   line-height: 16px;
   border: 1px solid var(--ds-border);
-  border-radius: 0;
+  border-radius: 4px;
   background: var(--ds-surface-inset);
   font-family: var(--ds-font-mono);
   font-size: 9px;
@@ -392,7 +398,7 @@
   background: var(--ds-primary-darker);
   color: white;
   font-size: 10px;
-  border-radius: 0;
+  border-radius: var(--ds-radius-sm);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -479,7 +485,7 @@
   padding: 4px 6px;
   background: var(--ds-surface-window, #E8ECF1);
   border: 1px solid var(--ds-border-light, #C4CAD3);
-  border-radius: 0;
+  border-radius: var(--ds-radius-md);
   flex-shrink: 0;
 }
 .ds-crumb-seg {
@@ -507,6 +513,7 @@
   padding: 0 6px;
   background: var(--ds-surface-raised, #ffffff);
   border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: var(--ds-radius-sm);
   font-size: 11px;
   color: var(--ds-text-primary, #1B2D4A);
   white-space: nowrap;
@@ -533,7 +540,7 @@
   padding: 4px;
   background: var(--ds-surface, #F0F3F8);
   border: 1px solid var(--ds-border-light, #C4CAD3);
-  border-radius: 0;
+  border-radius: var(--ds-radius-lg);
   flex-shrink: 0;
 }
 .ds-fbtn {
@@ -544,7 +551,7 @@
   padding: 0 8px;
   background: var(--ds-surface-raised, #ffffff);
   border: 1px solid var(--ds-border, #A0AAB8);
-  border-radius: 0;
+  border-radius: var(--ds-radius-md);
   font-size: 11px;
   font-weight: 400;
   font-family: var(--ds-font);
@@ -595,7 +602,7 @@
 .ds-fieldset {
   border: 1px solid var(--ds-border, #A0AAB8);
   background: var(--ds-surface, #F0F3F8);
-  border-radius: 0;
+  border-radius: var(--ds-radius-lg);
   padding: 8px;
   min-width: 0;
 }
@@ -643,7 +650,7 @@
   padding: 4px 8px;
   background: var(--ds-primary-darker, #1B2D4A);
   color: #fff;
-  border-radius: 0;
+  border-radius: var(--ds-radius-md);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -662,7 +669,7 @@
   padding: 4px 8px;
   background: var(--ds-surface, #F0F3F8);
   border: 1px solid var(--ds-border, #A0AAB8);
-  border-radius: 0;
+  border-radius: var(--ds-radius-md);
   font-size: 11px;
   color: var(--ds-text-secondary, #5A6A7E);
   flex-shrink: 0;
@@ -680,7 +687,7 @@
   height: 16px;
   line-height: 16px;
   border: 1px solid var(--ds-border, #A0AAB8);
-  border-radius: 0;
+  border-radius: 4px;
   background: var(--ds-surface-raised, #ffffff);
   font-family: var(--ds-font-mono);
   font-size: 9px;
@@ -696,7 +703,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  border-radius: 0;
+  border-radius: var(--ds-radius-pill);
   color: #fff;
   white-space: nowrap;
   line-height: 1.6;
@@ -754,8 +761,9 @@
   grid-template-columns: 1fr;
   gap: 0;
   border: 1px solid var(--ds-border, #A0AAB8);
-  border-radius: 0;
+  border-radius: var(--ds-radius-lg);
   background: var(--ds-surface-raised, #ffffff);
+  overflow: hidden;
 }
 @media (min-width: 900px) {
   .ds-split.lg-4-8 { grid-template-columns: 4fr 8fr; }
@@ -776,13 +784,8 @@
    Spec: 220px sidebar, 34px toolbar, 34px tabbar, 24px footer
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Global mutlak: zero radius & zero shadow ── */
-.app-shell *,
-.app-shell *::before,
-.app-shell *::after {
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
+/* ── Radius & shadow mengikuti komponen masing-masing (lengkung ala
+   pocokan). Aturan global yang dulu memaksa semua kotak tajam dihapus. ── */
 
 /* ═══════════════════════════════════════════════════════════════════
    FORM (Steel Enterprise) — densitas klasik desktop
@@ -807,7 +810,7 @@
   border: 1px solid var(--ds-border, #A0AAB8) !important;
   border-top-color: var(--ds-border-inset-edge, #7E8B9B) !important;
   border-left-color: var(--ds-border-inset-edge, #7E8B9B) !important;
-  border-radius: 0 !important;
+  border-radius: var(--ds-radius-sm) !important;
   padding: 1px 6px !important;
   font-size: 11px !important;
   font-weight: 500 !important;
@@ -875,6 +878,7 @@
   font-size: 11px;
   padding: 2px 6px;
   border: 1px solid var(--ds-primary-light, #5B79B8);
+  border-radius: 4px;
   flex-shrink: 0;
 }
 .app-sidebar-brand-title {
@@ -925,6 +929,7 @@
   border: 1px solid var(--ds-border, #A0AAB8);
   border-top-color: var(--ds-border-inset-edge, #7E8B9B);
   border-left-color: var(--ds-border-inset-edge, #7E8B9B);
+  border-radius: var(--ds-radius-sm);
   padding: 4px 7px;
   padding-right: 20px;
   font-size: 10.5px;
@@ -974,6 +979,7 @@
   color: var(--ds-primary-darker, #1B2D4A);
   cursor: pointer;
   border: none;
+  border-radius: var(--ds-radius-sm);
   background: transparent;
   font-family: var(--ds-font);
 }
@@ -1057,6 +1063,7 @@
   padding: 2px 8px;
   background: var(--ds-surface, #F0F3F8);
   border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: var(--ds-radius-sm);
   font-size: 10.5px;
   font-weight: 600;
   color: var(--ds-primary-darker, #1B2D4A);
@@ -1073,6 +1080,7 @@
   height: 26px;
   background: var(--ds-primary-dark, #2C4472);
   color: #fff;
+  border-radius: var(--ds-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1182,6 +1190,7 @@
   height: 20px;
   background: var(--ds-surface, #F0F3F8);
   border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: var(--ds-radius-sm);
   color: var(--ds-primary-darker, #1B2D4A);
   font-weight: 700;
   cursor: pointer;
@@ -1197,6 +1206,7 @@
   top: 100%;
   background: #fff;
   border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: var(--ds-radius-md);
   z-index: 300;
   min-width: 160px;
 }
@@ -1242,6 +1252,7 @@
 .app-footer-kbd {
   background: #fff;
   border: 1px solid var(--ds-border, #A0AAB8);
+  border-radius: 4px;
   padding: 0 4px;
   font-weight: 700;
   font-size: 9px;

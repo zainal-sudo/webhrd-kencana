@@ -230,8 +230,10 @@ const liveSearch = useLiveSearch(cari, {
           <div class="grid">
             <FText v-model="values.nomor" label="Nomor" disabled placeholder="Otomatis" />
             <FDate v-model="values.tanggal" label="Tanggal" required />
-            <FText v-model="values.nik" label="NIK" required placeholder="Ketik NIK / Cari" />
-            <div class="cari-btn"><button class="btn-mini" type="button" @click="bukaCari('nik')">Cari karyawan</button></div>
+            <div class="nik-cari">
+              <FText v-model="values.nik" label="NIK" required placeholder="Ketik NIK / Cari" />
+              <button class="btn-mini cari-inline" type="button" @click="bukaCari('nik')">Cari karyawan</button>
+            </div>
             <FText :model-value="lama.nama" label="Nama" disabled @update:model-value="() => {}" />
             <FText :model-value="lama.pabrik" label="Pabrik Lama" disabled @update:model-value="() => {}" />
             <FText :model-value="`${lama.jab_kode} - ${lama.jabatan}`" label="Jabatan Lama" disabled @update:model-value="() => {}" />
@@ -247,8 +249,10 @@ const liveSearch = useLiveSearch(cari, {
           <div class="grid">
             <FSelect v-model="values.pabrik_baru" label="Pabrik Baru" required :options="pabrikOptions" />
             <FSelect v-model="values.jabatan_baru" label="Jabatan Baru" required :options="jabatanOptions" />
-            <FText v-model="values.bagian_baru" label="Bagian Baru" required placeholder="Pilih via Cari" />
-            <div class="cari-btn"><button class="btn-mini" type="button" @click="bukaCari('bagian')">Cari bagian</button></div>
+            <div class="nik-cari">
+              <FText v-model="values.bagian_baru" label="Bagian Baru" required placeholder="Pilih via Cari" />
+              <button class="btn-mini cari-inline" type="button" @click="bukaCari('bagian')">Cari bagian</button>
+            </div>
             <FSelect v-model="values.departemen" label="Departemen" required :options="departemenOptions" />
             <FSelect
               v-model="values.alasan"
@@ -291,8 +295,10 @@ const liveSearch = useLiveSearch(cari, {
 .fs { border: 1px solid var(--ds-border, #b0b8c4); background: #fff; padding: 10px 12px 14px; margin-bottom: 12px; }
 .fs > legend { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ds-primary, #3b5998); padding: 0 6px; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
-.cari-btn { display: flex; align-items: flex-end; padding-bottom: 1px; }
-.btn-mini { height: 26px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
+.nik-cari { display: flex; gap: 8px; align-items: flex-end; min-width: 0; }
+.nik-cari > :first-child { flex: 1; min-width: 0; }
+.cari-inline { height: 30px; flex-shrink: 0; }
+.btn-mini { height: 26px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
 .btn-mini.primary { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary-dark, #2c4472); color: #fff; }
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
 .loading { padding: 24px; text-align: center; font-size: 12px; color: #6b7a90; }

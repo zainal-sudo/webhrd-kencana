@@ -71,7 +71,7 @@ function bukaPerNik() {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 8px;
 }
 .tool-btn.pernik {
   background: #fff;

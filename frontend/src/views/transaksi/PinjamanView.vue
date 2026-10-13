@@ -247,14 +247,14 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .period-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border: 1px solid var(--ds-border, #c3cad4); background: var(--ds-surface-raised, white); min-width: 0; }
 .date-field { display: flex; align-items: center; gap: 4px; }
 .loan-period label { font-size: 10px; font-weight: 700; color: var(--ds-text-secondary, #55637a); }
-.loan-period :deep(input[type="text"]) { height: 32px; box-sizing: border-box; width: 130px; min-width: 0; padding: 0 28px 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 0; font: inherit; font-size: 11px; }
+.loan-period :deep(input[type="text"]) { height: 32px; box-sizing: border-box; width: 130px; min-width: 0; padding: 0 28px 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 8px; font: inherit; font-size: 11px; }
 .all-dates-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 999px; background: var(--ds-surface-raised, white); color: var(--ds-text-secondary, #55637a); font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .all-dates-button.active { color: var(--ds-success, #15803d); border-color: color-mix(in srgb, var(--ds-success, #15803d) 65%, var(--ds-border)); background: color-mix(in srgb, var(--ds-success, #15803d) 10%, var(--ds-surface-raised, white)); }
 /* Pengecualian lokal terhadap aturan global .app-shell * zero-radius. */
 .pinjaman-page .all-dates-button { border-radius: 999px !important; }
 .all-dates-button:not(:disabled):hover { border-color: var(--ds-success, #15803d); background: color-mix(in srgb, var(--ds-success, #15803d) 14%, var(--ds-surface-raised, white)); }
 .loan-toolbar-actions { display: flex; align-items: center; flex-wrap: nowrap; flex: 0 0 auto; gap: 8px; margin-left: auto; }
-.export-button, .loan-toolbar-actions .tool-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 0; font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.export-button, .loan-toolbar-actions .tool-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 8px; font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .export-button { background: var(--ds-surface-raised, white); color: var(--ds-text, #263238); }
 .export-button:not(:disabled):hover { background: var(--ds-surface-inset, #e8edf4); }
 .loan-toolbar-actions .tool-btn.primary { background: var(--ds-action, #3b5998); border-color: var(--ds-action, #3b5998); color: white; }

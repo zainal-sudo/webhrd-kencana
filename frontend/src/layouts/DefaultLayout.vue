@@ -234,7 +234,7 @@ function toggleFullscreen() {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 8px;
 }
 .icon-btn:hover {
   background: rgba(255, 255, 255, 0.16);

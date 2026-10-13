@@ -55,38 +55,38 @@ export default createVuetify({
   },
   defaults: {
     VBtn: {
-      style: "font-size: 11px; letter-spacing: 0.02em; font-weight: 600; border-radius: 0;",
+      style: "font-size: 11px; letter-spacing: 0.02em; font-weight: 600; border-radius: 8px;",
     },
     VTextField: {
       density: "compact",
       variant: "outlined",
       hideDetails: "auto",
-      style: "font-size: 11px; border-radius: 0;",
+      style: "font-size: 11px; border-radius: 8px;",
     },
     VSelect: {
       density: "compact",
       variant: "outlined",
       hideDetails: "auto",
-      style: "font-size: 11px; border-radius: 0;",
+      style: "font-size: 11px; border-radius: 8px;",
     },
     VAutocomplete: {
       density: "compact",
       variant: "outlined",
       hideDetails: "auto",
-      style: "font-size: 11px; border-radius: 0;",
+      style: "font-size: 11px; border-radius: 8px;",
     },
     VTextarea: {
       density: "compact",
       variant: "outlined",
       hideDetails: "auto",
-      style: "font-size: 11px; border-radius: 0;",
+      style: "font-size: 11px; border-radius: 8px;",
     },
     VCheckbox: {
       density: "compact",
       hideDetails: "auto",
     },
     VCard: {
-      rounded: false,
+      rounded: "lg",
       elevation: 0,
     },
     VDataTable: {

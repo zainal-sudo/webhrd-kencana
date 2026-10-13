@@ -64,7 +64,7 @@ body {
 .kencana-toast {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif !important;
   font-size: 11px !important;
-  border-radius: 0 !important;
+  border-radius: 8px !important;
 }
 
 .v-data-table.base-table .v-data-table__wrapper {
@@ -97,13 +97,28 @@ button, a, input, select, textarea {
   text-transform: none !important;
   letter-spacing: 0.02em !important;
   font-weight: 600 !important;
-  border-radius: 0 !important;
+  border-radius: 8px !important;
 }
 
 .v-card {
   border: 1px solid var(--ds-border, #A0AAB8) !important;
-  border-radius: 0 !important;
+  border-radius: 12px !important;
   box-shadow: none !important;
+  overflow: hidden;
+}
+
+/* Input Vuetify (text/select/autocomplete/textarea) melengkung ala pocokan. */
+.v-field {
+  border-radius: 8px !important;
+}
+
+/* Input form sendiri (komponen fields/*) melengkung ala pocokan. */
+.field input,
+.field select,
+.field textarea,
+.table-text-field textarea,
+.date-input > input[type="text"] {
+  border-radius: 8px;
 }
 
 /* ── Dialog backdrop blur ── */
