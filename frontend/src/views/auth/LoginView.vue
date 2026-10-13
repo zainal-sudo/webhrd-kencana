@@ -17,9 +17,25 @@ const password = ref("");
 const loading = ref(false);
 const errorMsg = ref("");
 const showPass = ref(false);
+const passwordInput = ref<HTMLInputElement | null>(null);
+
+function usernameEnter(event: KeyboardEvent) {
+  if (loading.value || event.repeat || event.isComposing) return;
+  if (!username.value.trim()) {
+    errorMsg.value = "Kode user wajib diisi";
+    return;
+  }
+  errorMsg.value = "";
+  passwordInput.value?.focus();
+}
+async function passwordEnter(event: KeyboardEvent) {
+  if (event.repeat || event.isComposing) return;
+  await doLogin();
+}
 
 async function doLogin() {
-  if (!username.value || !password.value) {
+  if (loading.value) return;
+  if (!username.value.trim() || !password.value) {
     errorMsg.value = "Kode user dan password wajib diisi";
     return;
   }
@@ -65,7 +81,8 @@ async function doLogin() {
             type="text"
             autocomplete="username"
             placeholder="Masukkan kode user"
-            @keyup.enter="doLogin"
+             :disabled="loading"
+             @keydown.enter.prevent="usernameEnter"
           />
         </div>
 
@@ -73,11 +90,13 @@ async function doLogin() {
           <label>Password</label>
           <div class="pass-wrap">
             <input
+              ref="passwordInput"
               v-model="password"
               :type="showPass ? 'text' : 'password'"
               autocomplete="current-password"
               placeholder="Masukkan password"
-              @keyup.enter="doLogin"
+               :disabled="loading"
+               @keydown.enter.prevent="passwordEnter"
             />
             <button class="pass-toggle" type="button" @click="showPass = !showPass">
               <MsIcon :name="showPass ? 'visibility_off' : 'visibility'" :size="18" />

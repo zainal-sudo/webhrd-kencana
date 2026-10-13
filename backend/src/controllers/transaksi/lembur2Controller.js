@@ -1,4 +1,5 @@
 import pool from '../../config/database.js'
+import { validasiJamLembur } from '../../helpers/validasiJamLembur.js'
 import { formatTanggal } from '../../helpers/tanggal.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
@@ -94,6 +95,8 @@ export const saveLembur2 = async (req, res, next) => {
         const b = req.body || {}
         const nik = String(b.nik || '').trim()
         const rawDetail = Array.isArray(b.detail) ? b.detail : []
+        const jamError = validasiJamLembur(rawDetail)
+        if (jamError) return error(res, jamError, 400)
 
         if (!nik) return error(res, 'NIK wajib diisi', 400)
 

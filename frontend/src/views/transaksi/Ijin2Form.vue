@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import { useLiveSearch } from "@/composables/useLiveSearch";
@@ -61,6 +62,7 @@ const departemenOptions = ref<{ label: string; value: string | number }[]>([]);
 const bagianOptions = ref<string[]>([]);
 
 const PAKAI_JAM2 = ["2", "4", "5"];
+const tidakMasuk = computed(() => String(values.jenis_id) === "3");
 const pakaiJam2 = computed(() => PAKAI_JAM2.includes(String(values.jenis_id)));
 const terlaluLama = computed(() => selisihHari(values.tanggal) >= 3);
 
@@ -209,7 +211,7 @@ function pilihKaryawan(row: Record<string, any>) {
 }
 
 async function simpan(): Promise<string> {
-  assertClockTime(values.jam, "Jam");
+  if (!tidakMasuk.value) assertClockTime(values.jam, "Jam");
   if (pakaiJam2.value) assertClockTime(values.jam2, "Jam s/d");
   const niks = baris.value.map((b) => String(b.nik || "").trim()).filter(Boolean);
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
@@ -224,7 +226,7 @@ async function simpan(): Promise<string> {
       jenis_id: parseInt(String(values.jenis_id), 10),
       keterangan: Number(values.keterangan ?? 3),
       alasan: values.alasan || "",
-      jam: normJam(values.jam),
+      jam: tidakMasuk.value ? "00:00:00" : normJam(values.jam),
       jam2: pakaiJam2.value ? normJam(values.jam2) : "00:00:00",
       niks,
     });
@@ -307,10 +309,10 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             ]"
           />
           <FText v-model="values.alasan" label="Alasan" placeholder="Alasan ijin" />
-          <FTime v-model="values.jam" label="Jam" placeholder="00:00:00" />
+          <FTime v-if="!tidakMasuk" v-model="values.jam" label="Jam" placeholder="00:00:00" />
           <FTime v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
         </div>
-        <p v-if="!pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
+        <p v-if="!tidakMasuk && !pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
       </fieldset>
 
       <fieldset class="fs">
@@ -325,11 +327,11 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
               <td>
                 <div class="nik-sel">
                   <input v-model="b.nik" placeholder="NIK" />
-                  <button class="btn-mini" type="button" @click="bukaCari(i)">...</button>
+                  <button class="btn-mini" type="button" title="Cari karyawan" aria-label="Cari karyawan" @click="bukaCari(i)"><MsIcon name="search" :size="18" /></button>
                 </div>
               </td>
               <td><input v-model="b.nama" placeholder="Nama" /></td>
-              <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>
+              <td class="ctr"><button class="btn-mini del" type="button" title="Hapus baris" aria-label="Hapus baris" @click="hapusBaris(i)"><MsIcon name="close" :size="20" /></button></td>
             </tr>
           </tbody>
         </table>
@@ -364,7 +366,8 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 .fs { border: 1px solid var(--ds-border, #b0b8c4); background: #fff; padding: 10px 12px 14px; margin-bottom: 12px; }
 .fs > legend { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ds-primary, #3b5998); padding: 0 6px; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
-.chk { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ds-primary, #3b5998); padding-top: 20px; }
+.chk { display: flex; align-items: center; align-self: center; gap: 8px; font-size: 12px; font-weight: 700; line-height: 1.4; color: var(--ds-primary, #3b5998); }
+.chk input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; padding: 0; }
 .note { font-size: 12px; color: #7a5b16; margin: 8px 0 0; }
 .warn-note { font-weight: 700; background: #fffaef; border: 1px solid #d9a441; padding: 6px 10px; }
 .aksi-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }

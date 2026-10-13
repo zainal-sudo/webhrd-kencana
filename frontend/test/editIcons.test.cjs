@@ -26,5 +26,6 @@ test('Every titled Edit/Ubah action button uses the pencil icon, preserving acti
 
 test('Dashboard how_to_reg is a status icon, not an Edit action, and remains unchanged', () => {
   const source = fs.readFileSync(path.join(root, 'views/dashboard/DashboardView.vue'), 'utf8');
-  assert.match(source, /<MsIcon name="how_to_reg" :size="20"/);
+  assert.match(source, /label: "Karyawan Aktif"[^\n]*icon: "how_to_reg"/);
+  assert.match(source, /<MsIcon :name="k.icon" :size="20"/);
 });

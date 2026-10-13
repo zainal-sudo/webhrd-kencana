@@ -49,6 +49,43 @@ body {
 }
 
 /* ── Vuetify overrides ── */
+/* Kontrol baris tabel form: konsisten untuk lembur, izin dan penilaian. */
+table.grid-tbl td.ctr {
+  vertical-align: middle;
+}
+table.grid-tbl td.ctr input[type="checkbox"] {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+  padding: 0;
+  cursor: pointer;
+}
+table.grid-tbl .btn-mini.del,
+table.grid-tbl .nik-sel .btn-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+table.grid-tbl .nik-sel input {
+  min-width: 0;
+}
+table.grid-tbl .btn-mini.del {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+button.employee-search-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .v-application {
   font-family: inherit !important;
 }
@@ -80,6 +117,22 @@ body {
 :focus-visible {
   outline: 2px solid var(--ds-primary, #3B5998);
   outline-offset: 1px;
+}
+
+/* Satu border input aktif, bukan border + outline terpisah.
+   Inset menebalkan sisi dalam tanpa mengubah ukuran/layout field. */
+input:not(.browse-search-input):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):focus,
+select:focus,
+textarea:focus {
+  --field-focus-color: var(--ds-primary, #3B5998);
+  outline: none !important;
+  border-color: var(--field-focus-color) !important;
+  box-shadow: inset 0 0 0 1px var(--field-focus-color) !important;
+}
+input[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus {
+  --field-focus-color: var(--ds-error, #dc2626);
 }
 
 /* Smooth transitions on interactive elements */

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import pool from '../../config/database.js'
+import { validasiJamLembur } from '../../helpers/validasiJamLembur.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
@@ -393,6 +394,8 @@ export const saveLembur = async (req, res, next) => {
         const pabrik = String(b.pabrik || '').trim()
         const jenisKerja = String(b.jenis_kerja || '')
         const rawDetail = Array.isArray(b.detail) ? b.detail : []
+        const jamError = validasiJamLembur(rawDetail)
+        if (jamError) return error(res, jamError, 400)
 
         if (!tanggal) return error(res, 'Tanggal wajib diisi', 400)
         if (!pabrik) return error(res, 'Pabrik wajib dipilih', 400)

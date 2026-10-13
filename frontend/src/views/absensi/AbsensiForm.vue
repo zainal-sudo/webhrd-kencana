@@ -3,14 +3,16 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import { useLiveSearch } from "@/composables/useLiveSearch";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 import FText from "@/components/fields/FText.vue";
 import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
-import { api, getErrorMessage } from "@/api/axios";
+import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
 import { normJam, assertClockTime } from "@/utils/jam";
 
@@ -58,7 +60,23 @@ const diformat = computed(() => !perluOtorisasi.value || otorisasiDiterima.value
 const otorisasiDiterima = ref(false);
 const otorisasiToken = ref("");
 
+const resetState = useTransactionReset({ values, info, adaRecord, usiaTanggal, cekTanggalReady }, {
+  isEdit: () => isEdit.value,
+  blocked: () => memuat.value || cekTanggalLoading.value || cariLoading.value || karyawanLookup.loading,
+  afterRestore: () => {
+    ++cekTanggalRequest;
+    otorisasiDiterima.value = false;
+    otorisasiToken.value = "";
+    cariKaryawan.value = false;
+    kataCariKaryawan.value = "";
+    liveSearch.cancel();
+    karyawanLookup.clear();
+  },
+});
+const api = resetState.trackApi(sourceApi);
+
 async function cekTanggalOtorisasi() {
+  if (resetState.restoring.value) return;
   const request = ++cekTanggalRequest;
   const tanggal = String(values.tanggal || "");
   cekTanggalReady.value = false;
@@ -85,8 +103,9 @@ function otorisasiOke(payload: { token: string; pemberi: string }) {
 }
 
 async function muatData() {
+  if (resetState.restoring.value) return false;
   const kode = String(values.nik ?? "").trim();
-  if (!kode) return;
+  if (!kode) return !isEdit.value;
   memuat.value = true;
   try {
     const { data } = await api.get("/absensi/form", { params: { nik: kode, tanggal: values.tanggal } });
@@ -114,18 +133,26 @@ async function muatData() {
     info.bagian = k.kar_bagian || d.bagian || "";
     info.pabrik = k.pab_nama || d.pabrik || "";
     info.nikKaryawan = k.kar_Nik || d.nikKaryawan || "";
+    return true;
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data absensi"));
+    return false;
   } finally {
     memuat.value = false;
   }
 }
 
-onMounted(muatData);
+onMounted(async () => {
+  const loaded = await muatData();
+  if (!loaded) return;
+  if (isEdit.value) resetState.capture();
+  await resetState.initialize();
+});
 
 watch(
   () => values.tanggal,
   () => {
+    if (resetState.restoring.value) return;
     otorisasiDiterima.value = false;
     otorisasiToken.value = "";
     if (values.nik) muatData();
@@ -212,6 +239,8 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariKaryawan.value, i
       { label: adaRecord ? 'Ubah' : 'Tambah' },
     ]"
     :save-fn="simpan"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
     :save-disabled="cekTanggalLoading || !cekTanggalReady"
     return-path="/absensi/browse"
     new-form-path="/absensi/form" transaction-module="frmAbsensi"
@@ -235,7 +264,8 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariKaryawan.value, i
           </div>
 
           <div class="lookup-bar">
-            <button class="btn-mini" type="button" :disabled="isEdit" @click="bukaCariKaryawan">
+            <button class="btn-mini employee-search-button" type="button" :disabled="isEdit" @click="bukaCariKaryawan">
+              <MsIcon name="search" :size="18" />
               Cari karyawan
             </button>
             <div class="info-box">

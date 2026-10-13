@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DateInput from "@/components/fields/DateInput.vue";
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, onActivated, onDeactivated, onUnmounted } from "vue";
 import { useToast } from "vue-toastification";
 import { useRoute } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
@@ -44,6 +44,9 @@ const menyimpan = ref(false);
 const memuatPotongan = ref(false);
 const filePotongan = ref<File | null>(null);
 const grid = ref<InstanceType<typeof EditableGrid> | null>(null);
+const edited = ref(false);
+let loadRequest = 0, firstActivation = true;
+const busy = computed(() => loading.value || memproses.value || menyimpan.value || memuatPotongan.value);
 
 /** Filter hasil (client-side; Simpan/Export tetap memakai seluruh baris). */
 const cari = ref("");
@@ -116,17 +119,26 @@ async function muat() {
     toast.error(salah);
     return;
   }
+  const request = ++loadRequest;
+  const params = { periode: bulan.value, tahun: tahun.value, start: start.value, end: end.value };
   loading.value = true;
   try {
-    rows.value = await safeGet<Record<string, any>[]>("/gaji/proses", {
-      params: { periode: bulan.value, tahun: tahun.value, start: start.value, end: end.value },
-    });
+    const result = await safeGet<Record<string, any>[]>("/gaji/proses", { params });
+    if (request !== loadRequest || params.periode !== bulan.value || params.tahun !== tahun.value || params.start !== start.value || params.end !== end.value) return;
+    rows.value = result;
+    edited.value = false;
     grid.value?.reset();
   } catch (e) {
-    toast.error(getErrorMessage(e, "Gagal memuat data"));
+    if (request === loadRequest) toast.error(getErrorMessage(e, "Gagal memuat data"));
   } finally {
-    loading.value = false;
+    if (request === loadRequest) loading.value = false;
   }
+}
+
+function refreshGaji() {
+  if (busy.value) return;
+  if (edited.value && !window.confirm("Perubahan gaji belum disimpan. Buang perubahan dan muat data terbaru?")) return;
+  return muat();
 }
 
 /** Proses == RefreshClick Delphi (getminggu + InsertNilai). */
@@ -153,6 +165,7 @@ async function proses() {
 
 /** Penyesuaian Total mengikuti Delphi (tidak ada pembulatan). */
 function onUpdate({ row, col, oldValue, newValue }: GridUpdate) {
+  edited.value = true;
   const o = Number(oldValue) || 0;
   const n = Number(newValue) || 0;
   if (col.key === "bonuslibur") row.total += n - o;
@@ -245,6 +258,13 @@ function tutup() {
 onMounted(() => {
   muat();
 });
+onActivated(() => {
+  if (firstActivation) { firstActivation = false; return; }
+  return refreshGaji();
+});
+function invalidateLoad() { ++loadRequest; loading.value = false; }
+onDeactivated(invalidateLoad);
+onUnmounted(invalidateLoad);
 </script>
 
 <template>
@@ -284,7 +304,7 @@ onMounted(() => {
         </select>
       </label>
       <span class="count">{{ tampilRows.length }} dari {{ rows.length }} baris</span>
-      <button class="btn ghost" title="Muat ulang grid" @click="muat">
+      <button class="btn ghost" title="Muat ulang grid" :disabled="busy" @click="refreshGaji">
         <MsIcon name="refresh" :size="15" /> Refresh
       </button>
       <button v-if="bisaInsert" class="btn primary" :disabled="memproses" @click="proses">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onActivated } from "vue";
 import { useToast } from "vue-toastification";
 import { useRoute } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
@@ -137,6 +137,13 @@ onMounted(async () => {
 const liveSearch = useLiveSearch(muat, {
   enabled: () => !menyimpan.value,
   invalidate: () => { ++loadRequest; loading.value = false; },
+});
+let firstActivation = true;
+onActivated(() => {
+  if (firstActivation) { firstActivation = false; return; }
+  if (menyimpan.value || loading.value || !pabrik.value) return;
+  if (edited.value && !window.confirm("Perubahan setting gaji belum disimpan. Buang perubahan dan muat data terbaru?")) return;
+  return liveSearch.run();
 });
 </script>
 

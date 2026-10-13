@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import OtorisasiKode from "@/components/OtorisasiKode.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
@@ -319,7 +320,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <div class="grid">
             <div class="nik-cari">
               <FText v-model="values.nik" label="NIK" required placeholder="Ketik NIK lalu Enter / Cari" />
-              <button class="btn-mini cari-inline" type="button" @click="bukaCari">Cari karyawan</button>
+              <button class="btn-mini cari-inline employee-search-button" type="button" @click="bukaCari"><MsIcon name="search" :size="18" />Cari karyawan</button>
             </div>
             <FText :model-value="info.nama" label="Nama" disabled @update:model-value="() => {}" />
             <FText :model-value="info.jabatan" label="Jabatan" disabled @update:model-value="() => {}" />

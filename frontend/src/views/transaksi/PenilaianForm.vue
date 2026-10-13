@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import { useLiveSearch } from "@/composables/useLiveSearch";
@@ -300,14 +301,14 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             <tbody>
               <tr v-for="(b, i) in baris" :key="i">
                 <td class="ctr">{{ i + 1 }}</td>
-                <td><div class="nik-sel"><input v-model="b.nik" placeholder="NIK" /><button class="btn-mini" type="button" @click="bukaCari(i)">...</button></div></td>
+                <td><div class="nik-sel"><input v-model="b.nik" placeholder="NIK" /><button class="btn-mini" type="button" title="Cari karyawan" aria-label="Cari karyawan" @click="bukaCari(i)"><MsIcon name="search" :size="18" /></button></div></td>
                 <td><input v-model="b.nama" placeholder="Nama" /></td>
                 <td><input v-model="b.jabatan" placeholder="Jabatan" /></td>
                 <td><input v-model="b.bagian" placeholder="Bagian" /></td>
                 <td><input v-model="b.nilai" placeholder="0" @input="onNilai(i)" /></td>
                 <td class="ctr"><b>{{ b.kriteria }}</b></td>
                 <td><input v-model="b.keterangan" placeholder="Keterangan" /></td>
-                <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>
+                <td class="ctr"><button class="btn-mini del" type="button" title="Hapus baris" aria-label="Hapus baris" @click="hapusBaris(i)"><MsIcon name="close" :size="20" /></button></td>
               </tr>
             </tbody>
           </table>

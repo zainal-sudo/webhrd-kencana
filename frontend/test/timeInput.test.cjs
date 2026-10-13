@@ -173,19 +173,24 @@ test('Actual FTime render shows empty focus placeholder, ghost completion, and r
     .replace('</script>', '\ncapture({ focus, input, blur });\n</script>');
   const { descriptor } = parse(source);
   const script = compileScript(descriptor, { id: 'time-test', inlineTemplate: true }).content;
-  async function render(action, compact = false) {
+  async function render(action, compact = false, modelValue = '08:30:15') {
     const Component = compile(script, name => name === 'vue' ? vue : jam, { capture: action }).default;
-    return renderToString(vue.createSSRApp({ render: () => vue.h(Component, { modelValue: '08:30:15', label: 'Jam Masuk', compact }) }));
+    return renderToString(vue.createSSRApp({ render: () => vue.h(Component, { modelValue, label: 'Jam Masuk', compact }) }));
   }
   for (const compact of [false, true]) {
     const focused = await render(state => state.focus({ target: target('08:30:15') }), compact);
     assert.match(focused, /\bvalue(?:=""|(?=\s))/); assert.match(focused, /placeholder="00:00:00"/);
+    assert.match(focused, /Format 24 jam: HH:mm:ss/);
+    assert.match(focused, /Enter untuk lanjut/);
     const typed = await render(state => { state.focus({ target: target('08:30:15') }); state.input({ target: target('07') }); }, compact);
     assert.match(typed, /value="07"/);
     assert.match(typed, /class="typed-guide">07<\/span>:00:00/);
     assert.match(typed, /aria-hidden="true"/);
     const restored = await render(state => { state.focus({ target: target('08:30:15') }); state.blur(); }, compact);
     assert.match(restored, /value="08:30:15"/); assert.ok(!restored.includes('class="time-guide"'));
+    const invalid = await render(() => {}, compact, '24:00:00');
+    assert.match(invalid, /role="alert"/);
+    assert.match(invalid, /Jam harus 00–23/);
   }
 });
 

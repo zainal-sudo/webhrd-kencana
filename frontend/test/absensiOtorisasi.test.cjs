@@ -15,7 +15,9 @@ test('Absensi authorization uses backend holiday count, ignores stale responses,
   const scope = vue.effectScope();
   const context = {
     ...vue, values, module, exports: module.exports,
-    api: { get: (url, config) => new Promise((resolve, reject) => requests.push({ url, config, resolve, reject })) },
+    sourceApi: { get: (url, config) => new Promise((resolve, reject) => requests.push({ url, config, resolve, reject })) },
+    info: {}, adaRecord: vue.ref(false),
+    useTransactionReset: () => ({ restoring: vue.ref(false), trackApi: api => api }),
     toast: { error: message => errors.push(message) }, getErrorMessage: () => 'failed',
   };
   scope.run(() => vm.runInNewContext(ts.transpileModule(block + '\nexport { usiaTanggal, perluOtorisasi, cekTanggalReady, cekTanggalLoading };',

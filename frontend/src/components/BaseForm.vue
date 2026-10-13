@@ -6,6 +6,7 @@ import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
 import { getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
+import { nextFormField } from "@/utils/formEnter";
 
 const props = withDefaults(
   defineProps<{
@@ -76,7 +77,10 @@ async function doSave(mode: "close" | "new" = "close") {
       } else closeTab();
     } else showSuccess.value = true;
   } catch (e) {
-    toast.error(getErrorMessage(e));
+    // Validasi jam sudah dijelaskan di bawah input; tidak perlu popup ganda.
+    if (!(e instanceof Error && "inlineValidation" in e && e.inlineValidation === true)) {
+      toast.error(getErrorMessage(e));
+    }
   } finally {
     saving.value = false;
   }
@@ -107,7 +111,7 @@ function goCrumb(path?: string) {
 </script>
 
 <template>
-  <div class="form-panel">
+  <div class="form-panel" @keydown="nextFormField">
     <!-- Breadcrumb -->
     <div class="crumbs" v-if="crumbs.length > 0">
       <template v-for="(c, i) in crumbs" :key="i">

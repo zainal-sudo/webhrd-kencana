@@ -153,15 +153,35 @@ function go(routePath?: string) {
 }
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 6px 0;
 }
 .sidebar-nav::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 8px;
 }
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(76, 101, 137, 0.55);
+  border-radius: 999px;
+  min-height: 32px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(76, 101, 137, 0.8);
+}
+.sidebar-nav::-webkit-scrollbar-button {
+  display: none;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(76, 101, 137, 0.55) var(--ds-sidebar-bg, #1b2d4a);
+  }
 }
 .menu-group-head {
   width: 100%;

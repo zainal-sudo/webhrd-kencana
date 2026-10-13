@@ -82,6 +82,14 @@ function paste(event: ClipboardEvent) {
 async function keydown(event: KeyboardEvent) {
   const target = event.target as HTMLInputElement;
   if (event.key === "Enter") {
+    const enteredValue = editing.value && dirty.value ? complete(draft.value) : String(props.modelValue ?? '');
+    const validationError = clockTimeError(enteredValue, props.required);
+    if (validationError) {
+      event.preventDefault();
+      event.stopPropagation();
+      touched.value = true;
+      return;
+    }
     if (props.navigateOnEnter === false) return;
     // Do not allow implicit form submission or parent Enter shortcuts.
     event.preventDefault();
@@ -130,7 +138,7 @@ async function keydown(event: KeyboardEvent) {
     />
     <span v-if="suffix" class="time-guide" aria-hidden="true"><span class="typed-guide">{{ draft }}</span>{{ suffix }}</span>
     </span>
-    <small v-if="error && (touched || (!editing && String(modelValue ?? '').length >= 8))" role="alert">{{ error }}</small>
+    <small v-if="error && touched" role="alert">{{ error }}</small>
   </label>
 </template>
 
@@ -150,4 +158,7 @@ input[aria-invalid="true"] { border-color: var(--ds-error); }
 .compact input { height: 28px; padding: 0 4px; font-size: 11px; }
 .compact .time-guide { left: 5px; font-size: 11px; }
 small { flex: 1 1 100%; margin-left: 148px; font-size: 10px; font-weight: 400; }
+.compact { flex-direction: column; align-items: stretch; gap: 4px; }
+.compact .time-control { flex: none; width: 100%; }
+.compact small { flex: none; width: 100%; margin: 0; line-height: 1.4; white-space: normal; overflow-wrap: break-word; }
 </style>

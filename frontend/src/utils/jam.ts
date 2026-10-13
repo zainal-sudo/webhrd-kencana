@@ -20,7 +20,7 @@ export function clockTimeError(value: unknown, required = false): string {
 /** Dipanggil sebelum request Simpan; kosong tetap mengikuti default existing. */
 export function assertClockTime(value: unknown, label: string): void {
   const error = clockTimeError(value);
-  if (error) throw new Error(`${label}: ${error}`);
+  if (error) throw Object.assign(new Error(`${label}: ${error}`), { inlineValidation: true });
 }
 
 /**

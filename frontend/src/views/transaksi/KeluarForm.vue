@@ -188,7 +188,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             <FDate v-model="values.tanggal" label="Tanggal Keluar" required />
             <div class="nik-cari">
               <FText v-model="values.nik" label="NIK" required :disabled="isEdit" placeholder="Ketik NIK atau cari karyawan" />
-              <button v-if="!isEdit" class="btn-mini cari-inline" type="button" @click="bukaCari">Cari karyawan</button>
+              <button v-if="!isEdit" class="btn-mini cari-inline employee-search-button" type="button" @click="bukaCari"><MsIcon name="search" :size="18" />Cari karyawan</button>
             </div>
             <FText :model-value="info.nama" label="Nama" disabled />
             <FText :model-value="info.pabrik" label="Pabrik" disabled />

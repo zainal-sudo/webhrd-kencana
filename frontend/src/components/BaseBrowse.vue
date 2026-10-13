@@ -563,6 +563,7 @@ onActivated(() => {
           <MsIcon name="search" :size="15" />
           <input
             v-model="search"
+            class="browse-search-input"
             type="text"
             :placeholder="searchPlaceholder"
             @input="onSearch"
@@ -925,14 +926,31 @@ onActivated(() => {
   padding: 0 8px;
   height: 28px;
   color: #6b7a90;
+  width: 340px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.search-box:focus-within {
+  border-color: var(--ds-primary, #3b5998);
+  outline: none !important;
+  box-shadow: inset 0 0 0 1px var(--ds-primary, #3b5998);
 }
 .search-box input {
   border: none;
   outline: none;
   font-size: 12px;
   font-family: "Plus Jakarta Sans", sans-serif;
-  width: 180px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   background: transparent;
+}
+.search-box input:focus,
+.search-box input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 .tool-btn {
   height: 28px;

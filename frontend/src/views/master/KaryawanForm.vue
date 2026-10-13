@@ -307,7 +307,7 @@ onUnmounted(() => {
               <label>NIK</label>
               <input :value="nik || 'Otomatis setelah disimpan'" readonly aria-label="NIK" />
             </div>
-            <FText v-model="values.kar_nama" label="Nama Lengkap" required :span="2" />
+            <FText v-model="values.kar_nama" label="Nama Lengkap" required />
             <FSelect
               v-model="values.kar_status_aktif"
               label="Status Aktif"
@@ -665,6 +665,9 @@ onUnmounted(() => {
 .identity-main.fs { padding: 2px 10px 6px; margin-bottom: 6px; }
 .identity-main :deep(.field input), .identity-main :deep(.field select) { height: 30px; }
 .grid.identity-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.identity-grid :deep(.field) { min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; }
+.identity-grid :deep(.field label) { flex: none; margin: 0; line-height: 1.4; }
+.identity-grid :deep(.field input), .identity-grid :deep(.select-wrap) { flex: none; width: 100%; min-width: 0; }
 .nik-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
 .nik-field input { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); background: #eef1f6; font-size: 12px; color: #55637a; }
 .form-tabs { position: sticky; top: 0; z-index: 5; display: flex; overflow-x: auto; background: var(--ds-surface, #f0f3f8); border-bottom: 2px solid var(--ds-primary, #3b5998); }

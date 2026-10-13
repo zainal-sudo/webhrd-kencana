@@ -183,7 +183,7 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
              :disabled="disabled" aria-haspopup="dialog" :aria-expanded="cariOpen" aria-describedby="pinjaman-employee-help"
              :aria-label="values.nik ? `Karyawan: ${info.Nama || 'Nama tidak tersedia'} · ${values.nik}. Ganti karyawan` : 'Karyawan: cari / pilih karyawan aktif'"
              @click="cariOpen = true; search()">
-             <MsIcon :name="values.nik ? 'person' : 'search'" :size="18" class="employee-icon" />
+              <MsIcon name="search" :size="18" class="employee-icon" />
              <span v-if="values.nik" class="employee-value" :title="`${info.Nama || 'Nama tidak tersedia'} · ${values.nik}`">
                <span class="employee-name">{{ info.Nama || 'Nama tidak tersedia' }}</span><span class="employee-nik">· {{ values.nik }}</span>
              </span>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import DateInput from "@/components/fields/DateInput.vue";
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, nextTick } from "vue";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
 import { useLiveSearch } from "@/composables/useLiveSearch";
@@ -104,6 +105,65 @@ function tambahBaris() {
   baris.value.push({ tanggal: todaySql(), jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false });
 }
 
+const dateGrid = ref<HTMLTableElement | null>(null);
+let editingGridInput: HTMLInputElement | null = null;
+function blurDateGrid(event: FocusEvent) {
+  if (event.target === editingGridInput) editingGridInput = null;
+}
+async function navigateDateGrid(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement || input instanceof HTMLButtonElement) || input.disabled || input.type === "date") return;
+  if (input instanceof HTMLButtonElement && (event.key === "Enter" || event.key === " ")) return;
+  const cell = input.closest<HTMLElement>("[data-grid-column]");
+  const row = input.closest<HTMLElement>("[data-grid-row]");
+  if (!cell || !row) return;
+  if (event.key === "F2" && input instanceof HTMLInputElement && input.type !== "checkbox") {
+    event.preventDefault();
+    editingGridInput = input;
+    return;
+  }
+  if (event.key === "Escape" && input instanceof HTMLInputElement && editingGridInput === input) {
+    event.preventDefault();
+    editingGridInput = null;
+    input.select();
+    return;
+  }
+  let nextRow = Number(row.dataset.gridRow);
+  let nextColumn = Number(cell.dataset.gridColumn);
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (event.repeat) return;
+    nextRow += event.shiftKey ? -1 : 1;
+    if (nextRow === baris.value.length) { tambahBaris(); await nextTick(); }
+  } else if (event.key === "Tab") {
+    nextColumn += event.shiftKey ? -1 : 1;
+    if (nextColumn < 0) { nextRow--; nextColumn = 5; }
+    if (nextColumn > 5) { nextRow++; nextColumn = 0; }
+    if (nextRow < 0 || nextRow >= baris.value.length) return;
+    event.preventDefault();
+  } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+    if (event.shiftKey || editingGridInput === input) return;
+    event.preventDefault();
+    nextRow += event.key === "ArrowUp" ? -1 : 1;
+  } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    if (event.shiftKey || editingGridInput === input) return;
+    event.preventDefault();
+    nextColumn += event.key === "ArrowLeft" ? -1 : 1;
+  } else return;
+  if (nextRow < 0 || nextRow >= baris.value.length || nextColumn < 0 || nextColumn > 5) return;
+  const selector = `[data-grid-row="${nextRow}"] [data-grid-column="${nextColumn}"]`;
+  const target = dateGrid.value?.querySelector<HTMLInputElement | HTMLButtonElement>(
+    `${selector} input:not(:disabled):not([readonly]):not([type="date"]), ${selector} button:not(:disabled)`
+  );
+  target?.focus();
+  if (target) {
+    editingGridInput = null;
+    if (target instanceof HTMLInputElement && target.type !== "checkbox") target.select();
+    target.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
 function hapusBaris(i: number) {
   if (baris.value.length <= 1) {
     baris.value[0] = { tanggal: todaySql(), jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false };
@@ -115,7 +175,7 @@ function hapusBaris(i: number) {
 async function simpan(): Promise<string> {
   const nik = String(values.nik || "").trim();
   const terisi = baris.value.filter((b) => String(b.tanggal || "").trim());
-  terisi.forEach((b, i) => {
+  baris.value.forEach((b, i) => {
     assertClockTime(b.jam_mulai, `Baris ${i + 1} — Jam Mulai`);
     assertClockTime(b.jam_akhir, `Baris ${i + 1} — Jam Akhir`);
   });
@@ -166,7 +226,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
         <div class="grid">
           <div class="nik-cari">
             <FText v-model="values.nik" label="NIK" required placeholder="Ketik NIK / Cari" />
-            <button class="btn-mini cari-inline" type="button" @click="bukaCari">Cari karyawan</button>
+            <button class="btn-mini cari-inline employee-search-button" type="button" @click="bukaCari"><MsIcon name="search" :size="18" />Cari karyawan</button>
           </div>
           <FText :model-value="info.nama" label="Nama" disabled @update:model-value="() => {}" />
           <FText :model-value="info.pabrik" label="Pabrik" disabled @update:model-value="() => {}" />
@@ -178,19 +238,19 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 
       <fieldset class="fs">
         <legend>Daftar Tanggal ({{ baris.filter((b) => b.tanggal).length }} SPL)</legend>
-        <table class="grid-tbl">
+        <table ref="dateGrid" class="grid-tbl" @keydown="navigateDateGrid" @focusout="blurDateGrid">
           <thead>
             <tr><th style="width: 30px; text-align: center">No</th><th style="width: 130px">Tanggal</th><th style="width: 100px">Jam Mulai</th><th style="width: 100px">Jam Akhir</th><th>Keterangan (= Jenis Kerja)</th><th style="width: 70px">Panggil</th><th style="width: 50px; text-align: center">Aksi</th></tr>
           </thead>
           <tbody>
-            <tr v-for="(b, i) in baris" :key="i">
+            <tr v-for="(b, i) in baris" :key="i" :data-grid-row="i">
               <td class="ctr">{{ i + 1 }}</td>
-              <td><DateInput v-model="b.tanggal" aria-label="Tanggal lembur" /></td>
-              <td><FTime v-model="b.jam_mulai" label="Jam Mulai" compact placeholder="00:00:00" /></td>
-              <td><FTime v-model="b.jam_akhir" label="Jam Akhir" compact placeholder="00:00:00" /></td>
-              <td><input v-model="b.keterangan" placeholder="Uraian pekerjaan lembur" /></td>
-              <td class="ctr"><input v-model="b.panggilan" type="checkbox" /></td>
-              <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>
+              <td data-grid-column="0"><DateInput v-model="b.tanggal" :aria-label="`Tanggal lembur baris ${i + 1}`" /></td>
+              <td data-grid-column="1"><FTime v-model="b.jam_mulai" label="Jam Mulai" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
+              <td data-grid-column="2"><FTime v-model="b.jam_akhir" label="Jam Akhir" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
+              <td data-grid-column="3"><input v-model="b.keterangan" placeholder="Uraian pekerjaan lembur" :aria-label="`Keterangan baris ${i + 1}`" /></td>
+              <td class="ctr" data-grid-column="4"><input v-model="b.panggilan" type="checkbox" :aria-label="`Panggil baris ${i + 1}`" /></td>
+              <td class="ctr" data-grid-column="5"><button class="btn-mini del" type="button" title="Hapus baris (Enter / Space)" aria-label="Hapus baris" @click="hapusBaris(i)"><MsIcon name="close" :size="20" /></button></td>
             </tr>
           </tbody>
         </table>
@@ -199,6 +259,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <button class="btn-mini" type="button" @click="samakanJam">Samakan Jam Awal & Akhir</button>
         </div>
         <p class="note">Aturan Delphi: jam akhir maksimal 30 menit setelah scan keluar absensi hari itu.</p>
+        <p class="note">Panah: pindah sel. Tab / Shift+Tab: kanan / kiri. Enter / Shift+Enter: bawah / atas. Enter di baris terakhir: tambah baris. F2: gerakkan kursor di dalam teks; Esc: kembali ke navigasi sel. Space: centang Panggil.</p>
       </fieldset>
     </template>
   </BaseForm>
@@ -240,7 +301,8 @@ table.grid-tbl th { background: var(--ds-surface-variant, #e0e4ea); border: 1px 
 table.grid-tbl td { border: 1px solid #d5dbe3; padding: 2px; }
 table.grid-tbl td.ctr { text-align: center; }
 table.grid-tbl input, table.grid-tbl :deep(input[type="text"]) { width: 100%; border: 1px solid transparent; padding: 4px 28px 4px 6px; font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
-table.grid-tbl input:focus, table.grid-tbl :deep(input:focus) { border-color: var(--ds-primary, #3b5998); outline: none; }
+table.grid-tbl input:focus, table.grid-tbl :deep(input:focus) { border-color: var(--ds-primary, #3b5998); outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; background: var(--ds-surface-inset, #edf2fb); }
+table.grid-tbl input[type="checkbox"] { width: auto; padding: 0; }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
 .dlg-body { background: #fff; padding: 12px 14px; }
 .cari-bar { display: flex; gap: 6px; margin-bottom: 10px; }
