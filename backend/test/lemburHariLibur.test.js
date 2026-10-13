@@ -21,7 +21,7 @@ function handler(query) {
 const next = (err) => { throw err }
 const period = { start_date: '2026-10-01', end_date: '2026-10-07' }
 
-test('Tanggal hanya tharilibur, SPL opsional cocok NIK/tanggal, durasi selisih, kolom belum jelas kosong', async () => {
+test('Tanggal hanya tharilibur, SPL opsional cocok NIK/tanggal, durasi lintas-malam, ijin & verifikasi real', async () => {
     const calls = []
     const run = handler(async (sql, params) => {
         assert.match(sql, /^SELECT/)
@@ -34,14 +34,48 @@ test('Tanggal hanya tharilibur, SPL opsional cocok NIK/tanggal, durasi selisih, 
     assert.match(sql, /EXISTS \(SELECT 1 FROM tharilibur hl WHERE hl.hl_tanggal = a.tanggal\)/)
     // Tanpa scan tidak ikut; salah satu scan masih cukup agar absensi tidak lengkap terlihat.
     assert.match(sql, /AND \(a.scan1 > '00:00:00' OR a.scan2 > '00:00:00'\)/)
-    assert.doesNotMatch(sql, /DAYOFWEEK|hl_status|a.verifikasi/)
+    assert.doesNotMatch(sql, /DAYOFWEEK|hl_status/)
     assert.match(sql, /LEFT JOIN/)
     assert.match(sql, /s.tanggal = a.tanggal AND s.nik = k.kar_Nik/)
-    assert.match(sql, /TIMEDIFF\(a.scan2, a.scan1\) AS `lama`/)
-    assert.match(sql, /TIMEDIFF\(s.jam_selesai, s.jam_mulai\) AS `lama_lembur`/)
-    assert.match(sql, /'' AS `no_ijin`, '' AS `verifikasi`/)
+    // Durasi lintas-malam seperti Delphi (24:00:00 - awal + akhir).
+    assert.match(sql, /TIMEDIFF\('24:00:00',a.scan1\)/)
+    assert.match(sql, /TIMEDIFF\('24:00:00',s.jam_mulai\)/)
+    // No Ijin dari tijin (ij_ji_id = 2), verifikasi dari tabsensi.
+    assert.match(sql, /z.ij_nomor AS `no_ijin`/)
+    assert.match(sql, /a.verifikasi AS `verifikasi`/)
+    assert.match(sql, /LEFT JOIN tijin z ON z.ij_tanggal = a.tanggal AND z.ij_nik = k.kar_Nik AND z.ij_ji_id = 2/)
+    // Kode absensi mentah ikut dikirim untuk aksi verifikasi/edit absensi.
+    assert.match(sql, /a.nik AS `nik`/)
     assert.equal(res.pagination.total, 2)
     assert.equal(res.data[0].lama_lembur, null)
+})
+
+test('Verifikasi update tabsensi by nik+tanggal, nilai hanya 0/1', async () => {
+    const calls = []
+    const source = readFileSync(new URL('../src/controllers/laporan/lemburHariLiburController.js', import.meta.url), 'utf8')
+    const scope = {
+        pool: {
+            query: async (sql, params) => {
+                calls.push({ sql, params })
+                return [{ affectedRows: 1 }]
+            },
+        },
+        error: (res, message, status) => { res.error = { message, status } },
+        success: (res, data) => { res.data = data },
+    }
+    vm.createContext(scope)
+    vm.runInContext(source.replace(/^import .*\r?\n/gm, '').replace(/^export /gm, '') + '\nglobalThis.setVer = setVerifikasiLemburHariLibur;', scope)
+    const res = {}
+    await scope.setVer({ body: { nik: 'ABS1', tanggal: '2026-10-05', verifikasi: 1 } }, res, next)
+    assert.match(calls[0].sql, /UPDATE tabsensi SET verifikasi = \? WHERE nik = \? AND tanggal = \?/)
+    assert.deepEqual([...calls[0].params], [1, 'ABS1', '2026-10-05'])
+    assert.equal(res.data.verifikasi, 1)
+    const bad = {}
+    await scope.setVer({ body: { nik: 'ABS1', tanggal: '2026-10-05', verifikasi: 2 } }, bad, next)
+    assert.equal(bad.error.status, 400)
+    const empty = {}
+    await scope.setVer({ body: { nik: '', tanggal: '2026-10-05', verifikasi: 0 } }, empty, next)
+    assert.equal(empty.error.status, 400)
 })
 
 test('Browse dan Excel memakai filter/sort yang sama, export sesuai kolom frontend tanpa key internal', async () => {

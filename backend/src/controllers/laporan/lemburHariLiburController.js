@@ -3,8 +3,13 @@ import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
-// Aturan pengguna, bukan klaim query Delphi: semua tanggal pada tharilibur,
-// tanpa tambahan hari Minggu atau filter hl_status/hl_status_security.
+// Cerminan `ufrmLapLemburHarilibur.btnRefreshClick`: tanggal Master Hari Libur,
+// scan tidak nol, SPL opsional (NIK + tanggal), no Ijin dari `tijin`
+// (ij_ji_id = 2), verifikasi dari `tabsensi`, durasi lintas-malam.
+const OVERNIGHT = (akhir, awal) =>
+    `IF(${akhir}<${awal} AND (${awal}<>'00:00:00' AND ${akhir}<>'00:00:00'),` +
+    `SEC_TO_TIME(TIME_TO_SEC(TIMEDIFF('24:00:00',${awal}))+TIME_TO_SEC(TIMEDIFF(${akhir},'00:00:00'))),` +
+    `TIMEDIFF(${akhir},${awal}))`
 const COLUMNS = {
     Tanggal: 'a.tanggal',
     Kar_Nik: 'k.kar_Nik',
@@ -14,12 +19,12 @@ const COLUMNS = {
     Sistem: 'k.kar_sistem_gaji',
     scan1: 'a.scan1',
     scan2: 'a.scan2',
-    lama: 'TIMEDIFF(a.scan2, a.scan1)',
+    lama: OVERNIGHT('a.scan2', 'a.scan1'),
     jam_mulai: 's.jam_mulai',
     jam_selesai: 's.jam_selesai',
-    lama_lembur: 'TIMEDIFF(s.jam_selesai, s.jam_mulai)',
-    no_ijin: "''",
-    verifikasi: "''",
+    lama_lembur: OVERNIGHT('s.jam_selesai', 's.jam_mulai'),
+    no_ijin: 'z.ij_nomor',
+    verifikasi: 'a.verifikasi',
 }
 const FROM = `FROM tabsensi a
     INNER JOIN tkaryawan k ON k.kar_kode_absensi = a.nik
@@ -29,7 +34,8 @@ const FROM = `FROM tabsensi a
                d.lemd_jamakhir AS jam_selesai
         FROM tlembur_hdr h
         INNER JOIN tlembur_dtl d ON d.lemd_lem_nomor = h.lem_nomor
-    ) s ON s.tanggal = a.tanggal AND s.nik = k.kar_Nik`
+    ) s ON s.tanggal = a.tanggal AND s.nik = k.kar_Nik
+    LEFT JOIN tijin z ON z.ij_tanggal = a.tanggal AND z.ij_nik = k.kar_Nik AND z.ij_ji_id = 2`
 const SELECT = `SELECT ${Object.entries(COLUMNS).map(([alias, expr]) => `${expr} AS \`${alias}\``).join(', ')} ${FROM}`
 const ROW_KEY = "CONCAT(a.nik, '|', a.tanggal, '|', IFNULL(s.nomor, '')) AS _key"
 
@@ -77,9 +83,29 @@ export const getLemburHariLiburList = async (req, res, next) => {
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM}${f.clause}`, f.params)
         const total = Number(count[0].total)
         const [rows] = await pool.query(
-            `${SELECT.replace('SELECT ', `SELECT ${ROW_KEY}, `)}${f.clause} ${order} LIMIT ? OFFSET ?`,
+            `${SELECT.replace('SELECT ', `SELECT ${ROW_KEY}, a.nik AS \`nik\`, `)}${f.clause} ${order} LIMIT ? OFFSET ?`,
             [...f.params, perPage, (page - 1) * perPage]
         )
         paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) { next(err) }
+}
+
+// Padanan popup Delphi `Verifikasi` / `BatalVerifikasi`:
+// UPDATE tabsensi SET verifikasi = 0/1 WHERE nik = ? AND tanggal = ?
+// `nik` di sini kode absensi (a.nik), sama seperti yang dipakai form Absensi.
+export const setVerifikasiLemburHariLibur = async (req, res, next) => {
+    try {
+        const nik = String(req.body?.nik ?? '').trim()
+        const tanggal = String(req.body?.tanggal ?? '').slice(0, 10)
+        const verifikasi = Number(req.body?.verifikasi)
+        if (!nik) return error(res, 'NIK (kode absensi) wajib diisi', 400)
+        if (!validDate(tanggal)) return error(res, 'Tanggal tidak valid', 400)
+        if (verifikasi !== 0 && verifikasi !== 1) return error(res, 'Nilai verifikasi harus 0 atau 1', 400)
+        const [r] = await pool.query(
+            'UPDATE tabsensi SET verifikasi = ? WHERE nik = ? AND tanggal = ?',
+            [verifikasi, nik, tanggal]
+        )
+        if (!r.affectedRows) return error(res, 'Data absensi tidak ditemukan', 404)
+        return success(res, { nik, tanggal, verifikasi })
     } catch (err) { next(err) }
 }
