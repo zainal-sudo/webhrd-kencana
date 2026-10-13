@@ -158,6 +158,32 @@ export const lookupKaryawan = async (req, res, next) => {
     }
 }
 
+/** Pelamar Diterima (rkt_status = 1) untuk tombol ambil data rekruitmen
+ *  di form Tambah Karyawan (edtRekrutmenClickBtn Delphi).
+ *  No rekruitmen TIDAK disimpan ke master — murni penarik biodata. */
+export const lookupRekrutmen = async (req, res, next) => {
+    try {
+        const q = String(req.query.search || '').trim()
+        const params = []
+        let where = ' WHERE rkt_status = 1'
+        if (q) {
+            where += ' AND (rkt_nomor LIKE ? OR rkt_nama LIKE ? OR rkt_posisi LIKE ? OR rkt_alamat LIKE ?)'
+            params.push(...Array(4).fill(`%${q}%`))
+        }
+        const [rows] = await pool.query(
+            `SELECT rkt_nomor AS Nomor, rkt_tanggal AS Tanggal, rkt_nama AS Nama,
+                    IF(rkt_jenkel=1,'Laki-Laki','Perempuan') AS Jenis_Kelamin,
+                    rkt_alamat AS Alamat, rkt_jenkel, rkt_tempatlahir, rkt_tgllahir,
+                    rkt_telp, rkt_identitas, rkt_ibukandung, rkt_email, rkt_agama,
+                    rkt_status_kawin, rkt_gol_darah, rkt_status_tinggal,
+                    rkt_pendidikanterakhir, rkt_jurusan, rkt_size, rkt_posisi
+             FROM trekruitmen${where} ORDER BY rkt_tanggal DESC, rkt_nomor DESC LIMIT 200`,
+            params
+        )
+        success(res, rows)
+    } catch (err) { next(err) }
+}
+
 /** Detail karyawan + seluruh tabel anak. */
 export const getKaryawan = async (req, res, next) => {
     try {

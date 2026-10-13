@@ -3,6 +3,7 @@ import { ref, shallowRef, reactive, computed, onMounted, onUnmounted } from "vue
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import FText from "@/components/fields/FText.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import FDate from "@/components/fields/FDate.vue";
@@ -10,7 +11,8 @@ import FNumber from "@/components/fields/FNumber.vue";
 import FTextarea from "@/components/fields/FTextarea.vue";
 import TableTextInput from "@/components/fields/TableTextInput.vue";
 import { api, getErrorMessage } from "@/api/axios";
-import { todaySql } from "@/utils/format";
+import { todaySql, formatTanggal } from "@/utils/format";
+import { useLiveSearch } from "@/composables/useLiveSearch";
 import {
   OPSI_AGAMA,
   OPSI_BPJS,
@@ -252,6 +254,99 @@ async function simpan(): Promise<string> {
   return `Karyawan baru berhasil disimpan dengan NIK ${data.data?.kar_Nik ?? "-"}.`;
 }
 
+/**
+ * Ambil biodata dari Bank Pelamar — padanan `edtRekrutmenClickBtn` Delphi.
+ * Hanya pelamar Diterima (rkt_status = 1). No rekruitmen TIDAK disimpan,
+ * murni penarik biodata (nama, lahir, kontak, agama, pendidikan, ...).
+ */
+const noRekrutmen = ref("");
+const rekrutOpen = ref(false);
+const rekrutLoading = ref(false);
+const kataRekrut = ref("");
+const hasilRekrut = ref<any[]>([]);
+
+function bukaRekrutmen() {
+  kataRekrut.value = noRekrutmen.value;
+  rekrutOpen.value = true;
+  cariRekrutmen();
+}
+
+let rekrutRequest = 0;
+async function cariRekrutmen() {
+  const request = ++rekrutRequest;
+  rekrutLoading.value = true;
+  try {
+    const { data } = await api.get("/master/karyawan/rekrutmen-disetujui", { params: { search: kataRekrut.value } });
+    if (request === rekrutRequest) hasilRekrut.value = data.data || [];
+  } catch (e) {
+    if (request === rekrutRequest) toast.error(getErrorMessage(e, "Gagal mencari pelamar"));
+  } finally {
+    if (request === rekrutRequest) rekrutLoading.value = false;
+  }
+}
+const liveRekrutmen = useLiveSearch(cariRekrutmen, {
+  enabled: () => rekrutOpen.value,
+  invalidate: () => { ++rekrutRequest; hasilRekrut.value = []; rekrutLoading.value = false; },
+});
+
+function ambilRekrutmen(r: Record<string, any>) {
+  noRekrutmen.value = String(r.Nomor ?? "");
+  const iso = (v: unknown) => {
+    if (v === null || v === undefined || v === "") return "";
+    if (v instanceof Date) {
+      const p = (n: number) => String(n).padStart(2, "0");
+      return `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+    }
+    return String(v).slice(0, 10);
+  };
+  Object.assign(values, {
+    kar_nama: r.Nama || r.rkt_nama || "",
+    kar_alamat: r.Alamat || r.rkt_alamat || "",
+    kar_tempatlahir: r.rkt_tempatlahir || "",
+    kar_tgllahir: iso(r.rkt_tgllahir),
+    kar_jenkel: Number(r.rkt_jenkel) === 1 ? 1 : 2,
+    kar_notelp: r.rkt_telp || "",
+    kar_noidentitas: r.rkt_identitas || "",
+    kar_ibukandung: r.rkt_ibukandung || "",
+    kar_email: r.rkt_email || "",
+    kar_agama: r.rkt_agama || "",
+    kar_status_kawin: r.rkt_status_kawin || "",
+    kar_gol_darah: r.rkt_gol_darah || "",
+    kar_status_tinggal: r.rkt_status_tinggal || "",
+    kar_pendidikanterakhir: r.rkt_pendidikanterakhir || "",
+    kar_jurusan: r.rkt_jurusan || "",
+    kar_size: r.rkt_size || "",
+  });
+  resetSnapshot.value = captureForm();
+  rekrutOpen.value = false;
+  pilihTab("pribadi");
+  toast.success(`Biodata ${r.Nomor} ditarik ke form`);
+}
+
+/** Ketik nomor persis + Enter: tarik langsung tanpa buka dialog. */
+async function ambilLangsung() {
+  const ketik = noRekrutmen.value.trim();
+  if (!ketik) {
+    bukaRekrutmen();
+    return;
+  }
+  rekrutLoading.value = true;
+  try {
+    const { data } = await api.get("/master/karyawan/rekrutmen-disetujui", { params: { search: ketik } });
+    const rows = data.data || [];
+    const pas = rows.find((r: any) => String(r.Nomor || "").toLowerCase() === ketik.toLowerCase()) || rows[0];
+    if (!pas) {
+      toast.error(`Nomor ${ketik} tidak ditemukan di pelamar Diterima`);
+      return;
+    }
+    ambilRekrutmen(pas);
+  } catch (e) {
+    toast.error(getErrorMessage(e, "Gagal menarik biodata"));
+  } finally {
+    rekrutLoading.value = false;
+  }
+}
+
 function onPilihFoto(ev: Event) {
   const input = ev.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -319,6 +414,13 @@ onUnmounted(() => {
               ]"
             />
             <FText v-model="values.kar_kode_absensi" label="Kode Absensi" :disabled="isEdit" />
+            <div class="field rekrut-field">
+              <label>No Rekruitmen</label>
+              <div class="rekrut-row">
+                <input v-model="noRekrutmen" placeholder="Ketik nomor + Enter / Cari" aria-label="No rekruitmen" @keyup.enter="ambilLangsung" />
+                <button class="btn-mini" type="button" @click="bukaRekrutmen"><MsIcon name="search" :size="14" /> Cari</button>
+              </div>
+            </div>
           </div>
         </fieldset>
 
@@ -390,7 +492,7 @@ onUnmounted(() => {
         <fieldset class="fs">
           <legend>Pendidikan Terakhir</legend>
           <div class="grid">
-            <FSelect v-model="values.kar_pendidikanterakhir" label="Pendidikan Terakhir" :options="opsiPendidikan" />
+            <FText v-model="values.kar_pendidikanterakhir" label="Pendidikan Terakhir" placeholder="Ketik manual, mis. SMA / S1..." />
             <FText v-model="values.kar_jurusan" label="Jurusan" />
           </div>
         </fieldset>
@@ -647,6 +749,38 @@ onUnmounted(() => {
       </template>
     </template>
   </BaseForm>
+
+  <v-dialog v-model="rekrutOpen" max-width="860" scrollable>
+    <v-card rounded="false">
+      <v-card-title class="dlg-head">
+        <span>Pelamar Diterima (Bank Pelamar)</span>
+        <v-btn icon="close" size="small" variant="text" @click="rekrutOpen = false" />
+      </v-card-title>
+      <v-card-text class="dlg-body">
+        <div class="cari-bar">
+          <input v-model="kataRekrut" placeholder="Nomor / nama / posisi / alamat..." @input="liveRekrutmen.schedule" @keyup.enter="liveRekrutmen.run" />
+          <button class="btn-mini primary" type="button" :disabled="rekrutLoading" @click="liveRekrutmen.run">
+            {{ rekrutLoading ? "Mencari..." : "Cari" }}
+          </button>
+        </div>
+        <table class="mini">
+          <thead><tr><th>Nomor</th><th>Tanggal</th><th>Nama</th><th>L/P</th><th>Posisi</th><th>Alamat</th></tr></thead>
+          <tbody>
+            <tr v-for="(r, i) in hasilRekrut" :key="i" class="klik" @click="ambilRekrutmen(r)">
+              <td>{{ r.Nomor }}</td>
+              <td>{{ formatTanggal(r.Tanggal) }}</td>
+              <td>{{ r.Nama }}</td>
+              <td>{{ r.Jenis_Kelamin }}</td>
+              <td>{{ r.rkt_posisi }}</td>
+              <td>{{ r.Alamat }}</td>
+            </tr>
+            <tr v-if="!hasilRekrut.length"><td colspan="6" class="empty">Tidak ditemukan</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Hanya pelamar berstatus Diterima. Biodata ditarik ke form (tidak disimpan otomatis).</p>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
@@ -669,7 +803,24 @@ onUnmounted(() => {
 .identity-grid :deep(.field label) { flex: none; margin: 0; line-height: 1.4; }
 .identity-grid :deep(.field input), .identity-grid :deep(.select-wrap) { flex: none; width: 100%; min-width: 0; }
 .nik-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
-.nik-field input { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); background: #eef1f6; font-size: 12px; color: #55637a; }
+.nik-field input { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #eef1f6; font-size: 12px; color: #55637a; }
+.rekrut-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
+.rekrut-row { display: flex; gap: 6px; }
+.rekrut-row input { flex: 1; min-width: 0; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; font-size: 12px; }
+.rekrut-row .btn-mini { height: 30px; flex-shrink: 0; }
+.btn-mini { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
+.btn-mini.primary { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary-dark, #2c4472); color: #fff; }
+.btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
+.dlg-body { background: #fff; padding: 12px 14px; }
+.cari-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+.cari-bar input { flex: 1; height: 28px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; padding: 0 8px; font-size: 12px; font-family: "Plus Jakarta Sans", sans-serif; }
+table.mini { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.mini th { background: var(--ds-surface-variant, #e0e4ea); border: 1px solid var(--ds-border, #b0b8c4); padding: 5px 7px; text-align: left; font-weight: 800; }
+table.mini td { border: 1px solid #d5dbe3; padding: 4px 7px; }
+table.mini tr.klik:hover { background: var(--ds-primary-lighten-1, #dbe4f3); cursor: pointer; }
+table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
+.note { font-size: 11px; color: #64748b; margin: 8px 0 0; }
 .form-tabs { position: sticky; top: 0; z-index: 5; display: flex; overflow-x: auto; background: var(--ds-surface, #f0f3f8); border-bottom: 2px solid var(--ds-primary, #3b5998); }
 .form-tabs button { padding: 6px 14px; border: 1px solid var(--ds-border, #b0b8c4); border-bottom: none; background: var(--ds-surface-variant, #e0e4ea); color: var(--ds-on-surface, #1b2d4a); font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .form-tabs button.active { background: var(--ds-primary, #3b5998); color: #fff; }

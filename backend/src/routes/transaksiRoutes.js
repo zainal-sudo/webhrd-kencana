@@ -100,6 +100,33 @@ import {
     infoKaryawan as infoKaryawanLembur2,
     saveLembur2,
 } from '../controllers/transaksi/lembur2Controller.js'
+import {
+    getRiilList,
+    getNomor as getNomorRiil,
+    getPermintaanTerbuka,
+    getInfoPermintaan,
+    getRiil,
+    saveRiil,
+    deleteRiil,
+} from '../controllers/transaksi/riilPermintaanController.js'
+import {
+    getRekruitmenList,
+    getNomor as getNomorRekruitmen,
+    getAlatTes,
+    getRekruitmen,
+    saveRekruitmen,
+    deleteRekruitmen,
+} from '../controllers/transaksi/rekruitmenController.js'
+import {
+    getCalonList,
+    getNomor as getNomorCalon,
+    lookupPelamar,
+    getCalon,
+    getTes,
+    saveTes,
+    saveCalon,
+    deleteCalon,
+} from '../controllers/transaksi/calonKaryawanController.js'
 
 const r = Router()
 r.get('/pinjaman/rekap-hutang', wajibHak('frmLapSaldo'), getRekapHutang)
@@ -233,5 +260,39 @@ r.post('/ijin2', wajibHak('frmIjin2', 'insert'), saveIjin2)
 r.get('/lembur2/karyawan', wajibHak('frmLembur2'), lookupKaryawanLembur2)
 r.get('/lembur2/karyawan-info', wajibHak('frmLembur2'), infoKaryawanLembur2)
 r.post('/lembur2', wajibHak('frmLembur2', 'insert'), saveLembur2)
+
+/* ── Realisasi Permintaan Karyawan (ufrmBrowseRiilPermintaanKaryawan +
+ * ufrmRiilPermintaanKaryawan, hak form `frmRiilPermintaanKaryawan`) ── */
+r.get('/realisasi-permintaan', wajibHak('frmRiilPermintaanKaryawan'), getRiilList)
+r.get('/realisasi-permintaan/nomor', wajibHak('frmRiilPermintaanKaryawan'), getNomorRiil)
+r.get('/realisasi-permintaan/permintaan-terbuka', wajibHak('frmRiilPermintaanKaryawan'), getPermintaanTerbuka)
+r.get('/realisasi-permintaan/info-permintaan', wajibHak('frmRiilPermintaanKaryawan'), getInfoPermintaan)
+r.get('/realisasi-permintaan/form', wajibHak('frmRiilPermintaanKaryawan'), getRiil)
+r.post('/realisasi-permintaan', wajibHak('frmRiilPermintaanKaryawan', 'insert'), saveRiil)
+r.put('/realisasi-permintaan', wajibHak('frmRiilPermintaanKaryawan', 'edit'), saveRiil)
+r.delete('/realisasi-permintaan/:nomor', wajibHak('frmRiilPermintaanKaryawan', 'delete'), deleteRiil)
+
+/* ── Bank Pelamar (ufrmBrowseRekruitmen + ufrmRekruitmen, `frmRekruitmen`).
+ * Catatan: `tmenu` bawaan belum punya baris `frmRekruitmen`; tambahkan
+ * lewat menu User agar modul muncul di sidebar dan haknya bisa diatur. ── */
+r.get('/bank-pelamar', wajibHak('frmRekruitmen'), getRekruitmenList)
+r.get('/bank-pelamar/nomor', wajibHak('frmRekruitmen'), getNomorRekruitmen)
+r.get('/bank-pelamar/alat-tes', wajibHak('frmRekruitmen'), getAlatTes)
+r.get('/bank-pelamar/form', wajibHak('frmRekruitmen'), getRekruitmen)
+r.post('/bank-pelamar', wajibHak('frmRekruitmen', 'insert'), saveRekruitmen)
+r.put('/bank-pelamar', wajibHak('frmRekruitmen', 'edit'), saveRekruitmen)
+r.delete('/bank-pelamar/:nomor', wajibHak('frmRekruitmen', 'delete'), deleteRekruitmen)
+
+/* ── Rekruitmen / Panggilan (ufrmBrowseCalonKaryawan + ufrmCalonKaryawan,
+ * hak form `frmCalonKaryawan`) ── */
+r.get('/rekrutmen', wajibHak('frmCalonKaryawan'), getCalonList)
+r.get('/rekrutmen/nomor', wajibHak('frmCalonKaryawan'), getNomorCalon)
+r.get('/rekrutmen/pelamar', wajibHak('frmCalonKaryawan'), lookupPelamar)
+r.get('/rekrutmen/form', wajibHak('frmCalonKaryawan'), getCalon)
+r.get('/rekrutmen/tes', wajibHak('frmCalonKaryawan'), getTes)
+r.post('/rekrutmen/tes', wajibHak('frmCalonKaryawan', 'edit'), saveTes)
+r.post('/rekrutmen', wajibHak('frmCalonKaryawan', 'insert'), saveCalon)
+r.put('/rekrutmen', wajibHak('frmCalonKaryawan', 'edit'), saveCalon)
+r.delete('/rekrutmen/:nomor', wajibHak('frmCalonKaryawan', 'delete'), deleteCalon)
 
 export default r

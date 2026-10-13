@@ -64,10 +64,10 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmSP: { grup: "transaksi", path: "/transaksi/sp", label: "SP", icon: "description", ready: true },
   frmMutasiKaryawan: { grup: "transaksi", path: "/transaksi/mutasi", label: "Mutasi Karyawan", icon: "swap_vert", ready: true },
   frmPerubahanStatus: { grup: "transaksi", path: "/transaksi/perubahan-status", label: "Perubahan Status", icon: "published_with_changes", ready: true },
-  frmRekruitmen: { grup: "transaksi", path: "/transaksi/bank-pelamar", label: "Bank Pelamar", icon: "contact_page", ready: false },
-  frmCalonKaryawan: { grup: "transaksi", path: "/transaksi/rekrutmen", label: "Rekrutmen", icon: "person_add", ready: false },
+  frmRekruitmen: { grup: "transaksi", path: "/transaksi/bank-pelamar", label: "Bank Pelamar", icon: "contact_page", ready: true },
+  frmCalonKaryawan: { grup: "transaksi", path: "/transaksi/rekrutmen", label: "Rekrutmen", icon: "person_add", ready: true },
   frmPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/permintaan-karyawan", label: "Permintaan Karyawan", icon: "request_quote", ready: true },
-  frmRiilPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/realisasi-permintaan", label: "Realisasi Permintaan", icon: "task_alt", ready: false },
+  frmRiilPermintaanKaryawan: { grup: "transaksi", path: "/transaksi/realisasi-permintaan", label: "Realisasi Permintaan", icon: "task_alt", ready: true },
   frmPenilaian3Bulan: { grup: "transaksi", path: "/transaksi/penilaian-3-bulan", label: "Penilaian 3 Bulanan", icon: "reviews", ready: true },
 
   /* ── Laporan ── */

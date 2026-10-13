@@ -18,6 +18,7 @@ import {
 import {
     getKaryawanList,
     lookupKaryawan,
+    lookupRekrutmen,
     getKaryawan,
     getFotoKaryawan,
     generateNik,
@@ -65,6 +66,7 @@ r.get('/karyawan', wajibHak('frmKaryawan'), getKaryawanList)
 r.get('/karyawan/lookup', wajibHak('frmKaryawan'), lookupKaryawan)
 r.get('/karyawan/form-options', wajibHak('frmKaryawan'), getFormOptions)
 r.get('/karyawan/nomor', wajibHak('frmKaryawan'), generateNik)
+r.get('/karyawan/rekrutmen-disetujui', wajibHak('frmKaryawan'), lookupRekrutmen)
 r.get('/karyawan/:nik/foto', wajibHak('frmKaryawan'), getFotoKaryawan)
 r.get('/karyawan/:nik', wajibHak('frmKaryawan'), getKaryawan)
 r.post('/karyawan', wajibHak('frmKaryawan', 'insert'), saveKaryawan)
