@@ -259,23 +259,18 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .export-button:not(:disabled):hover { background: var(--ds-surface-inset, #e8edf4); }
 .loan-toolbar-actions .tool-btn.primary { background: var(--ds-action, #3b5998); border-color: var(--ds-action, #3b5998); color: white; }
 .loan-toolbar-actions .tool-btn.primary:hover { background: var(--ds-primary-darken-1, #2c4472); }
-.loan-period :deep(input:focus-visible), .all-dates-button:focus-visible, .export-button:focus-visible, .loan-toolbar-actions .tool-btn:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+.loan-period :deep(input:focus-visible), .all-dates-button:focus-visible, .export-button:focus-visible, .loan-toolbar-actions .tool-btn:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; }
 .export-button:disabled { opacity: .5; cursor: not-allowed; }
 .period-error { color: var(--ds-error, #dc2626); font-size: 12px; }
 :deep(.toolbar) { flex-direction: column; align-items: stretch; }
-:deep(.toolbar-right) { justify-content: flex-start; align-items: center; gap: 6px; min-width: 0; }
+:deep(.toolbar-right) { justify-content: flex-start; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; width: 100%; }
 :deep(.search-box) { flex: 1 1 100px; min-width: 100px; height: 32px; box-sizing: border-box; background: var(--ds-surface-raised, white); }
 :deep(.search-box input) { width: 100%; min-width: 0; color: var(--ds-text, #263238); }
-:deep(.search-box:focus-within) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+:deep(.search-box:focus-within) { outline: none; border-color: var(--ds-primary, #3b5998); box-shadow: inset 0 0 0 1px var(--ds-primary, #3b5998); }
 :deep(.toolbar-right > .tool-btn) { height: 32px; box-sizing: border-box; flex: 0 0 auto; }
-:deep(.toolbar-right > .tool-btn:focus-visible) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+:deep(.toolbar-right > .tool-btn:focus-visible) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; }
 :deep(.toolbar-left) { flex-wrap: wrap; min-width: 0; }
 :deep(.row-actions) { align-items: center; }
-@media (min-width: 1100px) {
-  :deep(.toolbar-right) { flex-wrap: nowrap; }
-  .loan-period { flex: 0 0 auto; flex-wrap: nowrap; }
-  .period-fields { flex-wrap: nowrap; }
-}
 @media (max-width: 600px) {
   .loan-period { flex-basis: 100%; }
   .period-fields { flex-wrap: wrap; }

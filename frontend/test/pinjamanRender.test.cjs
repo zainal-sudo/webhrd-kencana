@@ -169,7 +169,8 @@ test('Pinjaman toolbar groups Export + Tambah, keeps order and insert/export dis
   assert.match(source, /\.loan-toolbar-actions[^}]*flex-wrap: nowrap[^}]*flex: 0 0 auto/);
   assert.match(source, /:deep\(\.search-box\)[^}]*flex: 1 1 100px[^}]*min-width: 100px/);
   assert.match(source, /\.loan-period :deep\(input\[type="text"\]\)[^}]*width: 130px/);
-  assert.match(source, /@media \(min-width: 1100px\)[\s\S]*?:deep\(\.toolbar-right\) \{ flex-wrap: nowrap/);
+  assert.match(source, /:deep\(\.toolbar-right\)[^}]*flex-wrap: wrap[^}]*min-width: 0[^}]*width: 100%/);
+  assert.doesNotMatch(source, /@media \(min-width: 1100px\)/);
   assert.match(source, /@media \(max-width: 600px\)[\s\S]*\.loan-period \{ flex-basis: 100%/);
   assert.match(source, /\.all-dates-button\.active[^}]*color-mix[^}]*10%[^}]*--ds-surface-raised/);
   assert.match(source, /focus-visible[^}]*outline: 2px solid var\(--ds-primary/);

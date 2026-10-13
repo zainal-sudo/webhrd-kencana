@@ -119,6 +119,14 @@ button.employee-search-button {
   outline-offset: 1px;
 }
 
+/* Fokus aksi tabel di sisi dalam tombol, tanpa mengubah ukuran sel. */
+.app-shell tbody button:focus,
+.app-shell tbody button:focus-visible {
+  outline: 3px solid var(--ds-primary, #3B5998) !important;
+  outline-offset: -3px !important;
+  box-shadow: none !important;
+}
+
 /* Satu border input aktif, bukan border + outline terpisah.
    Inset menebalkan sisi dalam tanpa mengubah ukuran/layout field. */
 input:not(.browse-search-input):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):focus,
