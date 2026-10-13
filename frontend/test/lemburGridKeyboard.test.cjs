@@ -15,6 +15,7 @@ function fixture(niks = ['TEST-01']) {
       Object.assign(this, { row, column, type: 'text', value: 'abc', selectionStart: 3, selectionEnd: 3, disabled: false, readOnly: false }, options);
     }
     closest(selector) {
+      if (this.readOnly && selector.includes('column')) return null;
       return { dataset: selector.includes('column') ? { gridColumn: String(this.column) } : { gridRow: String(this.row) } };
     }
     focus() { focus.push([this.row, this.column]); }
@@ -28,13 +29,13 @@ function fixture(niks = ['TEST-01']) {
   } };
   const module = { exports: {} };
   const code = source.slice(source.indexOf('function tambahBaris()'), source.indexOf('function hapusBaris('));
-  vm.runInNewContext(ts.transpileModule(code + '\nexport { navigateEmployeeGrid, employeeGrid, editEmployeeGrid };', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+   vm.runInNewContext(ts.transpileModule(code + '\nexport { navigateEmployeeGrid, employeeGrid };', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
     { module, exports: module.exports, ref: vue.ref, nextTick: vue.nextTick, baris, HTMLInputElement: Input });
   module.exports.employeeGrid.value = table;
   async function key(row, column, key, options = {}, inputOptions = {}) {
     const event = { target: new Input(row, column, inputOptions), key, defaultPrevented: false,
       preventDefault() { this.defaultPrevented = true; }, ...options };
-    if (inputOptions.editing) module.exports.editEmployeeGrid({ target: event.target });
+    if (inputOptions.editing) await module.exports.navigateEmployeeGrid({ ...event, key: 'F2', preventDefault() {} });
     await module.exports.navigateEmployeeGrid(event);
     return event;
   }
@@ -53,7 +54,7 @@ test('Tab traverses editable columns, skips Nama/actions; Enter appends one row 
   assert.equal(f.baris.value[1].nik, '');
   assert.equal(f.baris.value[1].panggilan, false);
   await f.key(1, 4, 'Enter', {}, { type: 'checkbox' });
-  assert.equal(f.baris.value.length, 2);
+  assert.equal(f.baris.value.length, 3);
   assert.deepEqual(f.scrolled, f.focus);
 });
 
@@ -102,13 +103,14 @@ test('Grid-edge Tab/Space, IME, modifiers, readonly/disabled controls and held E
   for (const option of ['isComposing', 'ctrlKey', 'altKey', 'metaKey', 'defaultPrevented']) {
     await f.key(0, 0, 'Enter', { [option]: true });
   }
-  await f.key(0, 0, 'Enter', {}, { readOnly: true });
+   await f.key(0, 0, 'ArrowRight', {}, { readOnly: true });
   await f.key(0, 0, 'Enter', {}, { disabled: true });
   await f.key(0, 4, 'Enter', { repeat: true });
   assert.equal(f.focus.length, 0);
   assert.equal(f.baris.value.length, 1);
   assert.match(source, /@keydown="navigateEmployeeGrid"/);
-  assert.match(source, /v-model="b.nama"[^>]*readonly/);
+  assert.match(source, /<span class="employee-name">\{\{ b.nama \|\| '—' \}\}<\/span>/);
+  assert.doesNotMatch(source, /<input[^>]*v-model="b.nama"/);
   assert.equal((source.match(/data-grid-column="[0-4]"/g) || []).length, 5);
   assert.match(source, /\.panggil-cell:focus-within \.panggil-hint/);
   assert.match(source, /td\[data-grid-column\]:focus-within/);
@@ -121,6 +123,42 @@ test('Enter from any populated last-row column adds a row and stays in that colu
     assert.equal(f.baris.value.length, 2);
     assert.deepEqual(f.focus.at(-1), [1, column]);
   }
+});
+
+test('Enter from every empty last-row column adds exactly one row; held Enter adds none', async () => {
+  for (let column = 0; column < 5; column++) {
+    const f = fixture(['']);
+    await f.key(0, column, 'Enter');
+    assert.equal(f.baris.value.length, 2);
+    assert.deepEqual(f.focus.at(-1), [1, column]);
+    await f.key(1, column, 'Enter', { repeat: true });
+    assert.equal(f.baris.value.length, 2);
+  }
+});
+
+test('Read-only Nama accepts Enter and directs focus to NIK on next row', async () => {
+  const f = fixture(['']);
+  const event = await f.key(0, 0, 'Enter', {}, { readOnly: true });
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(f.baris.value.length, 2);
+  assert.deepEqual(f.focus.at(-1), [1, 0]);
+});
+
+test('Clicking/typing no longer disables arrow navigation; grid-edge arrows remain handled', async () => {
+  assert.doesNotMatch(source, /@pointerdown="editEmployeeGrid"|@input="editEmployeeGrid"/);
+  const f = fixture();
+  for (let column = 0; column < 4; column++) {
+    await f.key(0, column, 'ArrowRight', {}, { value: 'typed', selectionStart: 2, selectionEnd: 2 });
+    assert.deepEqual(f.focus.at(-1), [0, column + 1]);
+  }
+  for (let column = 4; column > 0; column--) {
+    await f.key(0, column, 'ArrowLeft');
+    assert.deepEqual(f.focus.at(-1), [0, column - 1]);
+  }
+  const count = f.focus.length;
+  assert.equal((await f.key(0, 0, 'ArrowLeft')).defaultPrevented, true);
+  assert.equal((await f.key(0, 4, 'ArrowRight')).defaultPrevented, true);
+  assert.equal(f.focus.length, count);
 });
 
 test('SPL time inputs delegate Enter to the grid instead of swallowing it in FTime', async () => {

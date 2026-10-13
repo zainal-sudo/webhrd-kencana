@@ -219,20 +219,18 @@ function tambahBaris() {
 
 const employeeGrid = ref<HTMLTableElement | null>(null);
 let editingGridInput: HTMLInputElement | null = null;
-function editEmployeeGrid(event: Event) {
-  const input = event.target;
-  if (input instanceof HTMLInputElement && input.type !== "checkbox" && !input.readOnly) editingGridInput = input;
-}
 function blurEmployeeGrid(event: FocusEvent) {
   if (event.target === editingGridInput) editingGridInput = null;
 }
 async function navigateEmployeeGrid(event: KeyboardEvent) {
   if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
   const input = event.target;
-  if (!(input instanceof HTMLInputElement) || input.disabled || input.readOnly) return;
+  if (!(input instanceof HTMLInputElement) || input.disabled) return;
+  // Nama is read-only, but Enter there must still move/add an employee row.
+  if (input.readOnly && event.key !== "Enter") return;
   const cell = input.closest<HTMLElement>("[data-grid-column]");
   const row = input.closest<HTMLElement>("[data-grid-row]");
-  if (!cell || !row) return;
+  if (!row || (!cell && !input.readOnly)) return;
   if (event.key === "F2" && input.type !== "checkbox") {
     event.preventDefault();
     editingGridInput = input;
@@ -244,7 +242,7 @@ async function navigateEmployeeGrid(event: KeyboardEvent) {
     input.select();
     return;
   }
-  const column = Number(cell.dataset.gridColumn);
+  const column = cell ? Number(cell.dataset.gridColumn) : 0;
   const index = Number(row.dataset.gridRow);
   let nextRow = index;
   let nextColumn = column;
@@ -254,7 +252,6 @@ async function navigateEmployeeGrid(event: KeyboardEvent) {
     if (event.repeat) return;
     nextRow += event.shiftKey ? -1 : 1;
     if (nextRow === baris.value.length) {
-      if (!String(baris.value[index]?.nik || "").trim()) return;
       tambahBaris();
       await nextTick();
     }
@@ -272,8 +269,8 @@ async function navigateEmployeeGrid(event: KeyboardEvent) {
   } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
     if (event.shiftKey || editingGridInput === input) return;
     nextColumn += event.key === "ArrowLeft" ? -1 : 1;
-    if (nextColumn < 0 || nextColumn > 4) return;
     event.preventDefault();
+    if (nextColumn < 0 || nextColumn > 4) return;
   } else return;
   if (nextRow < 0 || nextRow >= baris.value.length) return;
   const target = employeeGrid.value?.querySelector<HTMLInputElement>(
@@ -427,7 +424,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 
         <fieldset class="fs">
           <legend>Daftar Karyawan ({{ baris.filter((b) => b.nik).length }} orang)</legend>
-          <table ref="employeeGrid" class="grid-tbl employee-grid" @keydown="navigateEmployeeGrid" @pointerdown="editEmployeeGrid" @input="editEmployeeGrid" @focusout="blurEmployeeGrid">
+          <table ref="employeeGrid" class="grid-tbl employee-grid" @keydown="navigateEmployeeGrid" @focusout="blurEmployeeGrid">
             <thead>
               <tr><th style="width: 30px; text-align: center">No</th><th>NIK</th><th>Nama</th><th style="width: 100px">Jam Mulai</th><th style="width: 100px">Jam Akhir</th><th>Keterangan</th><th style="width: 70px">Panggil</th><th style="width: 60px; text-align: center">Aksi</th></tr>
             </thead>
@@ -440,7 +437,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
                     <button class="btn-mini" type="button" @click="bukaCari(i)">...</button>
                   </div>
                 </td>
-                <td><input v-model="b.nama" placeholder="Nama" readonly :aria-label="`Nama baris ${i + 1}`" /></td>
+                <td><span class="employee-name">{{ b.nama || '—' }}</span></td>
                 <td data-grid-column="1"><FTime v-model="b.jam_mulai" label="Jam Mulai" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
                 <td data-grid-column="2"><FTime v-model="b.jam_akhir" label="Jam Akhir" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
                 <td data-grid-column="3"><input v-model="b.keterangan" placeholder="Keterangan" :aria-label="`Keterangan baris ${i + 1}`" /></td>
@@ -452,7 +449,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <div class="aksi-row">
             <button class="btn-mini" type="button" @click="tambahBaris">+ Tambah baris</button>
           </div>
-          <p class="note">Tab / Shift+Tab: kanan / kiri. Enter / Shift+Enter: bawah / atas. Enter di baris terakhir: tambah baris jika NIK terisi. Panah: pindah sel saat tidak mengedit. Klik / F2: edit; Esc: keluar edit. Space: centang Panggil.</p>
+          <p class="note">Panah ← / → dan Tab / Shift+Tab: kanan / kiri. Enter / Shift+Enter: bawah / atas. Enter di baris terakhir: tambah baris. F2: gerakkan kursor di dalam teks; Esc: kembali ke navigasi sel. Space: centang Panggil.</p>
         </fieldset>
 
         <OtorisasiKode
@@ -505,6 +502,7 @@ table.grid-tbl td.ctr, table.grid-tbl th.ctr { text-align: center; }
 table.grid-tbl input[type="text"], table.grid-tbl input:not([type]) { width: 100%; border: 1px solid transparent; padding: 4px 6px; font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
 table.grid-tbl input:focus { border-color: var(--ds-primary, #3b5998); outline: none; }
 .employee-grid td[data-grid-column]:focus-within { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; background: var(--ds-surface-inset, #edf2fb); }
+.employee-name { display: block; padding: 4px 6px; cursor: default; }
 .panggil-cell { position: relative; }
 .panggil-hint { display: none; position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; line-height: 11px; color: var(--ds-primary, #3b5998); pointer-events: none; }
 .panggil-cell:focus-within .panggil-hint { display: block; }

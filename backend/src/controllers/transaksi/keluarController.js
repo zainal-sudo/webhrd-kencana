@@ -195,12 +195,13 @@ export const getSuratKeluar = async (req, res, next) => {
             nama: 'Andi Wahyu Nugroho',
             nik: '0412160272',
             jabatan: 'HR MANAGER',
+            bagian: 'HRD',
             departemen: 'HRD',
         }
         try {
             const [s] = await pool.query(
                 `SELECT k.kar_nama AS nama, k.kar_Nik AS nik, j.jab_nama AS jabatan,
-                        COALESCE(d.dep_nama, k.kar_bagian) AS departemen
+                        COALESCE(d.dep_nama, k.kar_bagian) AS departemen, k.kar_bagian AS bagian
                  FROM tkaryawan k
                  LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
                  LEFT JOIN tdepartemen d ON d.dep_kode = k.kar_dep_kode
@@ -212,6 +213,7 @@ export const getSuratKeluar = async (req, res, next) => {
                     nama: s[0].nama,
                     nik: s[0].nik,
                     jabatan: s[0].jabatan || penandatangan.jabatan,
+                    bagian: s[0].bagian ?? '',
                     departemen: s[0].departemen || penandatangan.departemen,
                 }
             }
