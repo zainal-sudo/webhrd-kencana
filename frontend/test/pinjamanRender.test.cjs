@@ -192,6 +192,8 @@ test('Pinjaman row actions follow DOM/keyboard order Detail, Edit, Delete and al
 
 test('Actual PinjamanForm + BaseForm render all fields through form-content slot', async () => {
   const { html } = await renderer()();
+  assert.ok(html.includes('Simpan Baru'));
+  assert.ok(html.includes('Simpan Tutup'));
   assert.match(html, /<input[^>]*type="date"/);
   assert.match(html, /class="employee-selector selected"/);
   for (const label of ['Nama', 'Pabrik', 'Bagian', 'Nominal Pinjaman', 'Jumlah Cicilan', 'Bank', 'No. Rekening',

@@ -4,6 +4,7 @@ import { wajibHak } from '../middleware/permission.js'
 import {
     getAbsensiList,
     getAbsensi,
+    cekOtorisasiAbsensi,
     lookupKaryawanAbsensi,
     saveAbsensi,
     deleteAbsensi,
@@ -28,6 +29,7 @@ r.get('/', wajibHak('frmAbsensi'), getAbsensiList)
 
 /* Form absensi (ufrmAbsensi) — nik = kode absensi, wajib bersama tanggal */
 r.get('/form', wajibHak('frmAbsensi'), getAbsensi)
+r.get('/cek-otorisasi', wajibHak('frmAbsensi'), cekOtorisasiAbsensi)
 r.get('/karyawan', wajibHak('frmAbsensi'), lookupKaryawanAbsensi)
 r.post('/', wajibHak('frmAbsensi', 'insert'), saveAbsensi)
 r.put('/', wajibHak('frmAbsensi', 'edit'), saveAbsensi)

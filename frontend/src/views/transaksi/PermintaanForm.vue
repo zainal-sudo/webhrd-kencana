@@ -195,6 +195,7 @@ const liveSearch = useLiveSearch(cari, {
     :reset-fn="resetState.reset"
     :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/permintaan-karyawan"
+    new-form-path="/transaksi/permintaan-karyawan/form" transaction-module="frmPermintaanKaryawan"
     save-label="Simpan Permintaan"
   >
     <template #form-content>

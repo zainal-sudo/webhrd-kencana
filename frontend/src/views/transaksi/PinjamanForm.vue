@@ -164,6 +164,7 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
 <template>
   <BaseForm :title="isEdit ? 'Edit Pinjaman' : 'Tambah Pinjaman'" :subtitle="isEdit ? 'Koreksi data pinjaman · nomor dan jumlah dibayar tetap' : 'Pinjaman untuk karyawan aktif dengan masa kerja minimal 6 bulan dari tanggal masuk sampai tanggal pinjaman.'" icon="account_balance"
     return-path="/transaksi/pinjaman" :save-fn="canSave ? simpan : undefined"
+    new-form-path="/transaksi/pinjaman/form" transaction-module="frmPinjam"
     :show-save="canSave" :save-disabled="disabled"
     :reset-fn="resetState.reset" :reset-disabled="resetState.disabled.value"
     :hint="isEdit ? 'Nomor dan jumlah yang sudah dibayar tetap. Verifikasi koreksi sebelum Simpan.' : 'Nomor hanya preview; nomor final dibuat saat Simpan. Periode merupakan rencana potongan, bukan pembayaran.'">

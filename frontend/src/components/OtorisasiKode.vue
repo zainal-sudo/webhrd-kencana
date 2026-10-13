@@ -20,6 +20,7 @@ const props = defineProps<{
   modul: "absensi" | "ijin" | "lembur";
   tanggal: string;
   hariKerja?: number;
+  hariTanpaLibur?: number;
 }>();
 
 const emit = defineEmits<{
@@ -100,6 +101,11 @@ async function verifikasi() {
         Tanggal <strong>{{ formatTanggal(tanggal) }}</strong> sudah memasuki
         <strong>hari kerja ke-{{ hariKerja }}</strong> — perlu persetujuan atasan.
         Sabtu dihitung; Minggu dan hari libur tidak dihitung.
+      </template>
+      <template v-else-if="hariTanpaLibur !== undefined">
+        Tanggal <strong>{{ formatTanggal(tanggal) }}</strong> berjarak
+        <strong>{{ hariTanpaLibur }} hari</strong> dari hari ini — perlu persetujuan atasan.
+        Hari libur pada Master Hari Libur tidak dihitung.
       </template>
       <template v-else>
       Tanggal <strong>{{ formatTanggal(tanggal) }}</strong> berjarak

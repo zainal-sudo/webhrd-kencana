@@ -12,7 +12,7 @@ import FTime from "@/components/fields/FTime.vue";
 import FDate from "@/components/fields/FDate.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql } from "@/utils/format";
-import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
+import { normJam, assertClockTime } from "@/utils/jam";
 
 /**
  * Form absensi — padanan `ufrmAbsensi`.
@@ -49,11 +49,33 @@ const cariKaryawan = ref(false);
 const kataCariKaryawan = ref("");
 const cariLoading = ref(false);
 
-const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
+const usiaTanggal = ref(0);
+const cekTanggalLoading = ref(false), cekTanggalReady = ref(false);
+let cekTanggalRequest = 0;
+const perluOtorisasi = computed(() => usiaTanggal.value >= 2);
 const diformat = computed(() => !perluOtorisasi.value || otorisasiDiterima.value);
 
 const otorisasiDiterima = ref(false);
 const otorisasiToken = ref("");
+
+async function cekTanggalOtorisasi() {
+  const request = ++cekTanggalRequest;
+  const tanggal = String(values.tanggal || "");
+  cekTanggalReady.value = false;
+  cekTanggalLoading.value = true;
+  usiaTanggal.value = 0;
+  try {
+    const { data } = await api.get("/absensi/cek-otorisasi", { params: { tanggal } });
+    if (request !== cekTanggalRequest || tanggal !== String(values.tanggal || "")) return;
+    usiaTanggal.value = Number(data.data.hari);
+    cekTanggalReady.value = true;
+  } catch (e) {
+    if (request === cekTanggalRequest) toast.error(getErrorMessage(e, "Gagal memeriksa batas otorisasi"));
+  } finally {
+    if (request === cekTanggalRequest) cekTanggalLoading.value = false;
+  }
+}
+watch(() => values.tanggal, cekTanggalOtorisasi, { immediate: true, flush: "sync" });
 
 function otorisasiOke(payload: { token: string; pemberi: string }) {
   // Token inilah yang membuktikan ke server bahwa otorisasi benar-benar
@@ -144,6 +166,7 @@ async function simpan(): Promise<string> {
   assertClockTime(values.scan2, "Scan Keluar");
   if (!values.nik) throw new Error("Kode absensi wajib diisi");
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
+  if (cekTanggalLoading.value || !cekTanggalReady.value) throw new Error("Batas otorisasi belum berhasil diperiksa. Pilih ulang tanggal untuk mencoba kembali.");
   if (!diformat.value) throw new Error("Otorisasi atasan belum diverifikasi");
 
   const body: Record<string, any> = {
@@ -189,7 +212,9 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariKaryawan.value, i
       { label: adaRecord ? 'Ubah' : 'Tambah' },
     ]"
     :save-fn="simpan"
+    :save-disabled="cekTanggalLoading || !cekTanggalReady"
     return-path="/absensi/browse"
+    new-form-path="/absensi/form" transaction-module="frmAbsensi"
     save-label="Simpan Absensi"
   >
     <template #form-content>
@@ -250,6 +275,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariKaryawan.value, i
           v-if="perluOtorisasi"
           modul="absensi"
           :tanggal="String(values.tanggal || '')"
+          :hari-tanpa-libur="usiaTanggal"
           @verified="otorisasiOke"
         />
       </template>

@@ -67,8 +67,8 @@ const LIST_COLUMNS = {
     Nama: 'k.kar_nama',
     Pabrik: 'k.kar_pab_kode',
     Bagian: BAGIAN_SQL,
-    Awal: 'i.ij_jam',
-    Akhir: 'i.ij_jam2',
+    Awal: 'CASE WHEN i.ij_ji_id = 3 THEN NULL ELSE i.ij_jam END',
+    Akhir: 'CASE WHEN i.ij_ji_id = 3 THEN NULL ELSE i.ij_jam2 END',
     Alasan: 'i.ij_alasan',
     Keterangan: `IF(i.ij_keterangan = 0, 'Sakit', IF(i.ij_keterangan = 1, 'Ijin', IF(i.ij_keterangan = 2, 'Alpha', 'Lain Lain')))`,
     SistemGaji: 'k.kar_sistem_gaji',
@@ -415,7 +415,7 @@ export const saveIjin = async (req, res, next) => {
         if (krows.length === 0) return error(res, `NIK ${nik} tidak ada pada master karyawan`, 400)
 
         const pakai2 = PAKAI_JAM2.includes(jenisId)
-        const jam = normJam(b.jam ?? '00:00:00')
+        const jam = jenisId === 3 ? '00:00:00' : normJam(b.jam ?? '00:00:00')
         const jam2 = pakai2 ? normJam(b.jam2 ?? '00:00:00') : '00:00:00'
 
         // Tanggal izin dihitung hari pertama; otorisasi mulai hari kerja ke-4.

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
 import { getErrorMessage } from "@/api/axios";
+import { useAuthStore } from "@/stores/authStore";
 
 const props = withDefaults(
   defineProps<{
@@ -16,6 +17,9 @@ const props = withDefaults(
     hint?: string;
     returnPath?: string;
     saveLabel?: string;
+    /** Transaction forms opt in to save-and-close / save-and-new. */
+    newFormPath?: string;
+    transactionModule?: string;
     /** Opt-in controls; existing forms keep their current footer behavior. */
     saveDisabled?: boolean;
     showSave?: boolean;
@@ -31,6 +35,8 @@ const props = withDefaults(
     hint: "",
     returnPath: "",
     saveLabel: "Simpan",
+    newFormPath: "",
+    transactionModule: "",
     saveDisabled: false,
     showSave: true,
     resetFn: undefined,
@@ -41,18 +47,34 @@ const props = withDefaults(
 const router = useRouter();
 const toast = useToast();
 const tabsStore = useTabsStore();
+const auth = useAuthStore();
+const canSaveNew = computed(() => !!props.newFormPath && !!props.transactionModule && auth.can(props.transactionModule, "insert"));
 
 const saving = ref(false);
 const showSuccess = ref(false);
 const successMsg = ref("Data berhasil disimpan.");
 
-async function doSave() {
+async function doSave(mode: "close" | "new" = "close") {
   if (!props.saveFn || props.saveDisabled || !props.showSave || saving.value) return;
+  if (mode === "new" && !canSaveNew.value) return;
+  const tabId = tabsStore.activeTabId;
   saving.value = true;
   try {
     const msg = await props.saveFn();
     successMsg.value = msg || "Data berhasil disimpan.";
-    showSuccess.value = true;
+    if (props.newFormPath) {
+      toast.success(successMsg.value);
+      // A background save must not close or replace another active tab.
+      if (tabsStore.activeTabId !== tabId) return;
+      if (mode === "new") {
+        // A new route key mounts a fresh form, clears edit/prefill parameters,
+        // and leaves other open drafts untouched (including an existing add tab).
+        const entry = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const failure = await router.replace({ path: props.newFormPath, query: { _entry: entry } });
+        if (failure) throw new Error("Data sudah tersimpan, tetapi form baru gagal dibuka. Jangan simpan ulang data yang sama.");
+        if (tabId) tabsStore.closeTab(tabId);
+      } else closeTab();
+    } else showSuccess.value = true;
   } catch (e) {
     toast.error(getErrorMessage(e));
   } finally {
@@ -129,10 +151,13 @@ function goCrumb(path?: string) {
       <div class="footer-actions">
         <slot name="footer-actions">
           <button class="form-btn ghost" :disabled="!!resetFn && (saving || resetDisabled)" @click="doReset">Reset</button>
-          <button v-if="showSave" class="form-btn primary" :disabled="saving || saveDisabled" @click="doSave">
+          <button v-if="showSave && canSaveNew" type="button" class="form-btn primary" :disabled="saving || saveDisabled" @click="doSave('new')">
+            <MsIcon name="add" :size="15" /><span>Simpan Baru</span>
+          </button>
+          <button v-if="showSave" class="form-btn primary" :disabled="saving || saveDisabled" @click="doSave('close')">
             <MsIcon v-if="saving" name="progress_activity" :size="15" />
             <MsIcon v-else name="save" :size="15" />
-            <span>{{ saving ? "Menyimpan..." : saveLabel }}</span>
+            <span>{{ saving ? "Menyimpan..." : newFormPath ? "Simpan Tutup" : saveLabel }}</span>
           </button>
         </slot>
       </div>

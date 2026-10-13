@@ -285,6 +285,29 @@ export function selisihHari(tanggal) {
     return Math.round((b - a) / 86400000)
 }
 
+/** Usia tanggal: hari setelah tanggal input sampai hari ini, tanpa tharilibur. */
+export async function usiaOtorisasiAbsensi(tanggal) {
+    const [rows] = await pool.query(
+        `SELECT GREATEST(0, DATEDIFF(CURDATE(), ?) -
+            (SELECT COUNT(DISTINCT hl_tanggal) FROM tharilibur
+             WHERE hl_tanggal > ? AND hl_tanggal <= CURDATE())) AS hari`,
+        [tanggal, tanggal]
+    )
+    return Number(rows[0].hari)
+}
+
+export const cekOtorisasiAbsensi = async (req, res, next) => {
+    try {
+        const tanggal = String(req.query.tanggal || '').slice(0, 10)
+        const date = new Date(`${tanggal}T00:00:00Z`)
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal) || isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== tanggal) {
+            return error(res, 'Tanggal tidak valid', 400)
+        }
+        const hari = await usiaOtorisasiAbsensi(tanggal)
+        return success(res, { hari, perluOtorisasi: hari >= 2 })
+    } catch (err) { next(err) }
+}
+
 /**
  * Jejak otorisasi. Skema ini sudah ada di database produksi (dipakai modul lain
  * seperti Ijin dengan nomor dokumen `IJN.202609.2041`), jadi DDL di bawah hanya
@@ -330,12 +353,12 @@ export const saveAbsensi = async (req, res, next) => {
         const [krows] = await pool.query('SELECT kar_nama FROM tkaryawan WHERE kar_kode_absensi = ?', [nik])
         if (krows.length === 0) return error(res, `Kode absensi ${nik} tidak ada pada master karyawan`, 400)
 
-        // Pengubahan data lebih lama dari 2 hari perlu otorisasi user lain (cektanggal di Delphi).
+        // Batas tetap >= 2 hari; tanggal pada tharilibur tidak dihitung.
         let atasan = null
-        if (selisihHari(tanggal) >= 2) {
+        if ((await usiaOtorisasiAbsensi(tanggal)) >= 2) {
             atasan = userDariToken(b.otorisasi_token)
             if (!atasan) {
-                return error(res, 'Data lebih dari 2 hari lama memerlukan otorisasi atasan', 403)
+                return error(res, 'Data berusia 2 hari atau lebih (di luar hari libur) memerlukan otorisasi atasan', 403)
             }
         }
 

@@ -183,6 +183,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
     :reset-fn="resetState.reset"
     :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/perubahan-status"
+    new-form-path="/transaksi/perubahan-status/form" transaction-module="frmPerubahanStatus"
     save-label="Simpan"
   >
     <template #form-content>

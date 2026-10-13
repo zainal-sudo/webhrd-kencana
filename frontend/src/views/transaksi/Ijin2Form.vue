@@ -264,6 +264,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
     :reset-fn="resetState.reset"
     :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/ijin"
+    new-form-path="/transaksi/ijin-v2/form" transaction-module="frmIjin2"
     save-label="Simpan Kolektif"
   >
     <template #form-content>

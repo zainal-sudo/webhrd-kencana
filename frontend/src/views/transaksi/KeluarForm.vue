@@ -136,25 +136,20 @@ function tutup() {
   router.push("/transaksi/keluar");
 }
 
-async function simpan(baru: boolean) {
-  if (menyimpan.value || !siap.value || !canSave.value) return;
+async function simpan(): Promise<string> {
+  if (menyimpan.value || !siap.value || !canSave.value) throw new Error("Form belum siap disimpan");
   if (!values.tanggal || !values.nik.trim() || !values.alasan.trim()) {
-    toast.error("Tanggal keluar, NIK, dan alasan wajib diisi");
-    return;
+    throw new Error("Tanggal keluar, NIK, dan alasan wajib diisi");
   }
-  if ([...values.keterangan].length > 50) { toast.error("Keterangan maksimal 50 karakter"); return; }
+  if ([...values.keterangan].length > 50) throw new Error("Keterangan maksimal 50 karakter");
   menyimpan.value = true;
   try {
     const body = { tanggal: values.tanggal, nik: values.nik.trim(), alasan: values.alasan, keterangan: values.keterangan };
     const { data } = isEdit.value
       ? await api.put(`/transaksi/keluar/${encodeURIComponent(nomorEdit.value)}`, body)
       : await api.post("/transaksi/keluar", body);
-    toast.success(data.message || "Karyawan Keluar berhasil disimpan");
-    if (baru) {
-      if (isEdit.value) await router.replace({ path: "/transaksi/keluar/form", query: {} });
-      else await muatDokumen();
-    } else tutup();
-  } catch (e) { toast.error(getErrorMessage(e, "Gagal menyimpan Karyawan Keluar")); }
+    return data.message || "Karyawan Keluar berhasil disimpan";
+  }
   finally { menyimpan.value = false; }
 }
 
@@ -178,6 +173,8 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
     icon="logout"
     :crumbs="[{ label: 'Karyawan Keluar', path: '/transaksi/keluar' }, { label: isEdit ? 'Ubah' : 'Tambah' }]"
     return-path="/transaksi/keluar"
+    new-form-path="/transaksi/keluar/form" transaction-module="frmKeluar"
+    :save-fn="simpan" :show-save="canSave" :save-disabled="menyimpan || !siap"
     :reset-fn="resetState.reset"
     :reset-disabled="resetState.disabled.value"
   >
@@ -216,14 +213,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
         </fieldset>
       </template>
     </template>
-    <template #footer-actions>
-      <button class="btn-mini" :disabled="resetState.disabled.value" @click="resetState.reset">Reset</button>
-      <button v-if="canSave && auth.can('frmKeluar', 'insert')" class="btn-mini primary" :disabled="menyimpan || !siap" @click="simpan(true)">
-        <MsIcon name="save" :size="15" /> Simpan & Baru
-      </button>
-      <button v-if="canSave" class="btn-mini primary" :disabled="menyimpan || !siap" @click="simpan(false)">
-        <MsIcon :name="menyimpan ? 'progress_activity' : 'save'" :size="15" /> {{ menyimpan ? 'Menyimpan...' : 'Simpan & Tutup' }}
-      </button>
+    <template #footer-left>
       <button class="btn-mini" :disabled="menyimpan" @click="tutup">Tutup</button>
     </template>
   </BaseForm>

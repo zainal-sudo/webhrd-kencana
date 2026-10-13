@@ -54,6 +54,7 @@ const jenisOptions = ref<{ label: string; value: string | number }[]>([]);
 const memuat = ref(false);
 
 const PAKAI_JAM2 = ["2", "4", "5"];
+const tidakMasuk = computed(() => String(values.jenis_id) === "3");
 const pakaiJam2 = computed(() => PAKAI_JAM2.includes(String(values.jenis_id)));
 const isRentang = computed(() => values.tanggal2 && values.tanggal2 !== values.tanggal);
 
@@ -70,8 +71,10 @@ const cariLoading = ref(false);
 const kataCari = ref("");
 
 const dialogDuplikat = ref(false);
+let duplikatResolve: ((message: string) => void) | undefined;
+let duplikatReject: ((error: Error) => void) | undefined;
 const pesanDuplikat = ref("");
-const resetState = useTransactionReset({ values, info }, {
+const resetState = useTransactionReset({ values, info, hariKerja }, {
   isEdit: () => isEdit.value,
   blocked: () => memuat.value || cariLoading.value || karyawanLookup.loading,
   afterRestore: () => {
@@ -93,6 +96,7 @@ async function muatOtorisasi() {
 }
 
 watch(() => values.tanggal, () => {
+  if (resetState.restoring.value) return;
   hariKerja.value = 0;
   muatOtorisasi().catch((e) => toast.error(getErrorMessage(e, "Gagal memeriksa batas otorisasi izin")));
 }, { immediate: true });
@@ -197,7 +201,7 @@ async function kirim(konfirmasiDuplikat: boolean): Promise<string> {
     tanggal: String(values.tanggal).slice(0, 10),
     tanggal2: String(values.tanggal2 || values.tanggal).slice(0, 10),
     nik: String(values.nik).trim(),
-    jam: normJam(values.jam),
+    jam: tidakMasuk.value ? "00:00:00" : normJam(values.jam),
     jam2: pakaiJam2.value ? normJam(values.jam2) : "00:00:00",
     keterangan: Number(values.keterangan ?? 3),
     alasan: values.alasan || "",
@@ -213,7 +217,7 @@ async function kirim(konfirmasiDuplikat: boolean): Promise<string> {
 }
 
 async function simpan(): Promise<string> {
-  assertClockTime(values.jam, "Jam");
+  if (!tidakMasuk.value) assertClockTime(values.jam, "Jam");
   if (pakaiJam2.value) assertClockTime(values.jam2, "Jam s/d");
   try {
     return await kirim(false);
@@ -221,7 +225,10 @@ async function simpan(): Promise<string> {
     if (e?.response?.status === 409) {
       pesanDuplikat.value = e.response.data?.message || "Data sudah ada";
       dialogDuplikat.value = true;
-      throw new Error("Menunggu konfirmasi duplikat (LANJUT?)");
+      return await new Promise<string>((resolve, reject) => {
+        duplikatResolve = resolve;
+        duplikatReject = reject;
+      });
     }
     throw e instanceof Error ? e : new Error(getErrorMessage(e));
   }
@@ -231,10 +238,16 @@ async function lanjutDuplikat() {
   dialogDuplikat.value = false;
   try {
     const msg = await kirim(true);
-    toast.success(msg);
+    duplikatResolve?.(msg);
   } catch (e) {
-    toast.error(getErrorMessage(e));
-  }
+    duplikatReject?.(new Error(getErrorMessage(e)));
+  } finally { duplikatResolve = undefined; duplikatReject = undefined; }
+}
+function batalDuplikat() {
+  dialogDuplikat.value = false;
+  duplikatReject?.(new Error("Penyimpanan dibatalkan; data form tetap dipertahankan."));
+  duplikatResolve = undefined;
+  duplikatReject = undefined;
 }
 
 onMounted(async () => {
@@ -281,6 +294,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
     :reset-fn="resetState.reset"
     :reset-disabled="resetState.disabled.value"
     return-path="/transaksi/ijin"
+    new-form-path="/transaksi/ijin/form" transaction-module="frmIjin"
     save-label="Simpan Ijin"
   >
     <template #form-content>
@@ -315,7 +329,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
         <fieldset class="fs">
           <legend>Waktu & Keterangan</legend>
           <div class="grid">
-            <FTime v-model="values.jam" label="Jam" placeholder="00:00:00" />
+            <FTime v-if="!tidakMasuk" v-model="values.jam" label="Jam" placeholder="00:00:00" />
             <FTime v-if="pakaiJam2" v-model="values.jam2" label="Jam s/d" placeholder="00:00:00" />
             <FSelect
               v-model="values.keterangan"
@@ -329,7 +343,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             />
             <FText v-model="values.alasan" label="Alasan" placeholder="Alasan ijin" />
           </div>
-          <p v-if="!pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
+          <p v-if="!tidakMasuk && !pakaiJam2" class="note">Jenis ijin ini tidak memakai jam akhir (disimpan 00:00:00).</p>
         </fieldset>
 
         <OtorisasiKode
@@ -370,7 +384,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
       </v-card-text>
       <v-card-actions class="pa-4 pt-2">
         <v-spacer />
-        <v-btn variant="text" color="grey-darken-2" @click="dialogDuplikat = false">Batal</v-btn>
+        <v-btn variant="text" color="grey-darken-2" @click="batalDuplikat">Batal</v-btn>
         <v-btn color="primary" variant="flat" @click="lanjutDuplikat">Lanjut</v-btn>
       </v-card-actions>
     </v-card>
