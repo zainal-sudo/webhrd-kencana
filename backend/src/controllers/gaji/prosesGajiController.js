@@ -109,13 +109,14 @@ const SQL_NILAI = `SELECT kar_nik Nik,kar_nama Nama,kar_pab_kode Pabrik,jab_kode
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=0) sakit,
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=1) Ijin,
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=2) Alpha
- from tkaryawan left join tabsensi a
- on kar_kode_absensi=nik
- left join tjabatan on kar_jab_kode=jab_kode
- where ((tanggal between %START% and %END%
- and scan1 <> "00:00:00"
- and status <> 0 ) OR kar_kode_absensi = "" ) and kar_status_aktif =1 and kar_gapok > 0
- group by kar_nik) final`
+  from tkaryawan left join tabsensi a
+  on kar_kode_absensi=nik
+  left join tjabatan on kar_jab_kode=jab_kode
+  where tanggal between %START% and %END%
+  and scan1 <> "00:00:00"
+  and status <> 0 and kar_status_aktif =1 and kar_gapok > 0
+  AND kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
+  group by kar_nik) final`
 
 /** Kolom `tgajibulanan` yang diisi InsertNilai (urutan sama seperti Delphi). */
 const KOL_INSERT = [
@@ -163,6 +164,7 @@ const SQL_PROSES = `SELECT gb_kar_nik AS nik,
   INNER JOIN tkaryawan ON kar_nik = gb_kar_nik
   LEFT JOIN tjabatan ON jab_kode = gb_kar_jab_kode
   WHERE gb_gapok > 0 AND gb_periode = ? AND gb_tahun = ?
+  AND kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
   ORDER BY gb_kar_nik`
 
 /** Nama kolom grid (Delphi: loaddataall -> CDSLembur). */

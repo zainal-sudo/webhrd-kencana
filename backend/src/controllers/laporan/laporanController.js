@@ -50,6 +50,7 @@ const TM_FROM = `FROM tabsensi a
 
 const TM_BASE = ` WHERE a.status = 0 AND DAYNAME(a.tanggal) <> 'Sunday'
     AND k.kar_status_aktif = 1 AND h.hl_keterangan IS NULL
+    AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''
     AND a.tanggal BETWEEN ? AND ?`
 
 const TM_SELECT = `SELECT ${Object.entries(TM_COLUMNS)
@@ -695,6 +696,7 @@ function rekapAbsensiSql() {
         left join tjabatan on kar_jab_kode=jab_kode
         left join tdepartemen on dep_kode=kar_dep_kode
         where final2.kar_status_aktif=1
+        AND final2.kar_kode_absensi IS NOT NULL AND final2.kar_kode_absensi <> ''
     ) andi`
 }
 
@@ -1120,7 +1122,8 @@ function absensiPeriodeInner(start, end) {
     return `SELECT ${cols.join(', ')}
         FROM tkaryawan k
         INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
-        WHERE k.kar_status_aktif = 1`
+        WHERE k.kar_status_aktif = 1
+        AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''`
 }
 
 /** Daftar kehadiran (kalender) seluruh karyawan aktif per periode. */

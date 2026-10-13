@@ -104,7 +104,10 @@ export const getAbsensiList = async (req, res, next) => {
         const start = req.query.start_date || `${new Date().toISOString().slice(0, 7)}-01`
         const end = req.query.end_date || new Date().toISOString().slice(0, 10)
 
-        let where = ' WHERE a.tanggal BETWEEN ? AND ?'
+        // Karyawan tanpa kode absensi tidak ditampilkan: kode NULL/kosong
+        // bisa ikut ter-join bila tabsensi.nik juga kosong ('').
+        let where = ` WHERE a.tanggal BETWEEN ? AND ?
+            AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''`
         let params = [start, end]
 
         if (req.query.search) {

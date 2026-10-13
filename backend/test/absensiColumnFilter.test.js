@@ -25,7 +25,11 @@ test('Distinct Absensi retains NULL, blank, time zero and numeric zero within ac
         const values = distinct === 'Status' ? [null, 0, 1] : [null, '', '00:00:00', '08:00:00']
         const run = handler(async (sql, params) => {
             assert.match(sql, /^SELECT DISTINCT/)
-            assert.doesNotMatch(sql, /IS NOT NULL|<> ''/)
+            // Satu-satunya pengecualian NULL/kosong yang dibolehkan adalah
+            // penjaga kode absensi (karyawan tanpa kode tidak ditampilkan).
+            const tanpaPenjagaKode = sql.replace(/k\.kar_kode_absensi IS NOT NULL AND k\.kar_kode_absensi <> ''/g, '')
+            assert.doesNotMatch(tanpaPenjagaKode, /IS NOT NULL|<> ''/)
+            assert.match(sql, /k\.kar_kode_absensi IS NOT NULL AND k\.kar_kode_absensi <> ''/)
             assert.match(sql, /a.tanggal BETWEEN \? AND \?/)
             assert.match(sql, /k.kar_pab_kode = \?/)
             assert.deepEqual(Array.from(params), [...Object.values(period), 'P01'])
