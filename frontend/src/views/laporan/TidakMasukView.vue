@@ -134,7 +134,7 @@ async function jalankan() {
         <MsIcon name="event_available" :size="14" />
       </button>
       <button class="row-btn edit" title="Edit absensi" @click="editAbsensi(row)">
-        <MsIcon name="how_to_reg" :size="14" />
+        <MsIcon name="edit" :size="14" />
       </button>
     </template>
   </BaseBrowse>

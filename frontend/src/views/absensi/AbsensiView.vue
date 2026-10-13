@@ -121,12 +121,14 @@ async function hapus() {
       <template v-else>{{ text }}</template>
     </template>
     <template #row-actions="{ row }">
-      <button class="row-btn edit" title="Ubah jam absensi" @click="bukaEdit(row)">
-        <span class="material-symbols-outlined" style="font-size: 14px">edit</span>
-      </button>
-      <button class="row-btn del" title="Hapus" @click="konfirmasiHapus(row)">
-        <span class="material-symbols-outlined" style="font-size: 14px">delete</span>
-      </button>
+      <div class="absensi-actions">
+        <button type="button" class="row-btn edit" title="Ubah jam absensi" aria-label="Ubah jam absensi" @click="bukaEdit(row)">
+          <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+        </button>
+        <button type="button" class="row-btn del" title="Hapus" aria-label="Hapus absensi" @click="konfirmasiHapus(row)">
+          <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        </button>
+      </div>
     </template>
   </BaseBrowse>
 
@@ -152,6 +154,37 @@ async function hapus() {
 </template>
 
 <style scoped>
+.absensi-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.absensi-actions .row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.absensi-actions .material-symbols-outlined {
+  font-size: 16px;
+  line-height: 1;
+}
+.absensi-actions .edit { color: #3b5998; }
+.absensi-actions .del { color: #dc2626; }
+.absensi-actions .edit:hover { background: rgba(59, 89, 152, 0.14); }
+.absensi-actions .del:hover { background: rgba(220, 38, 38, 0.12); }
+.absensi-actions .row-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
 .status-badge {
   display: inline-block;
   padding: 1px 8px;
