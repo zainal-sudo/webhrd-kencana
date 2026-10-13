@@ -90,15 +90,18 @@ function refresh() {
   background: var(--ds-surface, #f0f3f8);
 }
 .tab-strip {
+  --ds-horizontal-scrollbar-size: 5px;
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0 4px;
   gap: 2px;
 }
 .tab-strip::-webkit-scrollbar {
-  height: 4px;
+  height: var(--ds-horizontal-scrollbar-size, 14px);
 }
 .tab-btn {
   display: flex;

@@ -2,10 +2,12 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, onDeactivated } from "vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { filterKey, filterLabel } from "@/utils/columnFilter";
+import { formatTanggal, formatTanggalWaktu } from "@/utils/format";
 
 const props = defineProps<{
   anchor: HTMLElement;
   colLabel: string;
+  columnType?: string;
   selected: string[];
   fetchValues: () => Promise<(string | number | null)[]>;
 }>();
@@ -55,10 +57,19 @@ const allValues = ref<string[]>([]);
 const checked = ref<string[]>([]);
 const searchText = ref("");
 
+function displayLabel(key: string): string {
+  const value = JSON.parse(key);
+  if (value !== null && value !== "") {
+    if (props.columnType === "date") return formatTanggal(value) || filterLabel(key);
+    if (props.columnType === "datetime") return formatTanggalWaktu(value) || filterLabel(key);
+  }
+  return filterLabel(key);
+}
+
 const filteredValues = computed(() => {
   const q = searchText.value.trim().toLowerCase();
   if (!q) return allValues.value;
-  return allValues.value.filter((v) => filterLabel(v).toLowerCase().includes(q));
+  return allValues.value.filter((v) => displayLabel(v).toLowerCase().includes(q));
 });
 
 const isAllSelected = computed(
@@ -154,7 +165,7 @@ onDeactivated(() => emit("close"));
           :checked="checked.includes(v)"
           @change="toggleOne(v)"
         />
-        <span :title="filterLabel(v)">{{ filterLabel(v) }}</span>
+        <span :title="displayLabel(v)">{{ displayLabel(v) }}</span>
       </label>
     </div>
     <div class="cfp-foot">

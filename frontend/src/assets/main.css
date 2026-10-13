@@ -30,9 +30,13 @@ body {
 }
 
 /* ── Scrollbar ── */
+:root {
+  --ds-horizontal-scrollbar-size: 14px;
+}
 ::-webkit-scrollbar {
   width: 5px;
-  height: 5px;
+  /* Override ukuran lokal agar semua scrollbar horizontal mudah diseret. */
+  height: var(--ds-horizontal-scrollbar-size, 14px) !important;
 }
 ::-webkit-scrollbar-track {
   background: var(--ds-surface-inset, #E0E4EA);

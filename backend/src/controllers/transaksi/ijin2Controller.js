@@ -1,4 +1,5 @@
 import pool from '../../config/database.js'
+import { formatTanggal } from '../../helpers/tanggal.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { nomorBerikut, cekTanggal, normJam, PAKAI_JAM2 } from './ijinController.js'
@@ -147,7 +148,7 @@ export const saveIjin2 = async (req, res, next) => {
             if (d.length > 0) {
                 return error(
                     res,
-                    `NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${tanggal} — seluruh batch dibatalkan`,
+                    `NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${formatTanggal(tanggal)} — seluruh batch dibatalkan`,
                     409
                 )
             }

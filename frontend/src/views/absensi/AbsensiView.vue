@@ -5,7 +5,7 @@ import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
 import { api, getErrorMessage } from "@/api/axios";
-import { firstDayOfMonth } from "@/utils/format";
+import { firstDayOfMonth, formatTanggal } from "@/utils/format";
 
 /**
  * Browse Absensi — padanan `ufrmBrowseAbsensi`.
@@ -140,7 +140,7 @@ async function hapus() {
       </v-card-item>
       <v-card-text class="text-body-2">
         Hapus absensi <strong>{{ target?.Nama }}</strong> (kode {{ target?.Nik }}) tanggal
-        <strong>{{ target?.Tanggal }}</strong>? Tindakan ini tidak dapat dibatalkan.
+        <strong>{{ formatTanggal(target?.Tanggal) }}</strong>? Tindakan ini tidak dapat dibatalkan.
       </v-card-text>
       <v-card-actions class="pa-4 pt-2">
         <v-spacer />

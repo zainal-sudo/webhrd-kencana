@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { formatDateInput } from "@/utils/format";
+import DateInput from "@/components/fields/DateInput.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -14,7 +13,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
 
-const val = computed(() => formatDateInput(props.modelValue));
 </script>
 
 <template>
@@ -23,11 +21,12 @@ const val = computed(() => formatDateInput(props.modelValue));
       {{ label }}
       <span v-if="required" class="req">*</span>
     </label>
-    <input
-      :value="val"
-      type="date"
+    <DateInput
+      :model-value="props.modelValue"
       :disabled="disabled"
-      @change="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      :required="required"
+      :aria-label="label"
+      @update:model-value="emit('update:modelValue', $event)"
     />
   </div>
 </template>
@@ -48,11 +47,11 @@ const val = computed(() => formatDateInput(props.modelValue));
 .req {
   color: #dc2626;
 }
-.field input {
+.field :deep(input[type="text"]) {
   flex: 1;
   min-width: 0;
   height: 30px;
-  padding: 0 9px;
+  padding: 0 28px 0 9px;
   border: 1px solid var(--ds-border, #b0b8c4);
   background: #fff;
   font-family: "Plus Jakarta Sans", sans-serif;
@@ -60,10 +59,10 @@ const val = computed(() => formatDateInput(props.modelValue));
   color: var(--ds-on-surface, #1b2d4a);
   outline: none;
 }
-.field input:focus {
+.field :deep(input:focus) {
   border-color: var(--ds-primary, #3b5998);
 }
-.field input:disabled {
+.field :deep(input:disabled) {
   background: var(--ds-surface-variant, #e6e9ef);
   color: #6b7a90;
 }

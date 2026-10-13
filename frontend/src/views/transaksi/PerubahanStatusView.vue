@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
-import { firstDayOfMonth } from "@/utils/format";
+import { firstDayOfMonth, formatTanggal } from "@/utils/format";
 import { ref } from "vue";
 import { useToast } from "vue-toastification";
 import { api, getErrorMessage } from "@/api/axios";
@@ -63,15 +63,15 @@ async function cetak(row: Record<string, any>) {
       </v-card-title>
       <v-card-text v-if="surat" class="surat">
         <h3>SURAT PERJANJIAN KERJA WAKTU TERTENTU ({{ surat.template }})</h3>
-        <p>Nomor: <b>{{ surat.Nomor }}</b> &nbsp;|&nbsp; Tanggal: <b>{{ String(surat.Tanggal).slice(0, 10) }}</b></p>
+        <p>Nomor: <b>{{ surat.Nomor }}</b> &nbsp;|&nbsp; Tanggal: <b>{{ formatTanggal(surat.Tanggal) }}</b></p>
         <table>
           <tr><td>NIK / Nama</td><td><b>{{ surat.Nik }} / {{ surat.Nama }}</b></td></tr>
-          <tr><td>Tempat/Tgl Lahir</td><td>{{ surat.kar_tempatlahir }}, {{ String(surat.kar_tgllahir || "").slice(0, 10) }} (umur {{ surat.umur }} thn)</td></tr>
+          <tr><td>Tempat/Tgl Lahir</td><td>{{ surat.kar_tempatlahir }}, {{ formatTanggal(surat.kar_tgllahir) }} (umur {{ surat.umur }} thn)</td></tr>
           <tr><td>Jenis Kelamin</td><td>{{ surat.Jenis_Kelamin }}</td></tr>
           <tr><td>Alamat / Telp</td><td>{{ surat.kar_alamat }} / {{ surat.kar_notelp }}</td></tr>
           <tr><td>Jabatan / Bagian</td><td>{{ surat.Jabatan }} / {{ surat.Bagian }} ({{ surat.Pabrik }})</td></tr>
           <tr><td>Departemen</td><td>{{ surat.departemen }}</td></tr>
-          <tr><td>Periode Kontrak</td><td><b>{{ String(surat.ps_tgl_awal).slice(0, 10) }} s/d {{ String(surat.ps_tgl_akhir).slice(0, 10) }}</b></td></tr>
+          <tr><td>Periode Kontrak</td><td><b>{{ formatTanggal(surat.ps_tgl_awal) }} s/d {{ formatTanggal(surat.ps_tgl_akhir) }}</b></td></tr>
         </table>
       </v-card-text>
     </v-card>

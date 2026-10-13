@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateInput from "@/components/fields/DateInput.vue";
 import { computed, ref, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { useRoute } from "vue-router";
@@ -264,10 +265,10 @@ onMounted(() => {
           <input v-model.number="tahun" type="number" min="2000" max="2100" style="width: 72px" />
         </label>
         <label class="fld">Dari
-          <input v-model="start" type="date" />
+          <DateInput v-model="start" aria-label="Tanggal awal" />
         </label>
         <label class="fld">Sampai
-          <input v-model="end" type="date" />
+          <DateInput v-model="end" aria-label="Tanggal akhir" />
         </label>
       </div>
     </div>
@@ -396,7 +397,7 @@ onMounted(() => {
   text-transform: uppercase;
 }
 .fld select,
-.fld input {
+.fld input, .fld :deep(input[type="text"]) {
   border: 1px solid #c3cad4;
   padding: 4px 7px;
   font-size: 11.5px;
@@ -445,6 +446,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
+.fld :deep(.date-input input[type="text"]) { padding-right: 28px; width: 130px; }
 .body :deep(.grid-wrap) {
   flex: 1;
   min-height: 0;

@@ -1,4 +1,5 @@
 import { tanggalKeluarValid } from './keluar.js'
+import { formatTanggal } from './tanggal.js'
 import { createHash } from 'node:crypto'
 
 export const PLAFON_PINJAMAN = 30000000
@@ -51,7 +52,7 @@ export function validasiMasaKerjaPinjaman(tglMasuk, tanggal) {
     const layak = tanggalLayakPinjaman(tglMasuk)
     if (!layak) throw gagal('Tanggal masuk karyawan tidak tersedia atau tidak valid. Pinjaman membutuhkan masa kerja minimal 6 bulan.')
     if (!tanggalKeluarValid(tanggal)) throw gagal('Tanggal pinjaman tidak valid.')
-    if (tanggal < layak) throw gagal(`Karyawan belum memenuhi masa kerja minimal 6 bulan. Pinjaman dapat dilakukan mulai ${layak}.`)
+    if (tanggal < layak) throw gagal(`Karyawan belum memenuhi masa kerja minimal 6 bulan. Pinjaman dapat dilakukan mulai ${formatTanggal(layak)}.`)
     return layak
 }
 

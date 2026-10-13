@@ -1,4 +1,5 @@
 import pool from '../../config/database.js'
+import { formatTanggal } from '../../helpers/tanggal.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { normJam, toTime } from './ijinController.js'
@@ -129,7 +130,7 @@ export const saveLembur2 = async (req, res, next) => {
             if (rows.length === 0) continue
             const selisih = menit(d.jam_akhir) - menit(toTime(rows[0].scan2))
             if (selisih > 30) {
-                masalah.push(`${d.tanggal}: ${rows[0].kar_nama || nik} kurang ${selisih} menit`)
+                masalah.push(`${formatTanggal(d.tanggal)}: ${rows[0].kar_nama || nik} kurang ${selisih} menit`)
             }
         }
         if (masalah.length > 0) return error(res, masalah.join('; '), 422)

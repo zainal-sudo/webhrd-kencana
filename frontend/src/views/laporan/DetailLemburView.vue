@@ -17,6 +17,14 @@ import { firstDayOfMonth } from "@/utils/format";
 const router = useRouter();
 const tabsStore = useTabsStore();
 
+const decimalColumns = new Set(["2jam", "Lebih2Jam", "Panggilan", "Lembur"]);
+
+function formatJam(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(1) : String(value);
+}
+
 const columns: BrowseColumn[] = [
   { key: "Kode", label: "Kode Absensi", width: "110px" },
   { key: "Tanggal", label: "Tanggal", type: "date", width: "95px" },
@@ -66,6 +74,9 @@ function editAbsensi(row: Record<string, any>) {
     search-placeholder="Cari NIK / nama / bagian / pabrik..."
     :per-page="50"
   >
+    <template #cell="{ row, column, text }">
+      {{ decimalColumns.has(column.key) ? formatJam(row[column.key]) : text }}
+    </template>
     <template #row-actions="{ row }">
       <button class="row-btn edit" title="Edit absensi" @click="editAbsensi(row)">
         <MsIcon name="how_to_reg" :size="14" />

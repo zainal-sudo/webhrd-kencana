@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { KaryawanLookup } from "@/composables/useKaryawanLookup";
+import { formatTanggal } from "@/utils/format";
 
 const props = defineProps<{
   lookup: KaryawanLookup; columns: string[];
@@ -46,7 +47,7 @@ function go(page: number) {
         </thead>
         <tbody>
           <tr v-for="row in lookup.rows" :key="row.Nik ?? row.KodeAbsensi" :tabindex="isSelectable(row) ? 0 : -1" :aria-disabled="!isSelectable(row)" :class="{ 'unselectable-row': !isSelectable(row) }" @click="selectRow(row)" @keydown.enter.prevent="selectRow(row)" @keydown.space.prevent="selectRow(row)">
-            <td v-for="key in columns" :key="key"><slot name="cell" :row="row" :column="key">{{ row[key] }}</slot></td>
+             <td v-for="key in columns" :key="key"><slot name="cell" :row="row" :column="key">{{ /^(Tgl|Tanggal)/i.test(key) ? formatTanggal(row[key]) : row[key] }}</slot></td>
           </tr>
           <tr v-if="!lookup.rows.length" class="state"><td :colspan="columns.length" role="status">{{ lookup.loading ? 'Memuat…' : lookup.error || 'Karyawan tidak ditemukan' }}</td></tr>
         </tbody>

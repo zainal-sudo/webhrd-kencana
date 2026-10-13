@@ -17,6 +17,7 @@ import {
     lookupKaryawan as lookupKaryawanIjin,
     infoKaryawan as infoKaryawanIjin,
     cekDuplikatHandler,
+    cekOtorisasiIjin,
     getJenisIjin,
     saveIjin,
     deleteIjin,
@@ -136,6 +137,7 @@ r.get('/ijin/jenis', wajibHak('frmIjin'), getJenisIjin)
 r.get('/ijin/karyawan', wajibHak('frmIjin'), lookupKaryawanIjin)
 r.get('/ijin/karyawan-info', wajibHak('frmIjin'), infoKaryawanIjin)
 r.get('/ijin/cek', wajibHak('frmIjin'), cekDuplikatHandler)
+r.get('/ijin/cek-otorisasi', wajibHak('frmIjin'), cekOtorisasiIjin)
 r.get('/ijin/form', wajibHak('frmIjin'), getIjin)
 r.post('/ijin', wajibHak('frmIjin', 'insert'), saveIjin)
 r.put('/ijin', wajibHak('frmIjin', 'edit'), saveIjin)

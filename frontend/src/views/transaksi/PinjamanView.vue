@@ -2,12 +2,14 @@
 import { computed, nextTick, ref } from "vue";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import DateInput from "@/components/fields/DateInput.vue";
 import PinjamanSchedule from "@/components/PinjamanSchedule.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { downloadFile } from "@/api";
 import { useAuthStore } from "@/stores/authStore";
 import { rupiah } from "@/utils/pinjaman";
+import { formatTanggal } from "@/utils/format";
 import type { BrowseColumn } from "@/types";
 
 const auth = useAuthStore();
@@ -158,8 +160,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
   if (money.has(column.key)) return rupiah(value);
   if (value == null || value === "") return "—";
   if (column.key === "Tanggal") {
-    const date = String(value).slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.split('-').reverse().join('/') : String(value);
+    return formatTanggal(value);
   }
   if (column.key === "Cicilan") return `${value}x`;
   return text ?? String(value);
@@ -183,8 +184,8 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
       <template #toolbar-before-search>
         <div class="loan-period">
           <div class="period-fields" role="group" aria-label="Periode pinjaman">
-            <div class="date-field"><label for="loan-export-start">DARI</label><input id="loan-export-start" v-model="exportStart" type="date" :max="exportEnd || undefined" :disabled="exporting" @change="applyPeriod" /></div>
-            <div class="date-field"><label for="loan-export-end">SAMPAI</label><input id="loan-export-end" v-model="exportEnd" type="date" :min="exportStart || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+            <div class="date-field"><label for="loan-export-start">DARI</label><DateInput id="loan-export-start" v-model="exportStart" :max="exportEnd || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+            <div class="date-field"><label for="loan-export-end">SAMPAI</label><DateInput id="loan-export-end" v-model="exportEnd" :min="exportStart || undefined" :disabled="exporting" @change="applyPeriod" /></div>
             <button type="button" class="all-dates-button" :class="{ active: !appliedPeriod }" :aria-pressed="!appliedPeriod" :disabled="exporting" @click="allDates"><MsIcon v-if="!appliedPeriod" name="check" :size="14" />Semua periode</button>
           </div>
           <span v-if="(exportStart || exportEnd) && !exportPeriodValid" class="period-error" role="alert">Rentang tanggal tidak valid.</span>
@@ -246,7 +247,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .period-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border: 1px solid var(--ds-border, #c3cad4); background: var(--ds-surface-raised, white); min-width: 0; }
 .date-field { display: flex; align-items: center; gap: 4px; }
 .loan-period label { font-size: 10px; font-weight: 700; color: var(--ds-text-secondary, #55637a); }
-.loan-period input { height: 32px; box-sizing: border-box; width: 112px; min-width: 0; padding: 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 0; font: inherit; font-size: 11px; }
+.loan-period :deep(input[type="text"]) { height: 32px; box-sizing: border-box; width: 130px; min-width: 0; padding: 0 28px 0 4px; color: var(--ds-text, #263238); background: var(--ds-surface-raised, white); border: 1px solid var(--ds-border, #c3cad4); border-radius: 0; font: inherit; font-size: 11px; }
 .all-dates-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; box-sizing: border-box; padding: 0 10px; cursor: pointer; border: 1px solid var(--ds-border, #dde3ec); border-radius: 999px; background: var(--ds-surface-raised, white); color: var(--ds-text-secondary, #55637a); font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .all-dates-button.active { color: var(--ds-success, #15803d); border-color: color-mix(in srgb, var(--ds-success, #15803d) 65%, var(--ds-border)); background: color-mix(in srgb, var(--ds-success, #15803d) 10%, var(--ds-surface-raised, white)); }
 /* Pengecualian lokal terhadap aturan global .app-shell * zero-radius. */
@@ -258,7 +259,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .export-button:not(:disabled):hover { background: var(--ds-surface-inset, #e8edf4); }
 .loan-toolbar-actions .tool-btn.primary { background: var(--ds-action, #3b5998); border-color: var(--ds-action, #3b5998); color: white; }
 .loan-toolbar-actions .tool-btn.primary:hover { background: var(--ds-primary-darken-1, #2c4472); }
-.loan-period input:focus-visible, .all-dates-button:focus-visible, .export-button:focus-visible, .loan-toolbar-actions .tool-btn:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+.loan-period :deep(input:focus-visible), .all-dates-button:focus-visible, .export-button:focus-visible, .loan-toolbar-actions .tool-btn:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
 .export-button:disabled { opacity: .5; cursor: not-allowed; }
 .period-error { color: var(--ds-error, #dc2626); font-size: 12px; }
 :deep(.toolbar) { flex-direction: column; align-items: stretch; }

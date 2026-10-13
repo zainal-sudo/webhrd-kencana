@@ -40,7 +40,8 @@ const columns: BrowseColumn[] = [
   { key: "SistemGaji", label: "Sistem", width: "80px" },
 ];
 
-const versi = ref(0);
+const browse = ref<InstanceType<typeof BaseBrowse> | null>(null);
+const filterProses = ref<Record<string, any> | null>(null);
 const memproses = ref<string | null>(null);
 const dialog = ref(false);
 const aksi = ref<"alpha" | "jadwal-libur" | null>(null);
@@ -66,22 +67,30 @@ function editAbsensi(row: Record<string, any>) {
 }
 
 function tanya(mode: "alpha" | "jadwal-libur") {
+  if (memproses.value) return;
+  const params = browse.value?.getQueryParams();
+  // Jangan kirim request kosong yang membuat server memakai periode default.
+  if (!params?.start_date || !params?.end_date || params.start_date > params.end_date) {
+    toast.error("Pilih periode yang valid sebelum menjalankan proses");
+    return;
+  }
+  filterProses.value = JSON.parse(JSON.stringify(params));
   aksi.value = mode;
   dialog.value = true;
 }
 
 async function jalankan() {
-  if (!aksi.value) return;
+  if (!aksi.value || !filterProses.value || memproses.value) return;
   memproses.value = aksi.value;
   try {
     const url =
       aksi.value === "alpha"
         ? `${endpoint}/alpha-otomatis`
         : `${endpoint}/jadwal-libur-otomatis`;
-    const { data } = await api.post(url, {});
+    const { data } = await api.post(url, {}, { params: filterProses.value });
     toast.success(data.message || "Proses selesai");
     dialog.value = false;
-    versi.value += 1;
+    browse.value?.refresh();
   } catch (e) {
     toast.error(getErrorMessage(e, "Proses gagal"));
   } finally {
@@ -92,7 +101,7 @@ async function jalankan() {
 
 <template>
   <BaseBrowse
-    :key="versi"
+    ref="browse"
     module-title="Laporan Tidak Masuk"
     module-subtitle="Absensi tanpa scan (status 0), di luar Minggu & hari libur"
     :endpoint="endpoint"
@@ -139,7 +148,8 @@ async function jalankan() {
         <p>
           Yakin ingin membuatkan ijin
           <strong>{{ aksi === "alpha" ? "Alpha" : "Jadwal Libur" }}</strong>
-          untuk <strong>semua baris yang belum berijin</strong> pada periode & filter aktif?
+          untuk <strong>semua baris yang belum berijin</strong> yang sesuai periode & filter saat konfirmasi ini dibuka,
+          <strong>di seluruh halaman hasil filter</strong>?
         </p>
       </v-card-text>
       <v-card-actions class="pa-4 pt-2">

@@ -13,8 +13,8 @@ import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useTransactionReset } from "@/composables/useTransactionReset";
-import { todaySql } from "@/utils/format";
-import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
+import { todaySql, formatTanggal } from "@/utils/format";
+import { normJam, assertClockTime } from "@/utils/jam";
 
 /**
  * Form Ijin — padanan `ufrmIjin`.
@@ -28,7 +28,7 @@ import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
  * - Tanggal2 > Tanggal berarti simpan rentang: satu dokumen per hari, hari
  *   libur dilewati server, NIK yang sudah berijin hanya jadi peringatan.
  * - NIK+tanggal yang sudah ada pada mode 1 hari meminta konfirmasi LANJUT.
- * - Tanggal >= 3 hari lalu wajib otorisasi atasan model kode ala Delphi.
+ * - Otorisasi mulai hari kerja ke-4 inklusif, tidak termasuk Minggu/tharilibur.
  */
 const route = useRoute();
 const toast = useToast();
@@ -57,7 +57,8 @@ const PAKAI_JAM2 = ["2", "4", "5"];
 const pakaiJam2 = computed(() => PAKAI_JAM2.includes(String(values.jenis_id)));
 const isRentang = computed(() => values.tanggal2 && values.tanggal2 !== values.tanggal);
 
-const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 3);
+const hariKerja = ref(0);
+const perluOtorisasi = computed(() => hariKerja.value > 3);
 const otorisasiToken = ref("");
 
 function otorisasiOke(payload: { token: string; pemberi: string }) {
@@ -83,6 +84,18 @@ const resetState = useTransactionReset({ values, info }, {
   },
 });
 const api = resetState.trackApi(sourceApi);
+
+async function muatOtorisasi() {
+  const tanggal = String(values.tanggal || "");
+  if (!tanggal) { hariKerja.value = 0; return; }
+  const { data } = await sourceApi.get("/transaksi/ijin/cek-otorisasi", { params: { tanggal } });
+  if (tanggal === String(values.tanggal || "")) hariKerja.value = Number(data.data?.hariKerja || 0);
+}
+
+watch(() => values.tanggal, () => {
+  hariKerja.value = 0;
+  muatOtorisasi().catch((e) => toast.error(getErrorMessage(e, "Gagal memeriksa batas otorisasi izin")));
+}, { immediate: true });
 
 async function muatJenis() {
   try {
@@ -175,8 +188,9 @@ async function kirim(konfirmasiDuplikat: boolean): Promise<string> {
   if (!values.nik) throw new Error("NIK wajib diisi");
   if (!values.tanggal) throw new Error("Tanggal wajib diisi");
   if (values.tanggal > values.tanggal2) throw new Error("Tanggal pertama tidak boleh lebih besar dari tanggal kedua");
+  await muatOtorisasi();
   if (perluOtorisasi.value && !otorisasiToken.value)
-    throw new Error("Data lebih dari 3 hari memerlukan otorisasi atasan");
+    throw new Error("Data lebih dari 3 hari kerja memerlukan otorisasi atasan");
 
   const body: Record<string, any> = {
     jenis_id: parseInt(String(values.jenis_id), 10),
@@ -281,7 +295,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             <FDate v-model="values.tanggal2" label="Tanggal s/d" required />
           </div>
           <p v-if="isRentang" class="note">
-            Rentang {{ values.tanggal }} s/d {{ values.tanggal2 }}: server membuat satu dokumen per hari,
+            Rentang {{ formatTanggal(values.tanggal) }} s/d {{ formatTanggal(values.tanggal2) }}: server membuat satu dokumen per hari,
             hari libur dilewati, NIK yang sudah berijin hanya dicatat sebagai peringatan.
           </p>
         </fieldset>
@@ -322,6 +336,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           v-if="perluOtorisasi"
           modul="ijin"
           :tanggal="String(values.tanggal || '')"
+          :hari-kerja="hariKerja"
           @verified="otorisasiOke"
         />
       </template>

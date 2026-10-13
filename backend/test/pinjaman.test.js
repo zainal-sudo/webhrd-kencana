@@ -206,7 +206,7 @@ test('INSERT permits exact six-month anniversary, uses DB join date not client j
     await tambahPinjaman(db, { ...body, tgl_masuk: '2026-10-01' })
     assert.equal(db.rows.length, 1)
     const tooYoung = database([], undefined, { tglMasuk: '2026-04-10' })
-    await assert.rejects(tambahPinjaman(tooYoung, { ...body, tgl_masuk: '2000-01-01' }), /2026-10-10/)
+    await assert.rejects(tambahPinjaman(tooYoung, { ...body, tgl_masuk: '2000-01-01' }), /10\/10\/2026/)
 })
 test('Join date ignores time-of-day for DATETIME records', () => {
     assert.equal(tanggalLayakPinjaman('2026-04-09 14:30:00'), '2026-10-09')

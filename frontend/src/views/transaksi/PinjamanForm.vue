@@ -14,7 +14,7 @@ import { useLiveSearch } from "@/composables/useLiveSearch";
 import { useTransactionReset } from "@/composables/useTransactionReset";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
-import { todaySql } from "@/utils/format";
+import { todaySql, formatTanggal } from "@/utils/format";
 import { periodePinjaman, rupiah } from "@/utils/pinjaman";
 
 const auth = useAuthStore();
@@ -234,11 +234,11 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
       <div v-if="cariOpen" class="loan-overlay" @click.self="cariOpen = false" @keydown.esc="cariOpen = false">
         <section class="loan-dialog" role="dialog" aria-modal="true" aria-labelledby="loan-lookup-title">
           <header><h2 id="loan-lookup-title">Cari Karyawan Aktif</h2><button type="button" class="close-button" aria-label="Tutup Cari Karyawan" title="Tutup" @click="cariOpen = false"><MsIcon name="close" :size="22" /></button></header>
-          <p class="lookup-notice"><MsIcon name="info" :size="16" />Pinjaman hanya dapat diajukan untuk karyawan aktif dengan masa kerja minimal 6 bulan. Masa kerja dihitung sampai tanggal pinjaman {{ values.tanggal || '—' }}.</p>
+          <p class="lookup-notice"><MsIcon name="info" :size="16" />Pinjaman hanya dapat diajukan untuk karyawan aktif dengan masa kerja minimal 6 bulan. Masa kerja dihitung sampai tanggal pinjaman {{ formatTanggal(values.tanggal) || '—' }}.</p>
           <form class="lookup-search" @submit.prevent="liveSearch.run"><input v-model="keyword" aria-label="Cari NIK, nama, jabatan, bagian, pabrik" placeholder="NIK / nama / jabatan / bagian / pabrik" @input="liveSearch.schedule" /><button type="submit">Cari</button></form>
           <KaryawanLookupTable :lookup="lookup" :columns="['Nik', 'Nama', 'Jabatan', 'Bagian', 'Pabrik', 'MasaKerja', 'StatusKelayakan']"
             :unsortable-columns="['MasaKerja', 'StatusKelayakan']" :row-selectable="row => row.BisaDipilih === true && !disabled" @select="selectEmployee">
-            <template #cell="{ row, column }"><span v-if="column === 'StatusKelayakan'" class="eligibility-status" :class="{ eligible: row.BisaDipilih }">{{ row[column] }}</span><template v-else>{{ row[column] }}</template></template>
+            <template #cell="{ row, column }"><span v-if="column === 'StatusKelayakan'" class="eligibility-status" :class="{ eligible: row.BisaDipilih }">{{ row[column] }}</span><template v-else>{{ /^(Tgl|Tanggal)/i.test(column) ? formatTanggal(row[column]) : row[column] }}</template></template>
           </KaryawanLookupTable>
         </section>
       </div>

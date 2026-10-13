@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
-import { firstDayOfMonth } from "@/utils/format";
+import { firstDayOfMonth, formatTanggal } from "@/utils/format";
 import { ref } from "vue";
 import { useToast } from "vue-toastification";
 import { api, getErrorMessage } from "@/api/axios";
@@ -76,7 +76,7 @@ async function lihatRealisasi(row: Record<string, any>) {
           <tbody>
             <tr v-for="(r, i) in riilRows" :key="i">
               <td>{{ r.Nomor_Realisasi }}</td>
-              <td>{{ String(r.Tgl_Realisasi || "").slice(0, 10) }}</td>
+              <td>{{ formatTanggal(r.Tgl_Realisasi) }}</td>
               <td>{{ r.Jml_Realisasi }}</td>
               <td>{{ r.Keterangan }}</td>
             </tr>

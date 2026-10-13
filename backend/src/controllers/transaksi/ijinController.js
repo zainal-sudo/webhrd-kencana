@@ -4,6 +4,8 @@ import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { formatTanggal } from '../../helpers/tanggal.js'
+import { hitungHariKerjaIjin } from '../../helpers/hariKerjaIjin.js'
 
 /** Nilai kolom `time` MySQL -> "HH:MM:SS". */
 export function toTime(v) {
@@ -50,8 +52,8 @@ export function normJam(v) {
  * - Jam akhir (ij_jam2) hanya relevan untuk jenis 2,4,5
  *   (1/2 Hari, Meninggalkan Pekerjaan, Dinas Luar); selain itu dikosongkan
  *   menjadi 00:00:00 seperti tampilan Delphi (kontrol disembunyikan).
- * - cektanggal(tgl) = DATEDIFF(NOW,tgl) - jml libur(tgl..NOW);
- *   < 3 bebas simpan, >= 3 wajib otorisasi atasan (token JWT).
+ * - Ijin utama: maksimal 3 hari kerja inklusif bebas otorisasi; Sabtu bekerja,
+ *   Minggu dan tharilibur dilewati. Mulai hari kerja ke-4 wajib otorisasi.
  */
 
 /** Kolom browse — mengikuti `ufrmBrowseIjin.btnRefreshClick`. */
@@ -137,6 +139,29 @@ async function cekLibur(tanggal) {
         String(tanggal).slice(0, 10),
     ])
     return rows.length > 0
+}
+
+async function hariKerjaIjin(tanggal) {
+    const tgl = String(tanggal).slice(0, 10)
+    const [[{ hariIni }]] = await pool.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS hariIni")
+    const [libur] = await pool.query(
+        "SELECT DISTINCT DATE_FORMAT(hl_tanggal, '%Y-%m-%d') AS tanggal FROM tharilibur WHERE hl_tanggal BETWEEN ? AND ?",
+        [tgl, hariIni]
+    )
+    return hitungHariKerjaIjin(tgl, hariIni, libur.map((row) => row.tanggal))
+}
+
+export const cekOtorisasiIjin = async (req, res, next) => {
+    try {
+        const tanggal = String(req.query.tanggal || '').slice(0, 10)
+        try { hitungHariKerjaIjin(tanggal, tanggal) } catch {
+            return error(res, 'Tanggal tidak valid', 400)
+        }
+        const hariKerja = await hariKerjaIjin(tanggal)
+        success(res, { hariKerja, perluOtorisasi: hariKerja > 3 })
+    } catch (err) {
+        next(err)
+    }
 }
 
 async function cekDuplikat(nik, tanggal) {
@@ -393,12 +418,12 @@ export const saveIjin = async (req, res, next) => {
         const jam = normJam(b.jam ?? '00:00:00')
         const jam2 = pakai2 ? normJam(b.jam2 ?? '00:00:00') : '00:00:00'
 
-        // Otorisasi bila data sudah lama (Delphi: cektanggal < 3 bebas).
+        // Tanggal izin dihitung hari pertama; otorisasi mulai hari kerja ke-4.
         let atasan = null
-        if ((await cekTanggal(tanggal)) >= 3) {
+        if ((await hariKerjaIjin(tanggal)) > 3) {
             atasan = userDariToken(b.otorisasi_token, 'ijin')
             if (!atasan) {
-                return error(res, 'Data lebih dari 3 hari memerlukan otorisasi atasan', 403)
+                return error(res, 'Data lebih dari 3 hari kerja memerlukan otorisasi atasan', 403)
             }
         }
 
@@ -437,11 +462,11 @@ export const saveIjin = async (req, res, next) => {
                     await conn.rollback()
                     return error(
                         res,
-                        `NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${tanggal}. Kirim konfirmasi_duplikat=true untuk LANJUT.`,
+                        `NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${formatTanggal(tanggal)}. Kirim konfirmasi_duplikat=true untuk LANJUT.`,
                         409
                     )
                 }
-                peringatan.push(`NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${tanggal}`)
+                peringatan.push(`NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${formatTanggal(tanggal)}`)
             }
             const nomor = await nomorBerikutOffset(tanggal, 1, conn)
             await conn.query(
@@ -462,7 +487,7 @@ export const saveIjin = async (req, res, next) => {
             let tgl = tanggal
             while (tgl <= tanggal2) {
                 if (await cekDuplikat(nik, tgl)) {
-                    peringatan.push(`NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${tgl}`)
+                    peringatan.push(`NIK ${nik} sudah pernah dibuatkan ijin pada tanggal ${formatTanggal(tgl)}`)
                 }
                 if (!(await cekLibur(tgl))) {
                     const nomor = await nomorBerikutOffset(tgl, a, conn)

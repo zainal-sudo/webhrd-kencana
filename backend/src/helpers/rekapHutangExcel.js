@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { formatTanggal } from './tanggal.js'
 
 /** Report-specific sizing: total labels must not stretch document columns. */
 export async function sendRekapHutangExcel(res, rows, filtered, balance) {
@@ -7,9 +8,7 @@ export async function sendRekapHutangExcel(res, rows, filtered, balance) {
     const ws = wb.addWorksheet('Rekap Hutang')
     const headers = ['NO', 'NOMOR PINJAMAN', 'TANGGAL', 'NIK', 'NAMA KARYAWAN', 'PABRIK', 'BAGIAN', 'NOMINAL PINJAMAN', 'SUDAH DIBAYAR', 'SISA HUTANG']
     ws.addRow(headers)
-    const dateText = value => value instanceof Date
-        ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
-        : String(value ?? '').slice(0, 10)
+    const dateText = formatTanggal
     const data = Array.from(rows, (row, index) => [index + 1, row.Nomor, dateText(row.Tanggal), String(row.Nik ?? ''),
         row.Nama ?? '—', row.Pabrik ?? '—', row.Bagian ?? '—', row.Pinjam, row.Bayar, row.SisaBayar])
     data.forEach(values => ws.addRow(values))

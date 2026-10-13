@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
-import { firstDayOfMonth } from "@/utils/format";
+import { firstDayOfMonth, formatTanggal } from "@/utils/format";
 import { ref } from "vue";
 import { useToast } from "vue-toastification";
 import { api, getErrorMessage } from "@/api/axios";
@@ -46,14 +46,7 @@ async function cetak(row: Record<string, any>) {
   }
 }
 
-/** Format `dd MMM yyyy` ala template (`dd mmm yyyy`), mis. 06 Feb 2026. */
-function fmtSurat(sql: string | null | undefined): string {
-  if (!sql) return "";
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(sql));
-  if (!m) return String(sql).slice(0, 10);
-  const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-  return `${m[3]} ${bulan[Number(m[2]) - 1]} ${m[1]}`;
-}
+const fmtSurat = formatTanggal;
 
 /** Huruf besar semua — meniru hasil cetak Delphi pada contoh surat. */
 function up(v: unknown): string {
@@ -79,7 +72,7 @@ function printSurat() {
   }
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Surat Keputusan ${s.mut_nomor}</title>
 <style>
-  @page { size: A4 portrait; margin: 1cm; }
+  @page { size: A4 portrait; margin: 1cm 1cm 1cm 1in; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 12.5px; line-height: 1.45; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .kop { text-align: right; margin-bottom: 4px; }

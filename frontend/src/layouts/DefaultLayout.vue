@@ -9,6 +9,7 @@ import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useThemeToggle } from "@/composables/useTheme";
 import { useTabPageCache } from "@/composables/useTabPageCache";
+import { formatTanggal } from "@/utils/format";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -37,14 +38,7 @@ onUnmounted(() => {
 const clock = computed(() =>
   now.value.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 );
-const dateStr = computed(() =>
-  now.value.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
-);
+const dateStr = computed(() => formatTanggal(now.value));
 
 const username = computed(() => authStore.user?.user_kode || "");
 const userName = computed(() => authStore.user?.user_nama || "");

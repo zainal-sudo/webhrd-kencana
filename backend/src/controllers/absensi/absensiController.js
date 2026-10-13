@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import { formatTanggal } from '../../helpers/tanggal.js'
 import pool from '../../config/database.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
@@ -146,7 +147,8 @@ export const getAbsensiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Absensi', Object.keys(LIST_COLUMNS), all)
+            const exportColumns = Object.keys(LIST_COLUMNS).filter((column) => column !== 'Nama Pabrik')
+            return sendExcel(res, 'Absensi', exportColumns, all)
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
@@ -627,7 +629,7 @@ export const prosesTabsensi = async (req, res, next) => {
                 tersalin += 1
             } catch (e) {
                 gagal += 1
-                if (!contohGagal) contohGagal = `${r.kode}/${r.tanggal}: ${e.message}`
+                if (!contohGagal) contohGagal = `${r.kode}/${formatTanggal(r.tanggal)}: ${e.message}`
             }
         }
 
@@ -650,7 +652,7 @@ export const prosesTabsensi = async (req, res, next) => {
                 diisi += r.affectedRows
             } catch (e) {
                 gagal += 1
-                if (!contohGagal) contohGagal = `isi kosong ${tgl}: ${e.message}`
+                if (!contohGagal) contohGagal = `isi kosong ${formatTanggal(tgl)}: ${e.message}`
             }
             d.setDate(d.getDate() + 1)
         }
@@ -692,7 +694,7 @@ export const prosesTanggal = async (req, res, next) => {
         success(
             res,
             { tanggal, tersalin, gagal },
-            `Tanggal ${tanggal} diproses (${tersalin} baris${gagal ? `, ${gagal} gagal` : ''})`
+            `Tanggal ${formatTanggal(tanggal)} diproses (${tersalin} baris${gagal ? `, ${gagal} gagal` : ''})`
         )
     } catch (err) {
         next(err)

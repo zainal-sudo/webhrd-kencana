@@ -2,8 +2,9 @@
 import { ref, reactive, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
+import DateInput from "@/components/fields/DateInput.vue";
 import { api, getErrorMessage } from "@/api/axios";
-import { todaySql, firstDayOfMonth, formatTanggal } from "@/utils/format";
+import { todaySql, formatTanggal } from "@/utils/format";
 
 /**
  * Import Absensi — padanan `ufrmImportAbsensi`.
@@ -25,7 +26,8 @@ interface PabrikRow {
 }
 
 const pabrik = ref<PabrikRow[]>([]);
-const periode = reactive({ start: firstDayOfMonth(), end: todaySql() });
+const hariIni = todaySql();
+const periode = reactive({ start: hariIni, end: hariIni });
 const memuat = ref(false);
 const mengunggah = ref(false);
 const memproses = ref(false);
@@ -162,9 +164,9 @@ async function bersihkan() {
       <div class="tb-right">
         <div class="periode">
           <label>Dari</label>
-          <input v-model="periode.start" type="date" @change="muatStaging" />
+          <DateInput v-model="periode.start" aria-label="Tanggal awal" @change="muatStaging" />
           <label>Sampai</label>
-          <input v-model="periode.end" type="date" @change="muatStaging" />
+          <DateInput v-model="periode.end" aria-label="Tanggal akhir" @change="muatStaging" />
         </div>
         <button class="tool-btn ghost" title="Muat ulang" @click="muatStaging">
           <MsIcon name="refresh" :size="15" />
@@ -347,9 +349,10 @@ async function bersihkan() {
   color: #55637a;
   text-transform: uppercase;
 }
-.periode input {
+.periode :deep(input[type="text"]) {
   border: 1px solid #c3cad4;
-  padding: 3px 6px;
+  padding: 3px 28px 3px 6px;
+  width: 130px;
   font-size: 11px;
   font-family: "Plus Jakarta Sans", sans-serif;
   background: #fff;

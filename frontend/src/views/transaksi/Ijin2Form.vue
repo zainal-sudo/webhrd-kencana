@@ -11,7 +11,7 @@ import FDate from "@/components/fields/FDate.vue";
 import FSelect from "@/components/fields/FSelect.vue";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useTransactionReset } from "@/composables/useTransactionReset";
-import { todaySql } from "@/utils/format";
+import { todaySql, formatTanggal } from "@/utils/format";
 import { normJam, selisihHari, assertClockTime } from "@/utils/jam";
 import type { LookupItem } from "@/types";
 
@@ -278,12 +278,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <label class="chk"><input v-model="allDep" type="checkbox" /> All Departemen</label>
           <FSelect v-model="values.jabatan" label="Jabatan (filter)" :options="jabatanOptions" :disabled="allJab" />
           <label class="chk"><input v-model="allJab" type="checkbox" /> All Jabatan</label>
-          <div class="bagian-wrap">
-            <FText v-model="values.bagian" label="Bagian (filter)" placeholder="Ketik / pilih" :disabled="allBag" />
-            <div v-if="bagianOptions.length && !allBag" class="bagian-list">
-              <button v-for="b in bagianOptions" :key="b" type="button" @click="values.bagian = b">{{ b }}</button>
-            </div>
-          </div>
+          <FSelect v-model="values.bagian" label="Bagian (filter)" :options="bagianOptions.map(b => ({ label: b, value: b }))" :disabled="allBag || !values.pabrik" :placeholder="values.pabrik ? 'Pilih Bagian...' : 'Pilih Pabrik terlebih dahulu'" />
           <label class="chk"><input v-model="allBag" type="checkbox" /> All Bagian</label>
         </div>
         <div class="aksi-row">
@@ -292,7 +287,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           </button>
         </div>
         <p v-if="terlaluLama" class="note warn-note">
-          Tanggal {{ values.tanggal }} sudah ≥ 3 hari — modul V2 menolaknya (tanpa otorisasi).
+          Tanggal {{ formatTanggal(values.tanggal) }} sudah ≥ 3 hari — modul V2 menolaknya (tanpa otorisasi).
           Pakai Ijin V1 bila perlu otorisasi atasan.
         </p>
       </fieldset>
@@ -376,9 +371,6 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 .btn-mini.primary { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary-dark, #2c4472); color: #fff; }
 .btn-mini.del { color: #dc2626; }
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
-.bagian-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; max-height: 72px; overflow: auto; }
-.bagian-list button { font-size: 10px; border: 1px solid var(--ds-border, #b0b8c4); background: #f4f6f9; padding: 2px 6px; cursor: pointer; font-family: "Plus Jakarta Sans", sans-serif; }
-.bagian-list button:hover { background: #dbe4f3; }
 table.grid-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
 table.grid-tbl th { background: var(--ds-surface-variant, #e0e4ea); border: 1px solid var(--ds-border, #b0b8c4); padding: 5px 6px; text-align: left; font-weight: 800; }
 table.grid-tbl td { border: 1px solid #d5dbe3; padding: 2px; }

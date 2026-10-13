@@ -4,6 +4,7 @@ import { useToast } from "vue-toastification";
 import FText from "@/components/fields/FText.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { selisihHari } from "@/utils/jam";
+import { formatTanggal } from "@/utils/format";
 
 /**
  * Otorisasi tantangan-respons ala Delphi (`UfrmOtorisasi`).
@@ -18,6 +19,7 @@ import { selisihHari } from "@/utils/jam";
 const props = defineProps<{
   modul: "absensi" | "ijin" | "lembur";
   tanggal: string;
+  hariKerja?: number;
 }>();
 
 const emit = defineEmits<{
@@ -94,9 +96,16 @@ async function verifikasi() {
   <fieldset class="fs warn">
     <legend>Otorisasi Atasan</legend>
     <p class="note">
-      Tanggal <strong>{{ tanggal }}</strong> berjarak
+      <template v-if="hariKerja !== undefined">
+        Tanggal <strong>{{ formatTanggal(tanggal) }}</strong> sudah memasuki
+        <strong>hari kerja ke-{{ hariKerja }}</strong> — perlu persetujuan atasan.
+        Sabtu dihitung; Minggu dan hari libur tidak dihitung.
+      </template>
+      <template v-else>
+      Tanggal <strong>{{ formatTanggal(tanggal) }}</strong> berjarak
       <strong>{{ selisihHari(tanggal) }} hari</strong> dari hari ini — perlu persetujuan atasan
       (seperti popup otorisasi Delphi).
+      </template>
     </p>
     <div class="tantangan-row">
       <div class="kode-box" :class="{ kosong: !tantangan }">

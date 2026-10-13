@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { formatTanggal } from './tanggal.js'
 
 /**
  * Unduhan Excel untuk SEMUA browse & laporan.
@@ -35,7 +36,12 @@ export async function sendExcel(res, title, columns, rows) {
                 if (v instanceof Date) {
                     if (isNaN(v.getTime())) return ''
                     const p = (n) => String(n).padStart(2, '0')
-                    return `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())} ${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
+                    return `${formatTanggal(v)} ${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
+                }
+                if (typeof v === 'string' && /tanggal|tgl|date|pkwt|dibuat|diubah|^Periode[12]$/i.test(c)) {
+                    const tanggal = formatTanggal(v)
+                    const waktu = /[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(v)?.[1]
+                    if (tanggal) return waktu ? `${tanggal} ${waktu}` : tanggal
                 }
                 if (typeof v === 'object') return JSON.stringify(v)
                 return v

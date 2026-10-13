@@ -430,7 +430,7 @@
 /* ═══ SCROLLBAR ═══ */
 .ds-scroll::-webkit-scrollbar {
   width: 5px;
-  height: 5px;
+  height: var(--ds-horizontal-scrollbar-size, 14px);
 }
 .ds-scroll::-webkit-scrollbar-track {
   background: var(--ds-surface-inset);

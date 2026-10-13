@@ -25,7 +25,7 @@ function renderer(settings = {}) {
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
     if (name === '@/api/axios') return { api, getErrorMessage: e => e.message };
     if (name === '@/api') return { downloadFile: noRequest };
-    if (name === '@/utils/format') return { todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01', formatDateInput: value => value ?? '' };
+    if (name === '@/utils/format') return { ...evaluate(fs.readFileSync(path.join(root, 'utils/format.ts'), 'utf8')), todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01' };
     if (name === '@/composables/useKaryawanLookup') return { useKaryawanLookup: () => lookup };
     if (name === '@/composables/useTransactionReset') return { useTransactionReset: () => ({
       disabled: vue.ref(false), restoring: vue.ref(false), reset() {}, trackApi: value => value, initialize() {},
@@ -109,8 +109,8 @@ test('Pinjaman renders auto-period in toolbar, defaults to checked all dates, no
   const closed = await renderer()('views/transaksi/PinjamanView.vue');
   assert.match(closed.html, /Export Pengajuan/);
   assert.doesNotMatch(closed.html, /<span>Excel<\/span>/);
-  assert.match(closed.html, /id="loan-export-start"[^>]*type="date"/);
-  assert.match(closed.html, /id="loan-export-end"[^>]*type="date"/);
+  assert.match(closed.html, /id="loan-export-start"[^>]*type="text"[^>]*placeholder="dd\/mm\/yyyy"/);
+  assert.match(closed.html, /id="loan-export-end"[^>]*type="text"[^>]*placeholder="dd\/mm\/yyyy"/);
   assert.doesNotMatch(closed.html, /Terapkan|Histori pinjaman|Menampilkan semua tanggal|Ringkasan plafon tetap global/);
   assert.match(closed.html, /class="all-dates-button active" aria-pressed="true"/);
   assert.match(closed.html, /Semua periode/);
@@ -137,7 +137,7 @@ test('Pinjaman has compact rounded summary cards and a single bordered period gr
   const { html } = await renderer()('views/transaksi/PinjamanView.vue');
   const groupStart = html.indexOf('class="period-fields" role="group" aria-label="Periode pinjaman"');
   assert.ok(groupStart >= 0);
-  const group = html.slice(groupStart, html.indexOf('</button>', groupStart));
+  const group = html.slice(groupStart, html.indexOf('</button>', html.indexOf('class="all-dates-button', groupStart)));
   for (const text of ['id="loan-export-start"', 'id="loan-export-end"', 'Semua periode']) assert.ok(group.includes(text));
   const source = fs.readFileSync(path.join(root, 'views/transaksi/PinjamanView.vue'), 'utf8');
   assert.match(source, /class="period-fields"[\s\S]*?class="all-dates-button"[\s\S]*?<\/button>\s*<\/div>/);
@@ -168,7 +168,7 @@ test('Pinjaman toolbar groups Export + Tambah, keeps order and insert/export dis
   assert.match(source, /:add-form-path="auth.can\('frmPinjam', 'insert'\) \? '\/transaksi\/pinjaman\/form' : undefined"/);
   assert.match(source, /\.loan-toolbar-actions[^}]*flex-wrap: nowrap[^}]*flex: 0 0 auto/);
   assert.match(source, /:deep\(\.search-box\)[^}]*flex: 1 1 100px[^}]*min-width: 100px/);
-  assert.match(source, /\.loan-period input[^}]*width: 112px/);
+  assert.match(source, /\.loan-period :deep\(input\[type="text"\]\)[^}]*width: 130px/);
   assert.match(source, /@media \(min-width: 1100px\)[\s\S]*?:deep\(\.toolbar-right\) \{ flex-wrap: nowrap/);
   assert.match(source, /@media \(max-width: 600px\)[\s\S]*\.loan-period \{ flex-basis: 100%/);
   assert.match(source, /\.all-dates-button\.active[^}]*color-mix[^}]*10%[^}]*--ds-surface-raised/);

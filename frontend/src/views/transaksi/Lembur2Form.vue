@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateInput from "@/components/fields/DateInput.vue";
 import { ref, reactive, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -181,7 +182,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <tbody>
             <tr v-for="(b, i) in baris" :key="i">
               <td class="ctr">{{ i + 1 }}</td>
-              <td><input v-model="b.tanggal" type="date" /></td>
+              <td><DateInput v-model="b.tanggal" aria-label="Tanggal lembur" /></td>
               <td><FTime v-model="b.jam_mulai" label="Jam Mulai" compact placeholder="00:00:00" /></td>
               <td><FTime v-model="b.jam_akhir" label="Jam Akhir" compact placeholder="00:00:00" /></td>
               <td><input v-model="b.keterangan" placeholder="Uraian pekerjaan lembur" /></td>
@@ -233,8 +234,8 @@ table.grid-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
 table.grid-tbl th { background: var(--ds-surface-variant, #e0e4ea); border: 1px solid var(--ds-border, #b0b8c4); padding: 5px 6px; text-align: left; font-weight: 800; }
 table.grid-tbl td { border: 1px solid #d5dbe3; padding: 2px; }
 table.grid-tbl td.ctr { text-align: center; }
-table.grid-tbl input { width: 100%; border: 1px solid transparent; padding: 4px 6px; font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
-table.grid-tbl input:focus { border-color: var(--ds-primary, #3b5998); outline: none; }
+table.grid-tbl input, table.grid-tbl :deep(input[type="text"]) { width: 100%; border: 1px solid transparent; padding: 4px 28px 4px 6px; font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
+table.grid-tbl input:focus, table.grid-tbl :deep(input:focus) { border-color: var(--ds-primary, #3b5998); outline: none; }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
 .dlg-body { background: #fff; padding: 12px 14px; }
 .cari-bar { display: flex; gap: 6px; margin-bottom: 10px; }

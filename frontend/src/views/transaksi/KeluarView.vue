@@ -4,7 +4,7 @@ import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
-import { firstDayOfMonth } from "@/utils/format";
+import { firstDayOfMonth, formatTanggal } from "@/utils/format";
 import type { BrowseColumn } from "@/types";
 
 const auth = useAuthStore();
@@ -35,17 +35,7 @@ async function cetak(row: Record<string, any>) {
   }
 }
 
-/** Format `21-March-2016` sesuai contoh cetakan. */
-function fmtSurat(sql: string | null | undefined): string {
-  if (!sql) return "";
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(sql));
-  if (!m) return String(sql).slice(0, 10);
-  const bulan = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-  return `${m[3]}-${bulan[Number(m[2]) - 1]}-${m[1]}`;
-}
+const fmtSurat = formatTanggal;
 
 function up(v: unknown): string {
   return String(v ?? "").toUpperCase();
@@ -86,7 +76,7 @@ function printSurat() {
   }
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Surat Pengalaman Kerja ${s.nomor}</title>
 <style>
-  @page { size: A4 portrait; margin: 1cm 1.2cm; }
+  @page { size: A4 portrait; margin: 1cm 1.2cm 1cm 1in; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 12.5px; line-height: 1.5; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .kop { text-align: right; margin-bottom: 6px; }

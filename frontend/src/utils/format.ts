@@ -42,19 +42,39 @@ export function parseDateOnly(sql: string | null): Date | null {
 }
 
 /**
- * Format tanggal SQL (`YYYY-MM-DD`, bisa diikuti waktu) menjadi `DD MMM YYYY`
- * versi Indonesia. Nilai kosong menghasilkan string kosong — bukan "-", supaya
+ * Format tanggal SQL (`YYYY-MM-DD`, bisa diikuti waktu) menjadi `DD/MM/YYYY`.
+ * Nilai kosong/tidak valid menghasilkan string kosong — bukan "-", supaya
  * sel tabel browse tetap rapat.
  */
 export function formatTanggal(sql: string | Date | null | undefined): string {
   const d = toLocalDate(sql);
   if (!d) return "";
-  const bulan = [
-    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-    "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
-  ];
+  if (typeof sql === "string") {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/.exec(sql.trim());
+    if (!m || d.getFullYear() !== Number(m[1]) || d.getMonth() + 1 !== Number(m[2]) || d.getDate() !== Number(m[3])) return "";
+  }
   const day = String(d.getDate()).padStart(2, "0");
-  return `${day} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${String(d.getFullYear()).padStart(4, "0")}`;
+}
+
+/** Tampilan timestamp; nilai API/input tetap dalam format aslinya. */
+export function formatTanggalWaktu(value: string | Date | null | undefined): string {
+  const tanggal = formatTanggal(value);
+  if (!tanggal) return "";
+  const waktu = value instanceof Date
+    ? `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`
+    : /[ T](\d{2}:\d{2})/.exec(String(value))?.[1];
+  return waktu ? `${tanggal} ${waktu}` : tanggal;
+}
+
+/** Parse input tampilan secara ketat tanpa mengubah parser/nilai API. */
+export function parseTanggalInput(value: string): string | null {
+  if (!value.trim()) return "";
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!m) return null;
+  const sql = `${m[3]}-${m[2]}-${m[1]}`;
+  return formatTanggal(sql) ? sql : null;
 }
 
 /** Versi formatTanggal dengan placeholder untuk sel yang tidak terisi. */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, nextTick, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -217,6 +217,76 @@ function tambahBaris() {
   baris.value.push({ nik: "", nama: "", jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false });
 }
 
+const employeeGrid = ref<HTMLTableElement | null>(null);
+let editingGridInput: HTMLInputElement | null = null;
+function editEmployeeGrid(event: Event) {
+  const input = event.target;
+  if (input instanceof HTMLInputElement && input.type !== "checkbox" && !input.readOnly) editingGridInput = input;
+}
+function blurEmployeeGrid(event: FocusEvent) {
+  if (event.target === editingGridInput) editingGridInput = null;
+}
+async function navigateEmployeeGrid(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.disabled || input.readOnly) return;
+  const cell = input.closest<HTMLElement>("[data-grid-column]");
+  const row = input.closest<HTMLElement>("[data-grid-row]");
+  if (!cell || !row) return;
+  if (event.key === "F2" && input.type !== "checkbox") {
+    event.preventDefault();
+    editingGridInput = input;
+    return;
+  }
+  if (event.key === "Escape" && editingGridInput === input) {
+    event.preventDefault();
+    editingGridInput = null;
+    input.select();
+    return;
+  }
+  const column = Number(cell.dataset.gridColumn);
+  const index = Number(row.dataset.gridRow);
+  let nextRow = index;
+  let nextColumn = column;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    // Holding Enter must not traverse the grid or append repeated blank rows.
+    if (event.repeat) return;
+    nextRow += event.shiftKey ? -1 : 1;
+    if (nextRow === baris.value.length) {
+      if (!String(baris.value[index]?.nik || "").trim()) return;
+      tambahBaris();
+      await nextTick();
+    }
+  } else if (event.key === "Tab") {
+    nextColumn += event.shiftKey ? -1 : 1;
+    if (nextColumn < 0) { nextRow--; nextColumn = 4; }
+    if (nextColumn > 4) { nextRow++; nextColumn = 0; }
+    // At the outer edges, keep native Tab so keyboard users can leave the grid.
+    if (nextRow < 0 || nextRow >= baris.value.length) return;
+    event.preventDefault();
+  } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+    if (event.shiftKey || editingGridInput === input) return;
+    event.preventDefault();
+    nextRow += event.key === "ArrowUp" ? -1 : 1;
+  } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    if (event.shiftKey || editingGridInput === input) return;
+    nextColumn += event.key === "ArrowLeft" ? -1 : 1;
+    if (nextColumn < 0 || nextColumn > 4) return;
+    event.preventDefault();
+  } else return;
+  if (nextRow < 0 || nextRow >= baris.value.length) return;
+  const target = employeeGrid.value?.querySelector<HTMLInputElement>(
+    `[data-grid-row="${nextRow}"] [data-grid-column="${nextColumn}"] input:not(:disabled):not([readonly])`
+  );
+  target?.focus();
+  if (target) {
+    editingGridInput = null;
+    if (target.type !== "checkbox") target.select();
+  }
+  target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
 function hapusBaris(i: number) {
   if (baris.value.length <= 1) {
     baris.value[0] = { nik: "", nama: "", jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false };
@@ -342,12 +412,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
             <label class="chk"><input v-model="allDep" type="checkbox" /> All Departemen</label>
             <FSelect v-model="values.jabatan" label="Jabatan (filter)" :options="jabatanOptions" :disabled="allJab" />
             <label class="chk"><input v-model="allJab" type="checkbox" /> All Jabatan</label>
-            <div class="bagian-wrap">
-              <FText v-model="values.bagian" label="Bagian (filter)" placeholder="Ketik / pilih" :disabled="allBag" />
-              <div v-if="bagianOptions.length && !allBag" class="bagian-list">
-                <button v-for="b in bagianOptions" :key="b" type="button" @click="values.bagian = b">{{ b }}</button>
-              </div>
-            </div>
+            <FSelect v-model="values.bagian" label="Bagian (filter)" :options="bagianOptions.map(b => ({ label: b, value: b }))" :disabled="allBag || !values.pabrik" :placeholder="values.pabrik ? 'Pilih Bagian...' : 'Pilih Pabrik terlebih dahulu'" />
             <label class="chk"><input v-model="allBag" type="checkbox" /> All Bagian</label>
           </div>
           <div class="aksi-row">
@@ -361,24 +426,24 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 
         <fieldset class="fs">
           <legend>Daftar Karyawan ({{ baris.filter((b) => b.nik).length }} orang)</legend>
-          <table class="grid-tbl">
+          <table ref="employeeGrid" class="grid-tbl employee-grid" @keydown="navigateEmployeeGrid" @pointerdown="editEmployeeGrid" @input="editEmployeeGrid" @focusout="blurEmployeeGrid">
             <thead>
               <tr><th style="width: 30px; text-align: center">No</th><th>NIK</th><th>Nama</th><th style="width: 100px">Jam Mulai</th><th style="width: 100px">Jam Akhir</th><th>Keterangan</th><th style="width: 70px">Panggil</th><th style="width: 60px; text-align: center">Aksi</th></tr>
             </thead>
             <tbody>
-              <tr v-for="(b, i) in baris" :key="i">
+              <tr v-for="(b, i) in baris" :key="i" :data-grid-row="i">
                 <td class="ctr">{{ i + 1 }}</td>
-                <td>
+                <td data-grid-column="0">
                   <div class="nik-sel">
-                    <input v-model="b.nik" placeholder="NIK" />
+                    <input v-model="b.nik" placeholder="NIK" :aria-label="`NIK baris ${i + 1}`" />
                     <button class="btn-mini" type="button" @click="bukaCari(i)">...</button>
                   </div>
                 </td>
-                <td><input v-model="b.nama" placeholder="Nama" /></td>
-                <td><FTime v-model="b.jam_mulai" label="Jam Mulai" compact placeholder="00:00:00" /></td>
-                <td><FTime v-model="b.jam_akhir" label="Jam Akhir" compact placeholder="00:00:00" /></td>
-                <td><input v-model="b.keterangan" placeholder="Keterangan" /></td>
-                <td class="ctr"><input v-model="b.panggilan" type="checkbox" /></td>
+                <td><input v-model="b.nama" placeholder="Nama" readonly :aria-label="`Nama baris ${i + 1}`" /></td>
+                <td data-grid-column="1"><FTime v-model="b.jam_mulai" label="Jam Mulai" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
+                <td data-grid-column="2"><FTime v-model="b.jam_akhir" label="Jam Akhir" compact :navigate-on-enter="false" placeholder="00:00:00" /></td>
+                <td data-grid-column="3"><input v-model="b.keterangan" placeholder="Keterangan" :aria-label="`Keterangan baris ${i + 1}`" /></td>
+                <td class="ctr panggil-cell" data-grid-column="4" title="Space untuk centang/batalkan Panggil"><input v-model="b.panggilan" type="checkbox" :aria-label="`Panggil baris ${i + 1}; Space untuk centang atau batalkan`" /><span class="panggil-hint" aria-hidden="true">Space: centang</span></td>
                 <td class="ctr"><button class="btn-mini del" type="button" @click="hapusBaris(i)">×</button></td>
               </tr>
             </tbody>
@@ -386,6 +451,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
           <div class="aksi-row">
             <button class="btn-mini" type="button" @click="tambahBaris">+ Tambah baris</button>
           </div>
+          <p class="note">Tab / Shift+Tab: kanan / kiri. Enter / Shift+Enter: bawah / atas. Enter di baris terakhir: tambah baris jika NIK terisi. Panah: pindah sel saat tidak mengedit. Klik / F2: edit; Esc: keluar edit. Space: centang Panggil.</p>
         </fieldset>
 
         <OtorisasiKode
@@ -431,15 +497,16 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
 .btn-mini.del { color: #dc2626; }
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
 .loading { padding: 24px; text-align: center; font-size: 12px; color: #6b7a90; }
-.bagian-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; max-height: 72px; overflow: auto; }
-.bagian-list button { font-size: 10px; border: 1px solid var(--ds-border, #b0b8c4); background: #f4f6f9; padding: 2px 6px; cursor: pointer; font-family: "Plus Jakarta Sans", sans-serif; }
-.bagian-list button:hover { background: #dbe4f3; }
 table.grid-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
 table.grid-tbl th { background: var(--ds-surface-variant, #e0e4ea); border: 1px solid var(--ds-border, #b0b8c4); padding: 5px 6px; text-align: left; font-weight: 800; }
 table.grid-tbl td { border: 1px solid #d5dbe3; padding: 2px; }
 table.grid-tbl td.ctr, table.grid-tbl th.ctr { text-align: center; }
 table.grid-tbl input[type="text"], table.grid-tbl input:not([type]) { width: 100%; border: 1px solid transparent; padding: 4px 6px; font-size: 11px; font-family: "Plus Jakarta Sans", sans-serif; }
 table.grid-tbl input:focus { border-color: var(--ds-primary, #3b5998); outline: none; }
+.employee-grid td[data-grid-column]:focus-within { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; background: var(--ds-surface-inset, #edf2fb); }
+.panggil-cell { position: relative; }
+.panggil-hint { display: none; position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; line-height: 11px; color: var(--ds-primary, #3b5998); pointer-events: none; }
+.panggil-cell:focus-within .panggil-hint { display: block; }
 .nik-sel { display: flex; gap: 2px; }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
 .dlg-body { background: #fff; padding: 12px 14px; }

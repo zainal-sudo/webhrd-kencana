@@ -3,10 +3,11 @@ import { ref, shallowRef, reactive, computed, onMounted, onActivated, onUnmounte
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
+import DateInput from "@/components/fields/DateInput.vue";
 import ColumnFilterPopup from "@/components/ColumnFilterPopup.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { useTabsStore } from "@/stores/tabsStore";
-import { formatDateInput, todaySql } from "@/utils/format";
+import { formatTanggal, formatTanggalWaktu, todaySql } from "@/utils/format";
 import { fotoUrl } from "@/utils/foto";
 import type { BrowseColumn } from "@/types";
 import { columnFilterParams } from "@/utils/columnFilter";
@@ -447,7 +448,7 @@ function refreshAfterDelete() {
   if (rows.value.length === 1 && page.value > 1) page.value -= 1;
   fetchData();
 }
-defineExpose({ refresh, refreshAfterDelete });
+defineExpose({ refresh, refreshAfterDelete, getQueryParams: () => buildParams(false) });
 
 function toggleExpand(row: Record<string, any>) {
   const key = row[props.primaryKey];
@@ -467,10 +468,10 @@ function cellText(row: Record<string, any>, col: BrowseColumn): string {
   if (v === null || v === undefined) return "";
   if (col.type === "image") return "";
   if (col.type === "date") {
-    return typeof v === "string" ? v.slice(0, 10) : formatDateInput(v);
+    return formatTanggal(v);
   }
   if (col.type === "datetime") {
-    return typeof v === "string" ? v.replace("T", " ").slice(0, 16) : String(v);
+    return formatTanggalWaktu(v);
   }
   return String(v);
 }
@@ -553,9 +554,9 @@ onActivated(() => {
         <slot name="toolbar-before-search"></slot>
         <div v-if="hasPeriod" class="period-fields">
           <label>Dari</label>
-          <input v-model="startDate" type="date" @change="refresh" />
+          <DateInput v-model="startDate" aria-label="Tanggal awal" @change="refresh" />
           <label>Sampai</label>
-          <input v-model="endDate" type="date" @change="refresh" />
+          <DateInput v-model="endDate" aria-label="Tanggal akhir" @change="refresh" />
         </div>
 
         <div class="search-box">
@@ -655,6 +656,7 @@ onActivated(() => {
                 v-if="openFilterKey === col.key && filterAnchor"
                 :anchor="filterAnchor"
                 :col-label="col.label"
+                :column-type="col.type"
                 :selected="filterSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
                 @apply="(vals) => applyFilterSet(col, vals)"
@@ -902,9 +904,10 @@ onActivated(() => {
   color: #55637a;
   text-transform: uppercase;
 }
-.period-fields input {
+.period-fields :deep(input[type="text"]) {
   border: 1px solid #c3cad4;
-  padding: 3px 6px;
+  padding: 3px 28px 3px 6px;
+  width: 130px;
   font-size: 11px;
   font-family: "Plus Jakarta Sans", sans-serif;
   background: #fff;

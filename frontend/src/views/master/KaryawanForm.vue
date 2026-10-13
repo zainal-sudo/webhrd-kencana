@@ -661,7 +661,7 @@ onUnmounted(() => {
 .karyawan-form :deep(.header-icon) { width: 28px; height: 28px; }
 .karyawan-form :deep(.form-footer) { padding: 6px 12px; }
 .employee-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 0; scrollbar-gutter: stable; container-type: inline-size; }
-.employee-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.employee-scroll::-webkit-scrollbar { width: 10px; height: var(--ds-horizontal-scrollbar-size, 14px); }
 .identity-main.fs { padding: 2px 10px 6px; margin-bottom: 6px; }
 .identity-main :deep(.field input), .identity-main :deep(.field select) { height: 30px; }
 .grid.identity-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

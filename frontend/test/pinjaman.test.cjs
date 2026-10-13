@@ -14,6 +14,7 @@ function compile(source, requireModule, globals = {}) {
   return module.exports;
 }
 const utility = compile(read('utils/pinjaman.ts'), require);
+const dateFormat = compile(read('utils/format.ts'), require);
 const columnFilter = compile(read('utils/columnFilter.ts'), require);
 // Vue nextTick flushes watchers, not all cross-VM Axios promise continuations.
 const settle = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); };
@@ -57,7 +58,7 @@ function fixture(kind, settings = {}) {
     if (name === '@/api') return { downloadFile: async (url, filename) => { calls.push({ method: 'download', url, filename }); if (settings.failExport) throw Error('download failed'); } };
     if (name === '@/stores/authStore') return { useAuthStore: () => ({ can: (_form, action) => settings.denied !== action }) };
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
-    if (name === '@/utils/format') return { todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01', formatDateInput: value => value };
+    if (name === '@/utils/format') return { ...dateFormat, todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01' };
     if (name === '@/utils/pinjaman') return utility;
     if (name === '@/utils/columnFilter') return columnFilter;
     if (name === '@/composables/useTransactionReset') return resetModule;
