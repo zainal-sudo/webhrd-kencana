@@ -50,7 +50,13 @@ function judulSurat(s: Record<string, any> | null): string {
   return s && String(s.sp_ke || "") === "Pembinaan" ? "SURAT PEMBINAAN" : "SURAT PERINGATAN";
 }
 
-const fmtSurat = formatTanggal;
+function fmtSurat(value: string | Date | null | undefined): string {
+  const tanggal = formatTanggal(value);
+  if (!tanggal) return "";
+  const [hari, bulan, tahun] = tanggal.split("/").map(Number);
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" })
+    .format(new Date(tahun, bulan - 1, hari));
+}
 
 function up(v: unknown): string {
   return String(v ?? "").toUpperCase();
@@ -86,7 +92,8 @@ function printSurat() {
   p { margin: 6px 0; }
   p.just { text-align: justify; }
   .b { font-weight: bold; }
-  table.data { margin: 2px 0 2px 32px; border: 0; border-collapse: collapse; table-layout: fixed; width: calc(100% - 32px); }
+  table.data { margin: 20px 0 2px 32px; border: 0; border-collapse: collapse; table-layout: fixed; width: calc(100% - 32px); }
+  .section-gap { margin-top: 20px; }
   table.data col.lbl { width: 3.4cm; }
   table.data col.sep { width: 0.5cm; }
   table.data td { padding: 1px 4px; vertical-align: top; white-space: nowrap; overflow: hidden; }
@@ -101,7 +108,7 @@ function printSurat() {
   <div class="kop"><img id="logo" src="${logo}" alt="Kencana Print" /></div>
   <h1>${judulSurat(s)}</h1>
   <div class="nomor">${s.sp_nomor}</div>
-  <p class="just">Berdasarkan verifikasi terhadap fakta-fakta yang ada, maka Manajemen memberikan peringatan ${s.sp_ke || ""} kepada :</p>
+  <p class="just section-gap">Berdasarkan verifikasi terhadap fakta-fakta yang ada, maka Manajemen memberikan peringatan ${s.sp_ke || ""} kepada :</p>
   <table class="data">
     <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
     <tr><td>Nama</td><td>:</td><td>${up(s.kar_nama)}</td></tr>
@@ -109,9 +116,9 @@ function printSurat() {
     <tr><td>Jabatan</td><td>:</td><td>${up(s.jab_nama)}</td></tr>
     <tr><td>Departemen</td><td>:</td><td>${up(s.kar_bagian)}</td></tr>
   </table>
-  <p class="b">Pelanggaran yang dilakukan adalah sebagai berikut :</p>
+  <p class="b section-gap">Pelanggaran yang dilakukan adalah sebagai berikut :</p>
   <p class="b">${s.sp_keterangan || ""}</p>
-  <p class="just">Hal tersebut di atas melanggar peraturan perusahaan tentang sanksi dan peringatan.</p>
+  <p class="just section-gap">Hal tersebut di atas melanggar peraturan perusahaan tentang sanksi dan peringatan.</p>
   <p class="b">Masa Berlaku Surat Peringatan ini adalah sejak&nbsp;&nbsp;${fmtSurat(s.sp_periode1)} s/d ${fmtSurat(s.sp_periode2)}</p>
   <div class="ttd-kota">Boyolali, ${fmtSurat(s.sp_tanggal)}</div>
   <table class="ttd">
@@ -173,7 +180,7 @@ function printSurat() {
         </div>
         <h1>{{ judulSurat(surat) }}</h1>
         <div class="nomor">{{ surat.sp_nomor }}</div>
-        <p class="just">Berdasarkan verifikasi terhadap fakta-fakta yang ada, maka Manajemen memberikan peringatan {{ surat.sp_ke }} kepada :</p>
+        <p class="just section-gap">Berdasarkan verifikasi terhadap fakta-fakta yang ada, maka Manajemen memberikan peringatan {{ surat.sp_ke }} kepada :</p>
         <table class="data">
           <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
           <tr><td>Nama</td><td>:</td><td>{{ up(surat.kar_nama) }}</td></tr>
@@ -181,9 +188,9 @@ function printSurat() {
           <tr><td>Jabatan</td><td>:</td><td>{{ up(surat.jab_nama) }}</td></tr>
           <tr><td>Departemen</td><td>:</td><td>{{ up(surat.kar_bagian) }}</td></tr>
         </table>
-        <p class="b">Pelanggaran yang dilakukan adalah sebagai berikut :</p>
+        <p class="b section-gap">Pelanggaran yang dilakukan adalah sebagai berikut :</p>
         <p class="b">{{ surat.sp_keterangan }}</p>
-        <p class="just">Hal tersebut di atas melanggar peraturan perusahaan tentang sanksi dan peringatan.</p>
+        <p class="just section-gap">Hal tersebut di atas melanggar peraturan perusahaan tentang sanksi dan peringatan.</p>
         <p class="b">Masa Berlaku Surat Peringatan ini adalah sejak&nbsp;&nbsp;{{ fmtSurat(surat.sp_periode1) }} s/d {{ fmtSurat(surat.sp_periode2) }}</p>
         <div class="ttd-kota">Boyolali, {{ fmtSurat(surat.sp_tanggal) }}</div>
         <table class="ttd">
@@ -212,7 +219,8 @@ function printSurat() {
 .nomor { text-align: center; font-weight: bold; }
 .just { text-align: justify; }
 .b { font-weight: bold; }
-table.data { margin: 4px 0 4px 32px; table-layout: fixed; width: calc(100% - 32px); border-collapse: collapse; }
+table.data { margin: 20px 0 4px 32px; table-layout: fixed; width: calc(100% - 32px); border-collapse: collapse; }
+.section-gap { margin-top: 20px; }
 table.data col.lbl { width: 3.4cm; }
 table.data col.sep { width: 0.5cm; }
 table.data td { padding: 2px 4px; vertical-align: top; white-space: nowrap; overflow: hidden; }

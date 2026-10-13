@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import MsIcon from "@/components/MsIcon.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
 import { firstDayOfMonth, formatTanggal } from "@/utils/format";
@@ -35,22 +36,28 @@ async function cetak(row: Record<string, any>) {
   }
 }
 
-const fmtSurat = formatTanggal;
+function fmtSurat(value: string | Date | null | undefined): string {
+  const tanggal = formatTanggal(value);
+  if (!tanggal) return "";
+  const [hari, bulan, tahun] = tanggal.split("/").map(Number);
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" })
+    .format(new Date(tahun, bulan - 1, hari));
+}
 
 function up(v: unknown): string {
   return String(v ?? "").toUpperCase();
 }
 
-function deptKaryawan(): string {
+function bagianKaryawan(): string {
   if (!surat.value) return "";
-  return String(surat.value.departemen || surat.value.bagian || "");
+  return String(surat.value.bagian || "");
 }
 
 function jabatanTerakhir(): string {
   if (!surat.value) return "";
   const jab = String(surat.value.jabatan || "").toUpperCase();
-  const dep = deptKaryawan().toUpperCase();
-  return [jab, dep].filter(Boolean).join(" ");
+  const bagian = bagianKaryawan().toUpperCase();
+  return [jab, bagian].filter(Boolean).join(" ");
 }
 
 function logoAbsolut(): string {
@@ -66,8 +73,8 @@ function printSurat() {
   if (!surat.value) return;
   const s = surat.value;
   const ttd = s.penandatangan || {};
-  const dep = String(s.departemen || s.bagian || "");
-  const jabAkhir = [String(s.jabatan || "").toUpperCase(), String(dep).toUpperCase()].filter(Boolean).join(" ");
+  const bagian = String(s.bagian || "");
+  const jabAkhir = jabatanTerakhir();
   const logo = logoAbsolut();
   const w = window.open("", "_blank", "width=900,height=700");
   if (!w) {
@@ -82,7 +89,7 @@ function printSurat() {
   .kop { text-align: right; margin-bottom: 6px; }
   .kop img { width: 250px; height: auto; }
   h1 { text-align: center; font-size: 15px; text-decoration: underline; margin: 12px 0 2px; }
-  .nomor { text-align: center; font-weight: bold; margin-bottom: 18px; }
+  .nomor { text-align: center; font-weight: bold; margin-bottom: 20px; }
   p { margin: 10px 0; }
   p.just { text-align: justify; }
   table.data { margin: 4px 0 4px 48px; border: 0; border-collapse: collapse; table-layout: fixed; width: calc(100% - 48px); }
@@ -98,24 +105,24 @@ function printSurat() {
   <div class="kop"><img id="logo" src="${logo}" alt="Kencana Print" /></div>
   <h1>SURAT KETERANGAN PENGALAMAN KERJA</h1>
   <div class="nomor">${s.nomor}</div>
-  <p>Yang bertandatangan dibawah ini :</p>
+  <p>Yang bertandatangan di bawah ini :</p>
   <table class="data">
     <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
     <tr><td>Nama</td><td>:</td><td>${String(ttd.nama ?? "")}</td></tr>
     <tr><td>NIK</td><td>:</td><td>${String(ttd.nik ?? "")}</td></tr>
     <tr><td>Jabatan</td><td>:</td><td>${String(ttd.jabatan ?? "")}</td></tr>
-    <tr><td>Departemen</td><td>:</td><td>${String(ttd.departemen ?? "")}</td></tr>
+    <tr><td>Bagian</td><td>:</td><td>${String(ttd.bagian ?? "")}</td></tr>
   </table>
-  <p>Menerangkan dengan sesungguhnya bahwa yang bersangkutan dibawah ini :</p>
+  <p>Menerangkan dengan sesungguhnya bahwa yang bersangkutan di bawah ini :</p>
   <table class="data">
     <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
     <tr><td>Nama</td><td>:</td><td>${String(s.nama || "").toUpperCase()}</td></tr>
     <tr><td>NIK</td><td>:</td><td>${String(s.nik || "")}</td></tr>
     <tr><td>Jabatan</td><td>:</td><td>${String(s.jabatan || "").toUpperCase()}</td></tr>
-    <tr><td>Departemen</td><td>:</td><td>${String(dep).toUpperCase()}</td></tr>
+    <tr><td>Bagian</td><td>:</td><td>${bagian.toUpperCase()}</td></tr>
   </table>
-  <p class="just">Benar-benar telah bekerja pada perusahaan CV. Kencana Print terhitung sejak ${fmtSurat(s.tgl_masuk)} sampai dengan ${fmtSurat(s.tgl_keluar)} , dengan jabatan terakhir ${jabAkhir} .</p>
-  <p class="just">Kami berterimakasih atas dedikasinya dan berharap semoga yang bersangkutan dapat lebih sukses dimasa yang akan datang.<br>Demikian surat keterangan ini dibuat agar dapat digunakan dengan sebagaimana mestinya.</p>
+  <p class="just">Benar-benar telah bekerja pada perusahaan CV. Kencana Print terhitung sejak ${fmtSurat(s.tgl_masuk)} sampai dengan ${fmtSurat(s.tgl_keluar)}, dengan jabatan terakhir sebagai <strong><em>${jabAkhir}</em></strong>.</p>
+  <p class="just">Kami berterima kasih atas dedikasinya dan berharap semoga yang bersangkutan dapat lebih sukses di masa yang akan datang.<br>Demikian surat keterangan ini dibuat agar dapat digunakan sebagaimana mestinya.</p>
   <div class="ttd"><div class="ttd-inner"><div class="kota">Boyolali, ${fmtSurat(s.tgl_keluar)}</div><div class="tahu">Mengetahui,</div><div class="nama">${String(ttd.nama ?? "").toUpperCase()}</div><div>${String(ttd.departemen ?? "")}</div></div></div>
   <script>
     var percobaan = 0;
@@ -159,7 +166,10 @@ function printSurat() {
       <v-card-title class="dlg-head">
         <span>Surat Pengalaman Kerja {{ surat?.nomor }}</span>
         <div class="dlg-aksi">
-          <v-btn variant="flat" color="primary" size="small" prepend-icon="print" @click="printSurat">Cetak</v-btn>
+          <v-btn variant="flat" color="primary" size="small" @click="printSurat">
+            <template #prepend><MsIcon name="print" :size="18" /></template>
+            Cetak
+          </v-btn>
           <v-btn icon="close" size="small" variant="text" @click="suratOpen = false" />
         </div>
       </v-card-title>
@@ -173,24 +183,24 @@ function printSurat() {
         </div>
         <h1>SURAT KETERANGAN PENGALAMAN KERJA</h1>
         <div class="nomor">{{ surat.nomor }}</div>
-        <p>Yang bertandatangan dibawah ini :</p>
+        <p>Yang bertandatangan di bawah ini :</p>
         <table class="data">
           <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
           <tr><td>Nama</td><td>:</td><td>{{ surat.penandatangan?.nama }}</td></tr>
           <tr><td>NIK</td><td>:</td><td>{{ surat.penandatangan?.nik }}</td></tr>
           <tr><td>Jabatan</td><td>:</td><td>{{ surat.penandatangan?.jabatan }}</td></tr>
-          <tr><td>Departemen</td><td>:</td><td>{{ surat.penandatangan?.departemen }}</td></tr>
+          <tr><td>Bagian</td><td>:</td><td>{{ surat.penandatangan?.bagian }}</td></tr>
         </table>
-        <p>Menerangkan dengan sesungguhnya bahwa yang bersangkutan dibawah ini :</p>
+        <p>Menerangkan dengan sesungguhnya bahwa yang bersangkutan di bawah ini :</p>
         <table class="data">
           <colgroup><col class="lbl" /><col class="sep" /><col /></colgroup>
           <tr><td>Nama</td><td>:</td><td>{{ up(surat.nama) }}</td></tr>
           <tr><td>NIK</td><td>:</td><td>{{ surat.nik }}</td></tr>
           <tr><td>Jabatan</td><td>:</td><td>{{ up(surat.jabatan) }}</td></tr>
-          <tr><td>Departemen</td><td>:</td><td>{{ up(deptKaryawan()) }}</td></tr>
+          <tr><td>Bagian</td><td>:</td><td>{{ up(bagianKaryawan()) }}</td></tr>
         </table>
-        <p class="just">Benar-benar telah bekerja pada perusahaan CV. Kencana Print terhitung sejak {{ fmtSurat(surat.tgl_masuk) }} sampai dengan {{ fmtSurat(surat.tgl_keluar) }} , dengan jabatan terakhir {{ jabatanTerakhir() }} .</p>
-        <p class="just">Kami berterimakasih atas dedikasinya dan berharap semoga yang bersangkutan dapat lebih sukses dimasa yang akan datang.<br />Demikian surat keterangan ini dibuat agar dapat digunakan dengan sebagaimana mestinya.</p>
+        <p class="just">Benar-benar telah bekerja pada perusahaan CV. Kencana Print terhitung sejak {{ fmtSurat(surat.tgl_masuk) }} sampai dengan {{ fmtSurat(surat.tgl_keluar) }}, dengan jabatan terakhir <strong><em>{{ jabatanTerakhir() }}</em></strong>.</p>
+        <p class="just">Kami berterimakasih atas dedikasinya dan berharap semoga yang bersangkutan dapat lebih sukses di masa yang akan datang.<br />Demikian surat keterangan ini dibuat agar dapat digunakan dengan sebagaimana mestinya.</p>
         <div class="ttd">
           <div class="ttd-inner">
           <div class="kota">Boyolali, {{ fmtSurat(surat.tgl_keluar) }}</div>
@@ -212,7 +222,7 @@ function printSurat() {
 .kop { text-align: right; margin-bottom: 6px; }
 .kop .logo { width: 250px; height: auto; }
 .kertas h1 { text-align: center; font-size: 16px; text-decoration: underline; margin: 12px 0 2px; }
-.nomor { text-align: center; font-weight: bold; margin-bottom: 18px; }
+.nomor { text-align: center; font-weight: bold; margin-bottom: 20px; }
 .just { text-align: justify; }
 table.data { margin: 4px 0 4px 48px; table-layout: fixed; width: calc(100% - 48px); border-collapse: collapse; }
 table.data col.lbl { width: 3.2cm; }

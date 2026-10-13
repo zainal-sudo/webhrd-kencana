@@ -46,7 +46,17 @@ async function cetak(row: Record<string, any>) {
   }
 }
 
-const fmtSurat = formatTanggal;
+/** Format tanggal khusus surat; tampilan browse/form tetap numerik. */
+function fmtSurat(value: string | Date | null | undefined): string {
+  const tanggal = formatTanggal(value);
+  if (!tanggal) return "";
+  const [hari, bulan, tahun] = tanggal.split("/");
+  const namaBulan = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  ];
+  return `${Number(hari)} ${namaBulan[Number(bulan) - 1]} ${tahun}`;
+}
 
 /** Huruf besar semua — meniru hasil cetak Delphi pada contoh surat. */
 function up(v: unknown): string {
