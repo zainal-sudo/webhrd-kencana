@@ -26,6 +26,8 @@ const routes = [
   },
 
   /* ── Master ── */
+  { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi BPJS", form: "frmSandiBPJS" } },
+  { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi BPJS", form: "frmSandiBPJS" } },
   {
     path: "/master/karyawan",
     component: () => import("@/views/master/KaryawanView.vue"),
@@ -149,6 +151,16 @@ router.beforeEach(async (to) => {
   }
 
   const form = to.meta.form as string | undefined;
+  // Board kredensial harus fail-closed, termasuk jika cache menu kosong/usang.
+  if (form === "frmSandiBPJS") {
+    try {
+      await auth.refreshProfile();
+      usePermissionStore().build();
+    } catch {
+      return { path: "/403", query: { form } };
+    }
+    if (!auth.can(form)) return { path: "/403", query: { form } };
+  }
   if (form && auth.menus.length > 0 && !auth.can(form)) {
     return { path: "/403", query: { form } };
   }

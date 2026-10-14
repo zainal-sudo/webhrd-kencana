@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useToast } from "vue-toastification";
 import FText from "@/components/fields/FText.vue";
 import FSelect from "@/components/fields/FSelect.vue";
+import CopyCodeButton from "@/components/CopyCodeButton.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -100,10 +101,12 @@ async function generate() {
           <div class="kotak">
             <span>Kode user Anda</span>
             <b>{{ hasil.pemberi }}</b>
+            <CopyCodeButton :value="hasil.pemberi" label="Salin Kode User" />
           </div>
           <div class="kotak">
             <span>Angka balasan</span>
             <b class="kode">{{ hasil.respons }}</b>
+            <CopyCodeButton :value="hasil.respons" label="Salin Angka Balasan" />
           </div>
         </div>
       </fieldset>
@@ -232,6 +235,7 @@ async function generate() {
 }
 .kotak b {
   display: block;
+  margin-bottom: 8px;
   font-size: 20px;
   color: var(--ds-primary, #3b5998);
 }

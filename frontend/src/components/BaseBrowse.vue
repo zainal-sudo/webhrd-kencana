@@ -54,6 +54,8 @@ const props = withDefaults(
     refreshOnActivate?: boolean;
     /** Opt-in dense columns; all existing browse layouts retain their defaults. */
     compact?: boolean;
+    /** Lebar kolom aksi mode compact; default mempertahankan layout existing. */
+    actionWidth?: number;
     /** Opt-in inline detail slot. Disabled for all existing modules. */
     expandable?: boolean;
     rowNumberLabel?: string;
@@ -81,6 +83,7 @@ const props = withDefaults(
     extraQuery: () => ({}),
     refreshOnActivate: true,
     compact: false,
+    actionWidth: 144,
     expandable: false,
     rowNumberLabel: 'No',
     rowNumberAfterFirstColumn: false,
@@ -147,7 +150,7 @@ function colWidth(c: BrowseColumn): number {
 }
 const tableMinWidth = computed<string>(
   () => props.compact
-    ? 36 + (props.expandable ? 36 : 0) + (props.showActions ? 144 : 0) + cols.value.reduce((sum, col) => sum + (parseInt(col.width || "", 10) || 100), 0) + "px"
+    ? 36 + (props.expandable ? 36 : 0) + (props.showActions ? props.actionWidth : 0) + cols.value.reduce((sum, col) => sum + (parseInt(col.width || "", 10) || 100), 0) + "px"
     : 42 + (props.expandable ? 36 : 0) + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
 );
 
@@ -629,7 +632,7 @@ onActivated(() => {
             <col :style="{ width: col.width || '100px' }" />
             <col v-if="rowNumberAfterFirstColumn && colIndex === 0" style="width: 36px" />
           </template>
-          <col v-if="showActions" style="width: 144px" />
+          <col v-if="showActions" :style="{ width: `${actionWidth}px` }" />
         </colgroup>
         <thead>
           <tr>

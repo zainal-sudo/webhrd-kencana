@@ -122,10 +122,13 @@ for (const kind of ['simple', 'employee']) {
   });
 }
 
-test('All 11 Add/Edit Master forms use shared actions; singleton/read-only pages are unchanged', () => {
+test('All 12 Add/Edit Master forms use shared actions; singleton/read-only pages are unchanged', () => {
   const files = fs.readdirSync(path.join(root, 'views/master')).filter(file => file.endsWith('Form.vue'));
-  assert.equal(files.length, 11);
-  for (const file of files.filter(file => file !== 'KaryawanForm.vue')) assert.match(read(`views/master/${file}`), /<MasterForm/);
+  assert.equal(files.length, 12);
+  for (const file of files.filter(file => !['KaryawanForm.vue', 'SandiBpjsForm.vue'].includes(file))) assert.match(read(`views/master/${file}`), /<MasterForm/);
+  assert.match(read('views/master/SandiBpjsForm.vue'), /<BaseForm/);
+  assert.match(read('views/master/SandiBpjsForm.vue'), /:new-form-path="formPath"/);
+  assert.match(read('views/master/SandiBpjsForm.vue'), /transaction-module="frmSandiBPJS"/);
   assert.match(read('components/MasterForm.vue'), /:new-form-path="route.path"/);
   assert.match(read('components/MasterForm.vue'), /:transaction-module="permissionModule"/);
   assert.match(read('components/MasterForm.vue'), /route.meta.form/);

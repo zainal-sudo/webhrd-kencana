@@ -36,6 +36,7 @@ export const GRUP: Record<string, GrupDef> = {
 /** Kunci = `tmenu.men_nama`. `grup` menentukan sidebar. */
 export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   /* ── Master ── */
+  frmSandiBPJS: { grup: "master", path: "/master/sandi-bpjs", label: "Sandi BPJS", icon: "key", ready: true },
   frmKaryawan: { grup: "master", path: "/master/karyawan", label: "Master Karyawan", icon: "badge", ready: true },
   frmJabatan: { grup: "master", path: "/master/jabatan", label: "Master Jabatan", icon: "engineering", ready: true },
   frmDepartemen: { grup: "master", path: "/master/departemen", label: "Master Departemen", icon: "account_tree", ready: true },

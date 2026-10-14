@@ -76,7 +76,7 @@ test('All ten simple Master forms share Reset wiring; employee snapshot reset re
   const form = read('components/MasterForm.vue');
   assert.match(form, /:reset-fn="resetState.reset"/); assert.match(form, /:reset-disabled="resetState.disabled.value"/);
   assert.equal((form.match(/resetState.capture\(\)/g) || []).length, 2);
-  const files = fs.readdirSync(path.join(root, 'views/master')).filter(file => file.endsWith('Form.vue') && file !== 'KaryawanForm.vue');
+  const files = fs.readdirSync(path.join(root, 'views/master')).filter(file => file.endsWith('Form.vue') && !['KaryawanForm.vue', 'SandiBpjsForm.vue'].includes(file));
   assert.equal(files.length, 10); for (const file of files) assert.match(read(`views/master/${file}`), /<MasterForm/);
   const employee = read('views/master/KaryawanForm.vue');
   assert.match(employee, /:reset-fn="resetForm"/); assert.match(employee, /resetSnapshot.value = captureForm\(\)/);

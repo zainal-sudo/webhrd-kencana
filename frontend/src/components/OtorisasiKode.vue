@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { useToast } from "vue-toastification";
 import FText from "@/components/fields/FText.vue";
+import CopyCodeButton from "@/components/CopyCodeButton.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { selisihHari } from "@/utils/jam";
 import { formatTanggal } from "@/utils/format";
@@ -117,6 +118,7 @@ async function verifikasi() {
       <div class="kode-box" :class="{ kosong: !tantangan }">
         {{ tantangan || "------" }}
       </div>
+      <CopyCodeButton v-if="tantangan" :value="tantangan" :disabled="meminta" />
       <button class="btn-mini primary" type="button" :disabled="meminta" @click="mintaKode">
         {{ meminta ? "Meminta..." : tantangan ? "Minta Kode Baru" : "Minta Kode" }}
       </button>

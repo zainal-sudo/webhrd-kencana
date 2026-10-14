@@ -40,7 +40,21 @@ import {
     getLookupOptions,
 } from '../controllers/master/userController.js'
 
+import {
+    noStoreSandiBpjs, getSandiBpjsList, getSandiBpjs,
+    createSandiBpjs, updateSandiBpjs, deleteSandiBpjs,
+} from '../controllers/master/sandiBpjsController.js'
+
 const r = Router()
+
+const sandiBpjs = Router()
+sandiBpjs.use(noStoreSandiBpjs)
+sandiBpjs.get('/', wajibHak('frmSandiBPJS'), getSandiBpjsList)
+sandiBpjs.get('/:id', wajibHak('frmSandiBPJS'), getSandiBpjs)
+sandiBpjs.post('/', wajibHak('frmSandiBPJS', 'insert'), createSandiBpjs)
+sandiBpjs.put('/:id', wajibHak('frmSandiBPJS', 'edit'), updateSandiBpjs)
+sandiBpjs.delete('/:id', wajibHak('frmSandiBPJS', 'delete'), deleteSandiBpjs)
+r.use('/sandi-bpjs', sandiBpjs)
 
 /**
  * Pasang 5 handler CRUD generik untuk satu master pada sub-router sendiri.
