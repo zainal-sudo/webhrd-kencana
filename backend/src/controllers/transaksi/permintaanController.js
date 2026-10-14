@@ -124,7 +124,7 @@ export const getPermintaanList = async (req, res, next) => {
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const col = LIST_COLUMNS[req.query.distinct]
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value FROM (${INNER_SQL}${inner}) AS Final WHERE ${col} IS NOT NULL AND ${col} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${col} AS value FROM (${INNER_SQL}${inner}) AS Final WHERE ${col} IS NOT NULL AND ${col} <> '' ORDER BY value`,
                 params
             )
             return success(res, drows.map((r) => r.value))

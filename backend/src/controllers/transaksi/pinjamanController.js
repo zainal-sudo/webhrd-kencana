@@ -47,7 +47,7 @@ export const getPinjamanList = handle(async (req, res) => {
     if (req.query.distinct) {
         const expr = Object.hasOwn(COLUMNS, req.query.distinct) ? COLUMNS[req.query.distinct] : null
         if (!expr) return error(res, 'Kolom tidak valid', 400)
-        const [rows] = await pool.query(`SELECT DISTINCT ${expr} AS value ${FROM}${where} ORDER BY value LIMIT 1000`, params)
+        const [rows] = await pool.query(`SELECT DISTINCT ${expr} AS value ${FROM}${where} ORDER BY value`, params)
         return success(res, rows.map(r => r.value))
     }
     const order = buildOrderBy(req.query, COLUMNS, 'ORDER BY p.tanggal DESC, p.nomor_pinjam DESC')

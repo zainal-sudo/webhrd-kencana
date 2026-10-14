@@ -112,7 +112,7 @@ export const getRekruitmenList = async (req, res, next) => {
             const col = LIST_COLUMNS[req.query.distinct]
             const f = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct)
             const [rows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value ${FROM_SQL}${f.clause} AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${col} AS value ${FROM_SQL}${f.clause} AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY value`,
                 f.params
             )
             return success(res, rows.map((row) => row.value))

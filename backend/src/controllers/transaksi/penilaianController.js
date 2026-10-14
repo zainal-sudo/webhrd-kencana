@@ -99,7 +99,7 @@ export const getPenilaianList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, HDR_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${HDR_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${HDR_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

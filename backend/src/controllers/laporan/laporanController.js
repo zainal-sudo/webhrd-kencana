@@ -89,7 +89,7 @@ export const getTidakMasukList = async (req, res, next) => {
             // dipilih di popup filter — frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TM_FROM}${scoped.clause} ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TM_FROM}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -249,7 +249,7 @@ export const getKeterlambatanList = async (req, res, next) => {
             // dipilih di popup filter — frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TL_FROM}${scoped.clause} ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TL_FROM}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -327,7 +327,7 @@ export const getPulangDuluList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, PD_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${PD_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${PD_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -404,7 +404,7 @@ export const getTidakKeluarList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, TK_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TK_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TK_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -483,7 +483,7 @@ export const getLemburList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, LL_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${LL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${LL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -570,7 +570,7 @@ export const getLemburTanpaSplList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, LS_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${LS_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${LS_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -866,7 +866,7 @@ export const getTanpaIjinList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, TI_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TI_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${TI_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -950,7 +950,7 @@ export const getStHariTanpaIjinList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, SH_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value FROM (${SH_INNER}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value FROM (${SH_INNER}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -1048,7 +1048,7 @@ export const getDetailLemburList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, DL_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${DL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value ${DL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -1151,7 +1151,7 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
             const scoped = applyAllColumnFilters(where, params, req.query, AP_COLUMNS, req.query.distinct)
             const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value FROM (${inner}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value LIMIT 500`,
+                `SELECT DISTINCT ${dcol} AS value FROM (${inner}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

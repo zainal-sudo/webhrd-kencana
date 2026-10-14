@@ -32,7 +32,7 @@ export async function getRekapHutang(req, res, next) {
         where = filtered.clause; params = filtered.params
         if (query.distinct) {
             if (!Object.hasOwn(COLUMNS, query.distinct)) return error(res, 'Kolom tidak valid', 400)
-            const [rows] = await pool.query(`SELECT DISTINCT ${COLUMNS[query.distinct]} AS value ${FROM}${where} ORDER BY value LIMIT 1000`, params)
+            const [rows] = await pool.query(`SELECT DISTINCT ${COLUMNS[query.distinct]} AS value ${FROM}${where} ORDER BY value`, params)
             return success(res, rows.map(row => row.value))
         }
         const order = buildOrderBy({ ...query, sort_by: Object.hasOwn(COLUMNS, query.sort_by) ? query.sort_by : undefined },
