@@ -13,6 +13,7 @@ function compile(source, requireModule, globals = {}) {
     { module, exports: module.exports, require: requireModule, ...globals });
   return module.exports;
 }
+const snapshotUtils = compile(fs.readFileSync(path.join(root, 'utils/formSnapshot.ts'), 'utf8'), require);
 
 function fixture(name, edit = false, fail = false) {
   const callbacks = [], stops = [], calls = [];
@@ -20,7 +21,7 @@ function fixture(name, edit = false, fail = false) {
   const vueModule = { ...vue, onMounted: fn => callbacks.push(fn), watch: (...args) => {
     const stop = vue.watch(...args); stops.push(stop); return stop;
   } };
-  const resetModule = compile(fs.readFileSync(path.join(root, 'composables/useTransactionReset.ts'), 'utf8'), () => vueModule,
+  const resetModule = compile(fs.readFileSync(path.join(root, 'composables/useTransactionReset.ts'), 'utf8'), name => name === 'vue' ? vueModule : snapshotUtils,
     { window: { confirm: () => confirmed } });
   const jam = compile(fs.readFileSync(path.join(root, 'utils/jam.ts'), 'utf8'), require);
   const liveSearchModule = compile(fs.readFileSync(path.join(root, 'composables/useLiveSearch.ts'), 'utf8'),
@@ -91,10 +92,11 @@ for (const name of forms) for (const edit of [false, ...(editForms.includes(name
     try {
       assert.equal(form.resetState.disabled.value, true);
       await form.mount();
-      assert.equal(form.resetState.disabled.value, false);
+      assert.equal(form.resetState.disabled.value, true);
       const initial = readTargets(form.targets);
       if (edit) assert.equal(initial.values.nomor, 'DOC-001');
       dirty(form.targets);
+      assert.equal(form.resetState.disabled.value, false);
       // Drain all normal field-change watchers before clicking Reset.
       await vue.nextTick();
       for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -110,6 +112,7 @@ for (const name of forms) for (const edit of [false, ...(editForms.includes(name
       assert.equal(form.resetState.reset(), true);
       await vue.nextTick();
       assert.deepEqual(readTargets(form.targets), initial);
+      assert.equal(form.resetState.disabled.value, true);
       assert.equal(form.calls.length, requests);
       assert.equal(form.extras.cariOpen.value, false);
       assert.equal(form.extras.kataCari.value, '');
@@ -134,10 +137,11 @@ for (const name of editForms) test(`${name}: failed Edit load leaves Reset disab
 });
 
 test('pending requests block Reset until completion; proxy preserves API parameters', async () => {
-  const resetModule = compile(fs.readFileSync(path.join(root, 'composables/useTransactionReset.ts'), 'utf8'), () => vue, { window: { confirm: () => true } });
+  const resetModule = compile(fs.readFileSync(path.join(root, 'composables/useTransactionReset.ts'), 'utf8'), name => name === 'vue' ? vue : snapshotUtils, { window: { confirm: () => true } });
   const values = vue.reactive({ nik: '' });
   const reset = resetModule.useTransactionReset({ values }, { afterRestore() {} });
   await reset.initialize();
+  values.nik = '001';
   let resolve;
   const api = reset.trackApi({ get(url, config) { assert.equal(url, '/info'); assert.equal(config.params.nik, '001'); return new Promise(r => { resolve = r; }); } });
   const pending = api.get('/info', { params: { nik: '001' } });

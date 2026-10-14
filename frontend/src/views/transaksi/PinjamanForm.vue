@@ -180,7 +180,7 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
          <div class="employee-field">
            <label class="employee-label" for="pinjaman-employee-selector">Karyawan <span class="req">*</span></label>
            <button id="pinjaman-employee-selector" type="button" class="employee-selector" :class="{ selected: !!values.nik }"
-             :disabled="disabled" aria-haspopup="dialog" :aria-expanded="cariOpen" aria-describedby="pinjaman-employee-help"
+              :disabled="disabled" aria-haspopup="dialog" :aria-expanded="cariOpen"
              :aria-label="values.nik ? `Karyawan: ${info.Nama || 'Nama tidak tersedia'} · ${values.nik}. Ganti karyawan` : 'Karyawan: cari / pilih karyawan aktif'"
              @click="cariOpen = true; search()">
               <MsIcon name="search" :size="18" class="employee-icon" />
@@ -191,7 +191,6 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
              <span v-if="values.nik" class="employee-change">Ganti</span>
              <MsIcon v-else name="expand_more" :size="18" class="employee-chevron" />
            </button>
-           <small id="pinjaman-employee-help" class="employee-help">Hanya karyawan aktif dengan masa kerja minimal 6 bulan yang dapat dipilih.</small>
          </div>
          <dl class="employee-info-card" aria-label="Informasi karyawan terpilih">
            <div><dt>NIK</dt><dd class="employee-info-nik">{{ values.nik || '—' }}</dd></div>
@@ -280,7 +279,6 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
 .employee-nik { flex-shrink: 0; white-space: nowrap; }
 .employee-placeholder { flex: 1; color: var(--ds-text-muted, var(--ds-text)); }
 .employee-change { flex-shrink: 0; padding: 2px 6px; border-left: 1px solid var(--ds-border); color: var(--ds-primary, #3b5998); font-size: 11px; font-weight: 700; }
-.employee-help { grid-column: 2; color: var(--ds-text-muted, var(--ds-text)); font-size: 10px; line-height: 1.5; }
 .employee-info-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0 0 4px; padding: 12px; border: 1px solid var(--ds-border); background: var(--ds-surface); color: var(--ds-text); }
 /* Local exception to the global .app-shell * zero-radius !important rule. */
 .employee-info-card { border-radius: 8px !important; }
@@ -289,7 +287,7 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
 .employee-info-card dd { margin: 0; min-width: 0; font-size: 12px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .employee-info-nik { font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .employee-info-card { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
-@media (max-width: 600px) { .employee-field { grid-template-columns: minmax(0, 1fr); gap: 4px; } .employee-help { grid-column: 1; } }
+@media (max-width: 600px) { .employee-field { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 .rekening { display: flex; align-items: center; gap: 3px; }
 .rekening label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
 .rekening .req { color: #dc2626; }

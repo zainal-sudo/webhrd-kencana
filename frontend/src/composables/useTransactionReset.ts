@@ -1,5 +1,6 @@
-import { computed, isRef, nextTick, ref, toRaw, unref, watch } from "vue";
+import { computed, isRef, nextTick, ref, shallowRef, toRaw, unref, watch } from "vue";
 import type { AxiosInstance } from "axios";
+import { sameFormState } from "@/utils/formSnapshot";
 
 type Targets = Record<string, any>;
 const clone = (value: any): any => JSON.parse(JSON.stringify(toRaw(value)));
@@ -13,15 +14,17 @@ export function useTransactionReset(targets: Targets, options: {
   const ready = ref(false);
   const restoring = ref(false);
   const pending = ref(0);
-  let snapshot: Targets | null = null;
-  const disabled = computed(() => !ready.value || restoring.value || pending.value > 0 || !!options.blocked?.());
+  const snapshot = shallowRef<Targets | null>(null);
+  const dirty = computed(() => !!snapshot.value && !sameFormState(
+    Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, unref(value)])), snapshot.value));
+  const disabled = computed(() => !ready.value || !dirty.value || restoring.value || pending.value > 0 || !!options.blocked?.());
 
   function capture() {
-    snapshot = Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, clone(unref(value))]));
+    snapshot.value = Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, clone(unref(value))]));
     ready.value = true;
   }
   function invalidate() {
-    snapshot = null;
+    snapshot.value = null;
     ready.value = false;
   }
   async function initialize() {
@@ -38,14 +41,14 @@ export function useTransactionReset(targets: Targets, options: {
     capture();
   }
   function reset(): boolean {
-    if (disabled.value || !snapshot) return false;
+    if (disabled.value || !snapshot.value) return false;
     const message = options.isEdit?.()
       ? "Kembalikan form ke data terakhir yang dimuat dan buang perubahan yang belum disimpan?"
       : "Kembalikan form ke kondisi awal dan buang perubahan yang belum disimpan?";
     if (!window.confirm(message)) return false;
     restoring.value = true;
     for (const [key, target] of Object.entries(targets)) {
-      const value = clone(snapshot[key]);
+      const value = clone(snapshot.value[key]);
       if (isRef(target)) target.value = value;
       else {
         for (const name of Object.keys(target)) if (!(name in value)) delete target[name];
@@ -70,5 +73,5 @@ export function useTransactionReset(targets: Targets, options: {
       },
     });
   }
-  return { ready, restoring, disabled, capture, invalidate, initialize, reset, trackApi };
+  return { ready, restoring, dirty, disabled, capture, invalidate, initialize, reset, trackApi };
 }

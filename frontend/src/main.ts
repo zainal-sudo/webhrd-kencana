@@ -11,6 +11,7 @@ import { installScrollbarLayout } from "./utils/scrollbarLayout";
 import "./assets/main.css";
 import "./assets/design-system.css";
 import "./assets/theme.css";
+import "./assets/dialogs.css";
 
 const app = createApp(App);
 const pinia = createPinia();

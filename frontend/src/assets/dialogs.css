@@ -1,0 +1,95 @@
+/* Shared modal appearance. Deliberately excludes menus, tooltips and filters.
+   Keep widths, focus handling, persistent confirmations and scroll behavior local. */
+:root {
+  --dialog-radius: 16px;
+  --dialog-padding: 24px;
+  --dialog-shadow: 0 20px 64px rgb(8 20 38 / 24%);
+}
+
+/* Blur the scrim, never the dialog or all Vuetify overlays (menus/tooltips). */
+.v-overlay.v-dialog {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.v-dialog > .v-overlay__scrim {
+  background: rgb(9 20 35 / 40%) !important;
+  opacity: 1 !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.loan-overlay {
+  background: rgb(9 20 35 / 40%) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.v-dialog > .v-overlay__content > .v-card,
+.loan-overlay > .loan-dialog {
+  color: var(--ds-text, #1b2d4a) !important;
+  background: var(--ds-surface, #f1f5f9) !important;
+  border: 1px solid var(--ds-border-light, #d5dce6) !important;
+  border-radius: var(--dialog-radius) !important;
+  box-shadow: var(--dialog-shadow) !important;
+  min-width: 0;
+}
+.v-dialog > .v-overlay__content { max-width: calc(100% - 32px); }
+.v-dialog .v-card > :is(.v-card-title, .v-card-item) {
+  padding: var(--dialog-padding) var(--dialog-padding) 16px !important;
+  background: transparent !important;
+  color: var(--ds-text, #1b2d4a) !important;
+  border-bottom: none !important;
+}
+.v-dialog .v-card-title {
+  font-size: 18px !important;
+  line-height: 1.4 !important;
+  font-weight: 700 !important;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.v-dialog .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.v-dialog .dlg-head > .v-btn { flex-shrink: 0; color: var(--ds-error, #dc2626) !important; }
+.v-dialog .v-card > .v-card-text {
+  padding: 0 var(--dialog-padding) var(--dialog-padding) !important;
+  color: var(--ds-text, #1b2d4a) !important;
+  min-width: 0;
+}
+.v-dialog .v-card > .v-card-actions {
+  padding: 0 var(--dialog-padding) 20px !important;
+  gap: 8px;
+  background: transparent;
+}
+.loan-overlay > .loan-dialog > header { gap: 16px; margin-bottom: 16px; }
+.loan-overlay > .loan-detail-dialog > header { margin-bottom: 0; }
+.loan-overlay .loan-dialog > header h2 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.4; }
+
+/* Search controls and lookup tables retain their own data and interactions. */
+:is(.v-dialog, .loan-dialog) .cari-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+:is(.v-dialog, .loan-dialog) .cari-bar > input {
+  flex: 1; min-width: 0; height: 36px; box-sizing: border-box;
+  padding: 0 12px !important; border: 1px solid var(--ds-border, #a0aab8);
+  border-radius: 8px !important; background: var(--ds-surface-raised, #fff) !important;
+  color: var(--ds-text, #1b2d4a); font: inherit;
+}
+:is(.v-dialog, .loan-dialog) .cari-bar > button {
+  flex-shrink: 0; min-height: 36px; padding: 0 14px !important;
+  border: 1px solid var(--ds-border, #a0aab8); border-radius: 8px !important;
+  background: var(--ds-surface-raised, #fff) !important; color: var(--ds-text, #1b2d4a) !important; font: inherit; font-weight: 600;
+}
+:is(.v-dialog, .loan-dialog) .cari-bar > input:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 1px; }
+:is(.v-dialog, .loan-dialog) .employee-lookup { font-size: 12px; }
+:is(.v-dialog, .loan-dialog) .lookup-scroll { border-color: var(--ds-border-light, #d5dce6); }
+:is(.v-dialog, .loan-dialog) .employee-lookup th { background: var(--ds-surface-inset, #e0e4ea); font-weight: 700; }
+:is(.v-dialog, .loan-dialog) .employee-lookup :is(th, td) { padding: 8px 10px; }
+:is(.v-dialog, .loan-dialog) .lookup-pagination { padding: 10px 0 0; gap: 6px; background: transparent; }
+:is(.v-dialog, .loan-dialog) .lookup-pagination button { min-height: 28px; }
+
+@media (max-width: 600px) {
+  :root { --dialog-padding: 16px; --dialog-radius: 12px; }
+  .v-dialog > .v-overlay__content { margin: 12px; max-width: calc(100% - 24px); }
+  .loan-overlay { padding: 12px !important; }
+  .loan-overlay > .loan-dialog { box-sizing: border-box; max-width: 100%; padding: 16px; }
+  .v-dialog .v-card-title, .loan-overlay .loan-dialog > header h2 { font-size: 16px !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .v-dialog > .v-overlay__scrim, .loan-overlay { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgb(9 20 35 / 65%) !important; }
+}

@@ -98,9 +98,7 @@ function closeTab() {
 }
 
 function doReset() {
-  if (props.resetFn) {
-    if (saving.value || props.resetDisabled || props.resetFn() === false) return;
-  }
+  if (!props.resetFn || saving.value || props.resetDisabled || props.resetFn() === false) return;
   showSuccess.value = false;
 }
 
@@ -154,7 +152,7 @@ function goCrumb(path?: string) {
       </div>
       <div class="footer-actions">
         <slot name="footer-actions">
-          <button class="form-btn ghost" :disabled="!!resetFn && (saving || resetDisabled)" @click="doReset">Reset</button>
+          <button class="form-btn ghost" :disabled="!resetFn || saving || resetDisabled" @click="doReset">Reset</button>
           <button v-if="showSave && canSaveNew" type="button" class="form-btn primary" :disabled="saving || saveDisabled" @click="doSave('new')">
             <MsIcon name="add" :size="15" /><span>Simpan Baru</span>
           </button>

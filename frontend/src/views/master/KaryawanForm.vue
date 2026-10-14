@@ -13,6 +13,8 @@ import TableTextInput from "@/components/fields/TableTextInput.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql, formatTanggal } from "@/utils/format";
 import { useLiveSearch } from "@/composables/useLiveSearch";
+import { useAuthStore } from "@/stores/authStore";
+import { sameFormState } from "@/utils/formSnapshot";
 import {
   OPSI_AGAMA,
   OPSI_BPJS,
@@ -26,9 +28,11 @@ import {
 
 const route = useRoute();
 const toast = useToast();
+const auth = useAuthStore();
 
 const nik = computed(() => (route.query.nik as string) || (route.query.id as string) || "");
 const isEdit = computed(() => nik.value !== "");
+const canSave = computed(() => auth.can("frmKaryawan", isEdit.value ? "edit" : "insert"));
 
 const values = reactive<Record<string, any>>({
   kar_status_aktif: null,
@@ -42,6 +46,7 @@ const jadwalTerpilih = ref<number[]>([]);
 const pkwt = ref<any[]>([]);
 const fotoBase64 = ref("");
 const fotoInput = ref<HTMLInputElement | null>(null);
+const fotoPending = ref(false);
 let fotoReader: FileReader | null = null;
 
 interface FormSnapshot {
@@ -70,13 +75,14 @@ function captureForm(): FormSnapshot {
 }
 
 const resetSnapshot = shallowRef<FormSnapshot | null>(isEdit.value ? null : captureForm());
+const resetDirty = computed(() => !!resetSnapshot.value && (
+  !sameFormState(captureForm(), resetSnapshot.value) || fotoPending.value
+));
 
 function resetForm(): boolean {
   const snapshot = resetSnapshot.value;
-  if (memuat.value || !snapshot) return false;
-  const changed = JSON.stringify(captureForm()) !== JSON.stringify(snapshot)
-    || !!fotoInput.value?.files?.length;
-  if (changed && !window.confirm(isEdit.value
+  if (memuat.value || !snapshot || !resetDirty.value) return false;
+  if (!window.confirm(isEdit.value
     ? "Batalkan seluruh perubahan yang belum disimpan dan kembalikan data awal karyawan?"
     : "Hapus seluruh input dan kembalikan form Tambah Karyawan ke kondisi awal?")) return false;
 
@@ -84,6 +90,7 @@ function resetForm(): boolean {
   const reader = fotoReader;
   fotoReader = null;
   reader?.abort();
+  fotoPending.value = false;
   const restored: FormSnapshot = JSON.parse(JSON.stringify(snapshot));
   for (const key of Object.keys(values)) delete values[key];
   Object.assign(values, restored.values);
@@ -100,6 +107,7 @@ function resetForm(): boolean {
   return true;
 }
 const memuat = ref(false);
+const formReady = ref(false);
 const activeTab = ref("pribadi");
 const tabContent = ref<HTMLElement | null>(null);
 const jadwalMenu = ref(false);
@@ -184,6 +192,8 @@ const ringkasanJadwal = computed(() => jadwalTerpilih.value.map((id) => {
 
 onMounted(async () => {
   memuat.value = true;
+  let recordLoaded = !isEdit.value;
+  let optionsLoaded = false;
   if (isEdit.value) {
     try {
       const { data } = await api.get(`/master/karyawan/${encodeURIComponent(nik.value)}`);
@@ -196,6 +206,7 @@ onMounted(async () => {
       jadwalTerpilih.value = (d.jadwal || []).map((j: any) => Number(j.JdId));
       pkwt.value = d.pkwt || [];
       resetSnapshot.value = captureForm();
+      recordLoaded = true;
     } catch (e) {
       toast.error(getErrorMessage(e, "Gagal memuat data karyawan"));
     }
@@ -208,9 +219,11 @@ onMounted(async () => {
     Object.assign(opt, opsiLain);
     bagian.value = daftarBagian || [];
     atasan.value = daftarAtasan || [];
+    optionsLoaded = true;
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat opsi form"));
   }
+  formReady.value = recordLoaded && optionsLoaded;
   memuat.value = false;
 });
 
@@ -229,6 +242,8 @@ function toggleJadwal(id: number) {
 }
 
 async function simpan(): Promise<string> {
+  if (!canSave.value) throw new Error("Tidak memiliki hak untuk menyimpan data karyawan.");
+  if (memuat.value || !formReady.value) throw new Error("Form belum siap disimpan.");
   if (![0, 1, "0", "1"].includes(values.kar_status_aktif)) {
     throw new Error("Status Aktif wajib dipilih (Aktif atau Non Aktif)");
   }
@@ -359,11 +374,16 @@ function onPilihFoto(ev: Event) {
   const reader = new FileReader();
   fotoReader?.abort();
   fotoReader = reader;
+  fotoPending.value = true;
   reader.onload = () => {
     if (fotoReader === reader) {
       fotoBase64.value = String(reader.result || "");
       fotoReader = null;
+      fotoPending.value = false;
     }
+  };
+  reader.onerror = reader.onabort = () => {
+    if (fotoReader === reader) { fotoReader = null; fotoPending.value = false; }
   };
   reader.readAsDataURL(file);
 }
@@ -384,9 +404,13 @@ onUnmounted(() => {
       { label: 'Master Karyawan', path: '/master/karyawan' },
       { label: isEdit ? 'Edit' : 'Tambah' },
     ]"
-    :save-fn="simpan"
+    :save-fn="canSave ? simpan : undefined"
+    :show-save="canSave"
+    :save-disabled="memuat || !formReady"
+    new-form-path="/master/karyawan/form"
+    transaction-module="frmKaryawan"
     :reset-fn="resetForm"
-    :reset-disabled="memuat || !resetSnapshot"
+    :reset-disabled="memuat || !resetSnapshot || !resetDirty"
     return-path="/master/karyawan"
   >
     <template #form-content>

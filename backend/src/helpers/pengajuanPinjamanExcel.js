@@ -12,7 +12,7 @@ export async function sendPengajuanPinjamanExcel(res, rows, { start, end }) {
     const rupiah = '#,##0;[Red](#,##0);0'
     const headers = ['TGL', 'NO', 'NIK', 'NAMA', 'UNIT', 'BANK', 'NO REK', 'PINJAMAN UANG KOPERASI']
     sheet.getRow(1).values = headers
-    sheet.getRow(1).height = 36
+    sheet.getRow(1).height = 30
     ;[14, 7, 18, 35, 10, 14, 24, 28].forEach((width, index) => { sheet.getColumn(index + 1).width = width })
 
     let totalCents = 0
@@ -34,7 +34,7 @@ export async function sendPengajuanPinjamanExcel(res, rows, { start, end }) {
         data.getCell(3).numFmt = '@'
         data.getCell(7).numFmt = '@'
         data.getCell(8).numFmt = rupiah
-        data.height = 20
+        data.height = 18
     })
 
     const totalRow = rows.length + 2
@@ -43,7 +43,7 @@ export async function sendPengajuanPinjamanExcel(res, rows, { start, end }) {
     sheet.getCell(`H${totalRow}`).value = rows.length
         ? { formula: `SUM(H2:H${totalRow - 1})`, result: totalCents / 100 } : 0
     sheet.getCell(`H${totalRow}`).numFmt = rupiah
-    sheet.getRow(totalRow).height = 26
+    sheet.getRow(totalRow).height = 25
     for (let rowIndex = 1; rowIndex <= totalRow; rowIndex++) {
         for (let col = 1; col <= 8; col++) {
             const cell = sheet.getCell(rowIndex, col)

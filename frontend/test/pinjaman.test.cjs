@@ -14,6 +14,7 @@ function compile(source, requireModule, globals = {}) {
   return module.exports;
 }
 const utility = compile(read('utils/pinjaman.ts'), require);
+const snapshotUtils = compile(read('utils/formSnapshot.ts'), require);
 const dateFormat = compile(read('utils/format.ts'), require);
 const columnFilter = compile(read('utils/columnFilter.ts'), require);
 // Vue nextTick flushes watchers, not all cross-VM Axios promise continuations.
@@ -40,7 +41,7 @@ function fixture(kind, settings = {}) {
     async put(url, body) { calls.push({ method: 'put', url, body }); return { data: { data: { nomor: settings.id } } }; },
     async delete(url, config) { calls.push({ method: 'delete', url, config }); return { data: { data: {} } }; },
   };
-  const resetModule = compile(read('composables/useTransactionReset.ts'), () => vueModule, { window: { confirm: () => confirm } });
+  const resetModule = compile(read('composables/useTransactionReset.ts'), name => name === 'vue' ? vueModule : snapshotUtils, { window: { confirm: () => confirm } });
   const lookupModule = compile(read('composables/useKaryawanLookup.ts'), name => name === 'vue' ? vueModule : { api });
   const liveSearchModule = compile(read('composables/useLiveSearch.ts'), () => ({ ...vueModule, onDeactivated() {}, onUnmounted() {} }), { setTimeout, clearTimeout });
   const files = { form: 'views/transaksi/PinjamanForm.vue', view: 'views/transaksi/PinjamanView.vue', browse: 'components/BaseBrowse.vue' };

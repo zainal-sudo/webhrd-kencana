@@ -12,8 +12,12 @@ function fixture(edit = false) {
   const block = source.slice(source.indexOf('const values = reactive'), source.indexOf('const memuat = ref(false)'));
   let todayCalls = 0;
   const module = { exports: {} };
+  const utils = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/utils/formSnapshot.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+    { module: utils, exports: utils.exports });
   const globals = {
     ...vue, isEdit: vue.ref(edit), memuat: vue.ref(false),
+    ...utils.exports,
     jadwalMenu: vue.ref(false), cariJadwal: vue.ref(''),
     todaySql: () => { todayCalls++; return '2026-10-12'; },
     window: { confirm: () => true }, module, exports: module.exports,

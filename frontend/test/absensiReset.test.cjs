@@ -14,10 +14,11 @@ function compile(source, requireModule, globals = {}) {
     { module, exports: module.exports, require: requireModule, ...globals });
   return module.exports;
 }
+const snapshotUtils = compile(read('utils/formSnapshot.ts'), require);
 function fixture(edit, fail = false) {
   const scope = vue.effectScope(), mounted = [], calls = [], errors = [];
   let confirmed = true, cleared = 0, cancelled = 0;
-  const { useTransactionReset } = compile(read('composables/useTransactionReset.ts'), name => name === 'vue' ? vue : {}, { window: { confirm: () => confirmed } });
+  const { useTransactionReset } = compile(read('composables/useTransactionReset.ts'), name => name === 'vue' ? vue : snapshotUtils, { window: { confirm: () => confirmed } });
   const source = read('views/absensi/AbsensiForm.vue').match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
   const api = { async get(url, config) {
     calls.push({ url, config });
@@ -50,7 +51,7 @@ for (const edit of [false, true]) {
       assert.equal(f.resetState.disabled.value, true);
       await f.mount();
       const initial = snapshot(f);
-      assert.equal(f.resetState.disabled.value, false);
+      assert.equal(f.resetState.disabled.value, true);
       assert.equal(initial.values.nik, edit ? 'ABC' : '');
       assert.equal(initial.ada, edit);
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -69,6 +70,7 @@ for (const edit of [false, true]) {
         assert.equal(f.resetState.reset(), true);
         await settle();
         assert.deepEqual(snapshot(f), initial);
+        assert.equal(f.resetState.disabled.value, true);
         assert.equal(f.calls.length, count);
         assert.equal(f.otorisasiToken.value, '');
         assert.equal(f.otorisasiDiterima.value, false);
@@ -94,6 +96,7 @@ test('Absensi failed Edit load keeps Reset disabled; loading and lookup also blo
   const f = fixture(false);
   try {
     await f.mount();
+    f.values.scan1 = '12:00:00';
     for (const flag of [f.memuat, f.cariLoading]) {
       flag.value = true;
       assert.equal(f.resetState.reset(), false);

@@ -11,6 +11,8 @@ import FDate from "@/components/fields/FDate.vue";
 import FNumber from "@/components/fields/FNumber.vue";
 import FTextarea from "@/components/fields/FTextarea.vue";
 import { api, getErrorMessage } from "@/api/axios";
+import { useAuthStore } from "@/stores/authStore";
+import { useTransactionReset } from "@/composables/useTransactionReset";
 
 export interface MasterField {
   key: string;
@@ -44,26 +46,40 @@ const props = withDefaults(
 
 const route = useRoute();
 const toast = useToast();
+const auth = useAuthStore();
+const permissionModule = computed(() => String(route.meta.form ?? ""));
 
 const isEdit = computed(() => !!route.query[props.idParam]);
 const idValue = computed(() => (route.query[props.idParam] as string) || "");
 const values = reactive<Record<string, any>>({});
 const saving = ref(false);
+const loading = ref(true);
+const ready = ref(false);
+const canSave = computed(() => !!permissionModule.value && auth.can(permissionModule.value, isEdit.value ? "edit" : "insert"));
+const resetState = useTransactionReset({ values }, {
+  isEdit: () => isEdit.value,
+  blocked: () => loading.value || !ready.value || saving.value,
+  afterRestore: () => {},
+});
 
 onMounted(async () => {
   for (const f of props.fields) values[f.key] = null;
-  if (!isEdit.value) return;
+  if (!isEdit.value) { ready.value = true; resetState.capture(); loading.value = false; return; }
   try {
     const { data } = await api.get(`${props.endpoint}/${encodeURIComponent(idValue.value)}`);
     for (const f of props.fields) {
       values[f.key] = data.data[f.key] ?? null;
     }
+    ready.value = true;
+    resetState.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data"));
-  }
+  } finally { loading.value = false; }
 });
 
 async function save(): Promise<string> {
+  if (!canSave.value) throw new Error("Tidak memiliki hak untuk menyimpan data master.");
+  if (loading.value || !ready.value || saving.value || resetState.restoring.value) throw new Error("Form belum siap disimpan.");
   for (const f of props.fields) {
     if (f.type === "time") assertClockTime(values[f.key], f.label);
     if (f.required && (values[f.key] === null || values[f.key] === undefined || String(values[f.key]).trim() === "")) {
@@ -98,7 +114,13 @@ const gridCols = computed(() => {
       { label: moduleCrumb.label, path: moduleCrumb.path },
       { label: isEdit ? 'Edit' : 'Tambah' },
     ]"
-    :save-fn="save"
+    :save-fn="canSave ? save : undefined"
+    :show-save="canSave"
+    :save-disabled="loading || !ready || saving || resetState.restoring.value"
+    :reset-fn="resetState.reset"
+    :reset-disabled="resetState.disabled.value"
+    :new-form-path="route.path"
+    :transaction-module="permissionModule"
     :return-path="returnPath"
   >
     <template #form-content>
