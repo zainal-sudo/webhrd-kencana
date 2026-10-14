@@ -198,7 +198,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
         </div>
       </template>
       <template #cell="{ row, column, text }">{{ display(row, column, text) }}</template>
-      <template #expanded-row="{ row }"><PinjamanSchedule :rows="row.Potongan || []" /></template>
+      <template #expanded-row="{ row }"><PinjamanSchedule :rows="row.Potongan || []" :show-title="false" /></template>
       <template #row-actions="{ row }">
         <button type="button" class="detail-button" @click="openDetail(row)">Detail</button>
       </template>
@@ -221,17 +221,29 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
         </section>
       </div>
       <div v-if="detailOpen" class="loan-overlay" @click.self="closeDetail" @keydown.esc="closeDetail">
-        <section class="loan-dialog" role="dialog" aria-modal="true" aria-labelledby="loan-detail-title" tabindex="-1">
+        <section class="loan-dialog loan-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="loan-detail-title" tabindex="-1">
           <header><h2 id="loan-detail-title">Detail Pinjaman</h2><button type="button" class="close-button" aria-label="Tutup Detail Pinjaman" title="Tutup" autofocus @click="closeDetail"><MsIcon name="close" :size="22" /></button></header>
           <p v-if="detailLoading" role="status">Memuat detail…</p>
-          <dl v-else-if="detail">
-            <dt>Nomor Pinjaman</dt><dd>{{ detail.Nomor || '—' }}</dd>
-            <template v-for="col in columns" :key="col.key"><dt>{{ col.label }}</dt><dd>{{ display(detail, col) }}</dd></template>
-            <dt>Status</dt><dd>{{ detail.Status || '—' }}</dd>
-          </dl>
+           <template v-else-if="detail">
+             <dl class="transaction-info" aria-label="Informasi transaksi">
+               <div><dt>Nomor Pinjaman</dt><dd>{{ detail.Nomor || '—' }}</dd></div>
+               <div v-for="col in columns.filter(item => item.key === 'Tanggal')" :key="col.key"><dt>Tanggal Pinjaman</dt><dd>{{ display(detail, col) }}</dd></div>
+             </dl>
+               <section class="employee-card" aria-label="Data karyawan">
+                 <dl>
+                   <div v-for="employeeCol in columns.filter(item => ['Nik', 'Nama', 'Pabrik', 'Bagian'].includes(item.key))" :key="employeeCol.key" class="employee-field">
+                     <dt>{{ employeeCol.label }}</dt><dd>{{ display(detail, employeeCol) }}</dd>
+                   </div>
+                </dl>
+              </section>
+             <dl class="loan-data" aria-label="Data pinjaman">
+               <div v-for="col in columns.filter(item => !['Tanggal', 'Nik', 'Nama', 'Pabrik', 'Bagian'].includes(item.key))" :key="col.key"><dt>{{ col.label }}</dt><dd>{{ display(detail, col) }}</dd></div>
+               <div class="loan-status"><dt>Status</dt><dd><span class="status-badge" :class="{ 'status-outstanding': detail.Status === 'Belum Lunas', 'status-paid': detail.Status === 'Lunas' }">{{ detail.Status || '—' }}</span></dd></div>
+             </dl>
+           </template>
           <p v-else>Detail tidak dapat dimuat.</p>
           <PinjamanSchedule v-if="detail && !detailLoading" class="detail-schedule" :rows="detail.Potongan || []" />
-          <small>Read-only. Periode adalah rencana potongan, bukan histori pembayaran.</small>
+           <small class="detail-footnote">Read-only. Periode adalah rencana potongan, bukan histori pembayaran.</small>
         </section>
       </div>
     </Teleport>
@@ -299,4 +311,41 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .loan-dialog dd { margin: 0; overflow-wrap: anywhere; }
 .loan-dialog dt { font-weight: 600; }
 @media (max-width: 600px) { .loan-summary { grid-template-columns: 1fr; } .loan-dialog dl { grid-template-columns: 1fr; } }
+/* Detail-only layout: shared browse, delete dialog and schedule stay unchanged. */
+.loan-detail-dialog { box-sizing: border-box; width: min(680px, 100%); max-height: 90dvh; padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.loan-detail-dialog > header { flex-shrink: 0; }
+.loan-detail-dialog h2 { margin: 0; font-size: 19px; line-height: 1.4; }
+.loan-detail-dialog dl { margin: 0; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.loan-detail-dialog dl > div { min-width: 0; }
+.loan-detail-dialog dt { margin: 0 0 4px; font-size: 10px; line-height: 1.4; font-weight: 600; letter-spacing: .02em; color: var(--ds-text-secondary, #55637a); }
+.loan-detail-dialog dd { font-size: 13px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; }
+.loan-detail-dialog .transaction-info { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.transaction-info > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: baseline; gap: 12px; }
+.loan-detail-dialog .transaction-info dt { margin: 0; font-size: 12px; letter-spacing: 0; }
+.loan-detail-dialog .employee-card { min-width: 0; padding: 12px 14px; border: 1px solid var(--ds-border-light, #dde3ec); border-radius: 12px; background: var(--ds-surface-raised, #fff); }
+.loan-detail-dialog .employee-card dl { grid-template-rows: repeat(2, auto); grid-auto-flow: column; }
+.loan-detail-dialog .loan-data { padding: 0 15px; }
+.loan-status { grid-column: 1 / -1; }
+.status-badge { display: inline-block; padding: 3px 9px; border: 1px solid var(--ds-border-light, #dde3ec); border-radius: 999px; background: var(--ds-surface-inset, #eef1f6); color: var(--ds-text-secondary, #55637a); font-size: 11px; line-height: 1.4; }
+.status-badge.status-outstanding { background: #fef3c7; border-color: #f3d577; color: #854d0e; }
+.status-badge.status-paid { background: #dcfce7; border-color: #86d5a0; color: #166534; }
+:global(:root[data-theme="dark"]) .status-badge.status-outstanding { background: #443719; border-color: #79612b; color: #fde68a; }
+:global(:root[data-theme="dark"]) .status-badge.status-paid { background: #193c2e; border-color: #30664a; color: #a7f3c1; }
+.loan-detail-dialog .detail-schedule { margin: 0; }
+.detail-schedule :deep(h3) { margin-bottom: 8px; font-size: 13px; }
+.detail-schedule :deep(.schedule-scroll) { border-radius: 10px; box-shadow: 0 2px 8px rgb(0 0 0 / 5%); }
+.detail-schedule :deep(table) { table-layout: fixed; }
+.detail-schedule :deep(th), .detail-schedule :deep(td) { padding: 7px 12px; overflow-wrap: anywhere; }
+.detail-schedule :deep(.amount) { white-space: normal; font-variant-numeric: tabular-nums; }
+.detail-schedule :deep(thead), .detail-schedule :deep(tfoot) { background: var(--ds-surface-inset, #eef1f6); }
+.detail-schedule :deep(tfoot td) { font-weight: 800; }
+.detail-footnote { color: var(--ds-text-muted, #6b7a90); font-size: 10px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .loan-detail-dialog { padding: 16px; gap: 14px; }
+  .loan-detail-dialog dl { grid-template-columns: minmax(0, 1fr); }
+  .loan-detail-dialog .employee-card dl { grid-template-rows: none; grid-auto-flow: row; }
+  .transaction-info > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .loan-detail-dialog .loan-data { padding: 0 15px; }
+  .detail-schedule :deep(th), .detail-schedule :deep(td) { padding: 7px 8px; }
+}
 </style>

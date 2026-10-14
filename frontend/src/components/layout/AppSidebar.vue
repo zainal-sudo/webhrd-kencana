@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { usePermissionStore } from "@/stores/permissionStore";
@@ -15,8 +15,86 @@ const { closeAllTabs } = useTabNavigation();
 
 const collapsed = ref(false);
 const openGroups = ref<Record<string, boolean>>({});
+const flyoutKey = ref("");
+const flyout = ref<HTMLElement | null>(null);
+const flyoutAnchor = ref<HTMLElement | null>(null);
+const flyoutPosition = ref({ left: 0, top: 0, width: 260, maxHeight: 400 });
+let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const tree = computed(() => permissionStore.menuTree);
+const flyoutGroup = computed(() => collapsed.value ? tree.value.find(group => group.key === flyoutKey.value) : undefined);
+
+function cancelClose() {
+  if (closeTimer !== undefined) clearTimeout(closeTimer);
+  closeTimer = undefined;
+}
+function closeFlyout() {
+  cancelClose();
+  flyoutKey.value = "";
+  flyoutAnchor.value = null;
+}
+function scheduleClose() {
+  cancelClose();
+  // Allow crossing the small gap between icon and flyout without flicker.
+  closeTimer = setTimeout(closeFlyout, 180);
+}
+function showFlyout(key: string, event: Event) {
+  if (!collapsed.value) return;
+  const group = tree.value.find(item => item.key === key);
+  if (!group?.children?.length) return;
+  cancelClose();
+  const anchor = event.currentTarget as HTMLElement;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(260, window.innerWidth - 16);
+  const maxHeight = Math.max(40, window.innerHeight - 16);
+  const height = Math.min(maxHeight, 44 + group.children.length * 38);
+  const left = rect.right + 6 + width <= window.innerWidth - 8 ? rect.right + 6 : rect.left - width - 6;
+  flyoutPosition.value = { left: Math.max(8, left), top: Math.max(8, Math.min(rect.top, window.innerHeight - height - 8)), width, maxHeight };
+  flyoutAnchor.value = anchor;
+  flyoutKey.value = key;
+}
+function groupClick(key: string, event: Event) {
+  if (collapsed.value) showFlyout(key, event);
+  else toggle(key);
+}
+async function groupKeydown(key: string, event: KeyboardEvent) {
+  if (!collapsed.value || !['ArrowRight', 'ArrowDown', 'Enter'].includes(event.key)) return;
+  event.preventDefault();
+  showFlyout(key, event);
+  await nextTick();
+  flyout.value?.querySelector<HTMLButtonElement>('button')?.focus();
+}
+function dismissOutside(event: Event) {
+  const target = event.target as Node;
+  if (!flyout.value?.contains(target) && !flyoutAnchor.value?.contains(target)) closeFlyout();
+}
+function focusOut(event: FocusEvent) {
+  const target = event.relatedTarget as Node | null;
+  if (target && (flyout.value?.contains(target) || flyoutAnchor.value?.contains(target))) return;
+  scheduleClose();
+}
+function escapeFlyout(event: KeyboardEvent) {
+  if (event.key !== "Escape" || !flyoutKey.value) return;
+  event.preventDefault();
+  const anchor = flyoutAnchor.value;
+  closeFlyout();
+  // Focusing the trigger opens the flyout; close again after restoring focus.
+  anchor?.focus();
+  closeFlyout();
+}
+watch(() => [collapsed.value, route.path], closeFlyout);
+watch(tree, groups => { if (!groups.some(group => group.key === flyoutKey.value && group.children?.length)) closeFlyout(); });
+onMounted(() => {
+  document.addEventListener("pointerdown", dismissOutside);
+  document.addEventListener("keydown", escapeFlyout);
+  window.addEventListener("resize", closeFlyout);
+});
+onUnmounted(() => {
+  closeFlyout();
+  document.removeEventListener("pointerdown", dismissOutside);
+  document.removeEventListener("keydown", escapeFlyout);
+  window.removeEventListener("resize", closeFlyout);
+});
 
 watch(
   () => [route.path, tree.value] as const,
@@ -60,15 +138,26 @@ function go(routePath?: string) {
 <template>
   <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-head">
+      <button type="button" class="menu-item dashboard-item" :class="{ active: isActive('/dashboard') }"
+        :aria-current="isActive('/dashboard') ? 'page' : undefined" aria-label="Dashboard" title="Dashboard"
+        @click="router.push('/dashboard')">
+        <span class="menu-item-dot"><MsIcon name="dashboard" :size="17" /></span>
+        <span v-if="!collapsed" class="menu-item-text">Dashboard</span>
+        <span v-if="!collapsed && isActive('/dashboard')" class="menu-item-mark"></span>
+      </button>
       <button class="sidebar-collapse" @click="collapsed = !collapsed">
         <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
       </button>
     </div>
 
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" @scroll="closeFlyout">
       <template v-for="group in tree" :key="group.key">
         <div class="menu-group">
-          <button class="menu-group-head" @click="toggle(group.key)">
+          <button class="menu-group-head" :class="{ 'flyout-open': collapsed && flyoutKey === group.key }"
+            :aria-label="group.label" :aria-expanded="collapsed ? flyoutKey === group.key : isGroupOpen(group.key)"
+            :aria-controls="collapsed && flyoutKey === group.key ? 'sidebar-flyout' : undefined"
+            @click="groupClick(group.key, $event)" @mouseenter="showFlyout(group.key, $event)" @mouseleave="scheduleClose"
+            @focus="showFlyout(group.key, $event)" @blur="focusOut" @keydown="groupKeydown(group.key, $event)">
             <span class="menu-group-icon">
               <MsIcon :name="normalizeIcon(group.icon)" :size="17" />
             </span>
@@ -110,6 +199,18 @@ function go(routePath?: string) {
       </button>
     </div>
   </aside>
+  <Teleport to="body">
+    <nav v-if="flyoutGroup" id="sidebar-flyout" ref="flyout" class="sidebar-flyout" :aria-label="`${flyoutGroup.label} — menu`"
+      :style="{ left: `${flyoutPosition.left}px`, top: `${flyoutPosition.top}px`, width: `${flyoutPosition.width}px`, maxHeight: `${flyoutPosition.maxHeight}px` }"
+      @mouseenter="cancelClose" @mouseleave="scheduleClose" @focusin="cancelClose" @focusout="focusOut">
+      <div class="flyout-heading"><MsIcon :name="normalizeIcon(flyoutGroup.icon)" :size="17" /><span>{{ flyoutGroup.label }}</span></div>
+      <button v-for="child in flyoutGroup.children" :key="child.key" type="button" class="flyout-item"
+        :class="{ active: isActive(child.route) }" :aria-current="isActive(child.route) ? 'page' : undefined"
+        @click="go(child.route); closeFlyout()">
+        <MsIcon :name="normalizeIcon(child.icon)" :size="16" /><span>{{ child.label }}</span>
+      </button>
+    </nav>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -129,6 +230,7 @@ function go(routePath?: string) {
 }
 .sidebar-head {
   height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -243,6 +345,20 @@ function go(routePath?: string) {
   color: #fff;
   border-left-color: #5b79b8;
 }
+.menu-group-head.flyout-open { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.menu-group-head:focus-visible { outline: 2px solid var(--ds-primary, #5b79b8); outline-offset: -2px; }
+.sidebar-flyout { position: fixed; z-index: 1500; overflow-y: auto; box-sizing: border-box; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; background: var(--ds-sidebar-bg, #1b2d4a); color: rgba(255, 255, 255, 0.78); box-shadow: 0 6px 20px rgb(0 0 0 / 18%); }
+.flyout-heading { display: flex; align-items: center; gap: 8px; padding: 9px 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; font-weight: 700; color: #7fb0e8; }
+.flyout-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none; border-left: 3px solid transparent; border-radius: 4px; background: transparent; color: rgba(255, 255, 255, 0.62); text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+.flyout-item span { min-width: 0; overflow-wrap: anywhere; }
+.flyout-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.flyout-item.active { background: rgba(59, 89, 152, 0.35); color: #fff; border-left-color: #5b79b8; font-weight: 700; }
+.flyout-item:focus-visible { outline: 2px solid #7fb0e8; outline-offset: -2px; }
+.dashboard-item { flex: 1; min-width: 0; height: 100%; padding: 9px 6px; font-weight: 600; }
+.dashboard-item:focus-visible { outline: 2px solid var(--ds-primary, #5b79b8); outline-offset: -2px; }
+.sidebar-collapse { flex-shrink: 0; }
+.sidebar.collapsed .sidebar-head { flex-direction: column; height: auto; padding: 4px 0; gap: 2px; }
+.sidebar.collapsed .dashboard-item { flex: none; width: 38px; height: 32px; padding: 6px 7px; }
 .menu-item-dot {
   display: flex;
   align-items: center;
