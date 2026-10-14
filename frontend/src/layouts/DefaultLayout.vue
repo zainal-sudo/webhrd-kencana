@@ -79,7 +79,7 @@ function toggleFullscreen() {
       <div class="topbar-left">
         <button class="brand-btn" @click="goHome">
           <span class="brand-badge">
-            <MsIcon name="groups" :size="22" filled />
+            <img class="brand-logo" src="/img/logo_hris.png" alt="Logo HRIS" />
           </span>
           <span class="brand-text">
             <strong>HRIS &mdash; Kencana</strong>
@@ -179,9 +179,17 @@ function toggleFullscreen() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4c9bd6, #1b5e9e);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Follow the PNG alpha silhouette, not the rectangular image container. */
+  filter:
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.65))
+    drop-shadow(0 0 7px rgba(120, 180, 255, 0.42));
 }
 .brand-text {
   display: flex;

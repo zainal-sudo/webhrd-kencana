@@ -26,7 +26,6 @@ function absensiRowKey(row: Record<string, any>): string {
 }
 
 const columns: BrowseColumn[] = [
-  { key: "Nik", label: "Kode Absensi", width: "110px" },
   { key: "NIK", label: "NIK", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },
   { key: "Tanggal", label: "Tanggal", type: "date", width: "100px" },

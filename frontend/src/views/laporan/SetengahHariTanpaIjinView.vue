@@ -17,7 +17,6 @@ const router = useRouter();
 const tabsStore = useTabsStore();
 
 const columns: BrowseColumn[] = [
-  { key: "Kode", label: "Kode Absensi", width: "110px" },
   { key: "Nik", label: "NIK", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },
   { key: "Sistem", label: "Sistem", width: "80px" },

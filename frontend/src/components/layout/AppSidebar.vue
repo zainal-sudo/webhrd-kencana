@@ -14,7 +14,7 @@ const tabsStore = useTabsStore();
 const { closeAllTabs } = useTabNavigation();
 
 const collapsed = ref(false);
-const openGroups = ref<Record<string, boolean>>({});
+const openGroupKey = ref("");
 const flyoutKey = ref("");
 const flyout = ref<HTMLElement | null>(null);
 const flyoutAnchor = ref<HTMLElement | null>(null);
@@ -99,21 +99,19 @@ onUnmounted(() => {
 watch(
   () => [route.path, tree.value] as const,
   ([path, groups]) => {
-    for (const g of groups) {
-      if (g.children?.some((c) => c.route === path)) {
-        openGroups.value[g.key] = true;
-      }
-    }
+    const activeGroup = groups.find(g => g.children?.some(c => c.route === path));
+    if (activeGroup) openGroupKey.value = activeGroup.key;
+    else if (!groups.some(g => g.key === openGroupKey.value)) openGroupKey.value = "";
   },
   { immediate: true }
 );
 
 function toggle(groupKey: string) {
-  openGroups.value[groupKey] = !openGroups.value[groupKey];
+  openGroupKey.value = openGroupKey.value === groupKey ? "" : groupKey;
 }
 
 function isGroupOpen(groupKey: string) {
-  return !!openGroups.value[groupKey];
+  return openGroupKey.value === groupKey;
 }
 
 function isActive(routePath?: string) {
@@ -165,11 +163,15 @@ function go(routePath?: string) {
             <MsIcon
               v-if="!collapsed"
               class="menu-group-chev"
-              :name="isGroupOpen(group.key) ? 'expand_less' : 'expand_more'"
+              :class="{ expanded: isGroupOpen(group.key) }"
+              name="expand_more"
               :size="16"
             />
           </button>
-          <div class="menu-group-body" v-if="!collapsed" v-show="isGroupOpen(group.key)">
+          <div class="menu-group-body" v-if="!collapsed" :class="{ expanded: isGroupOpen(group.key) }"
+            :inert="!isGroupOpen(group.key)" :aria-hidden="!isGroupOpen(group.key)">
+            <div class="menu-group-content">
+              <div class="menu-group-items">
             <button
               v-for="child in group.children"
               :key="child.key"
@@ -183,6 +185,8 @@ function go(routePath?: string) {
               <span class="menu-item-text">{{ child.label }}</span>
               <span v-if="isActive(child.route)" class="menu-item-mark"></span>
             </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -317,9 +321,28 @@ function go(routePath?: string) {
 }
 .menu-group-chev {
   color: rgba(255, 255, 255, 0.45);
+  transition: transform 0.28s ease;
 }
+.menu-group-chev.expanded { transform: rotate(180deg); }
 .menu-group-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+.menu-group-body.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.menu-group-content {
+  min-height: 0;
+  overflow: hidden;
+}
+.menu-group-items {
   padding: 2px 8px 6px 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-group-body, .menu-group-chev, .sidebar { transition: none; }
 }
 .menu-item {
   width: 100%;

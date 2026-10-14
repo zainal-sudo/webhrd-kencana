@@ -26,7 +26,6 @@ function formatJam(value: unknown): string {
 }
 
 const columns: BrowseColumn[] = [
-  { key: "Kode", label: "Kode Absensi", width: "110px" },
   { key: "Tanggal", label: "Tanggal", type: "date", width: "95px" },
   { key: "Nik", label: "NIK", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },

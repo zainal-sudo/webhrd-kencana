@@ -94,6 +94,13 @@ export function jadwalPinjaman(tanggal, pinjam, angsuran) {
         periode_potong2: labels[1] ?? null, nilai_potong2: angsuran === 2 ? pinjam / 2 : null }
 }
 
+export function validasiRekeningPinjaman(bank, norek) {
+    const panjang = bank === 'CIMB' ? 12 : bank === 'BSI' ? 10 : null
+    if (panjang && (typeof norek !== 'string' || !new RegExp(`^[0-9]{${panjang}}$`).test(norek))) {
+        throw gagal(`No. rekening ${bank} harus tepat ${panjang} digit angka.`)
+    }
+}
+
 export function validasiPinjaman(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw gagal('Data pinjaman tidak valid.')
     if (typeof body.norek !== 'string') throw gagal('No. rekening wajib berupa teks agar nol di depan tetap tersimpan.')
@@ -105,6 +112,7 @@ export function validasiPinjaman(body) {
     if (!Number.isInteger(data.angsuran) || !PINJAMAN_OPTIONS.angsuran.includes(data.angsuran)) throw gagal('Jumlah cicilan harus 1x atau 2x.')
     if (!PINJAMAN_OPTIONS.bank.includes(data.bank)) throw gagal('Bank harus BSI atau CIMB.')
     if (!data.norek || [...data.norek].length > 50) throw gagal('No. rekening wajib diisi, maksimal 50 karakter.')
+    validasiRekeningPinjaman(data.bank, data.norek)
     return data
 }
 
@@ -228,6 +236,7 @@ export async function editPinjaman(pool, nomor, body) {
         if (data.angsuran !== (row.Cicilan == null ? null : Number(row.Cicilan)) && (!Number.isInteger(data.angsuran) || !PINJAMAN_OPTIONS.angsuran.includes(data.angsuran))) throw gagal('Jumlah cicilan baru harus 1x atau 2x.')
         if (data.bank !== row.Bank && !PINJAMAN_OPTIONS.bank.includes(data.bank)) throw gagal('Bank baru harus BSI atau CIMB.')
         if (data.norek !== row.Norek && (typeof data.norek !== 'string' || !data.norek.trim() || [...data.norek.trim()].length > 50)) throw gagal('No. rekening wajib diisi, maksimal 50 karakter.')
+        validasiRekeningPinjaman(data.bank, data.norek)
         const nominalChanged = data.pinjam !== (row.Pinjam == null ? null : Number(row.Pinjam))
         const scheduleChanged = nominalChanged || data.tanggal !== kalkulasiPinjaman(row).Tanggal
             || data.angsuran !== (row.Cicilan == null ? null : Number(row.Cicilan))

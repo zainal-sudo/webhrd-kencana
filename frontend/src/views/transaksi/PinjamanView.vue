@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import DateInput from "@/components/fields/DateInput.vue";
@@ -9,6 +9,7 @@ import { api, getErrorMessage } from "@/api/axios";
 import { downloadFile } from "@/api";
 import { useAuthStore } from "@/stores/authStore";
 import { rupiah } from "@/utils/pinjaman";
+import { pinjamanRevision } from "@/utils/pinjamanRefresh";
 import { formatTanggal } from "@/utils/format";
 import type { BrowseColumn } from "@/types";
 
@@ -68,6 +69,8 @@ async function exportPengajuan() {
   } finally { exporting.value = false; }
 }
 const browse = ref<{ refresh: () => void; refreshAfterDelete: () => void } | null>(null);
+// Keep cached browse rows and its load-start summary fresh even while a form is open.
+watch(pinjamanRevision, () => browse.value?.refresh());
 const deleteTarget = ref<Record<string, any> | null>(null);
 const deleteOpen = ref(false);
 const deleteLoading = ref(false);

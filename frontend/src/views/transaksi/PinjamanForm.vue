@@ -15,11 +15,13 @@ import { useTransactionReset } from "@/composables/useTransactionReset";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
 import { todaySql, formatTanggal } from "@/utils/format";
-import { periodePinjaman, rupiah } from "@/utils/pinjaman";
+import { periodePinjaman, rupiah, validasiRekeningPinjaman } from "@/utils/pinjaman";
+import { notifyPinjamanSaved } from "@/utils/pinjamanRefresh";
 
 const auth = useAuthStore();
 // Each cached tab owns its document ID; do not follow another tab's route query.
 const nomorEdit = String(useRoute().query.id || "");
+const cicilanGroupName = `pinjaman-cicilan:${useRoute().fullPath}`;
 const isEdit = !!nomorEdit;
 const original = ref<Record<string, any> | null>(null);
 const toast = useToast();
@@ -121,6 +123,7 @@ async function simpan() {
   if (!(isEdit && angsuran === original.value?.Cicilan) && !options.value.angsuran.includes(Number(angsuran))) throw new Error("Pilih cicilan 1x atau 2x.");
   if (!(isEdit && bank === original.value?.Bank) && !options.value.bank.includes(bank)) throw new Error("Pilih bank BSI atau CIMB.");
   if (!(isEdit && norek === original.value?.Norek) && (!norek || [...norek].length > 50)) throw new Error("No. rekening wajib diisi, maksimal 50 karakter.");
+  validasiRekeningPinjaman(bank, norek);
   if (isEdit && !window.confirm(`Simpan perubahan pinjaman ${nomorEdit}? Nomor dan jumlah yang sudah dibayar tetap. Perubahan nominal/cicilan memengaruhi sisa pinjaman dan rencana potongan; pastikan sudah diverifikasi.`)) throw new Error("Perubahan dibatalkan.");
   saving.value = true;
   try {
@@ -133,6 +136,7 @@ async function simpan() {
         .map(i => ({ periode: data.data[`periode_potong${i}`], nominal: data.data[`nilai_potong${i}`] })) };
     ++nomorRequest;
     values.nomor = data.data.nomor; saved.value = true;
+    notifyPinjamanSaved();
     return `Pinjaman ${data.data.nomor} berhasil ${isEdit ? "diubah" : "disimpan"}.`;
   } finally { saving.value = false; }
 }
@@ -199,8 +203,16 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
            <div><dt>Bagian</dt><dd>{{ info.Bagian || '—' }}</dd></div>
          </dl>
         <FSelect label="Nominal Pinjaman" v-model="values.pinjam" :options="nominalOptions" required :disabled="disabled || processed" />
-        <FSelect label="Bank" v-model="values.bank" :options="bankOptions" required :disabled="disabled" />
-        <FSelect label="Jumlah Cicilan" v-model="values.angsuran" :options="angsuranOptions" required :disabled="disabled || processed" />
+          <div class="cicilan-field" :class="{ 'is-disabled': disabled || processed }">
+            <span class="cicilan-label">Jumlah Cicilan <span class="req">*</span></span>
+            <div class="cicilan-options" role="radiogroup" aria-label="Jumlah Cicilan" aria-required="true" :aria-disabled="disabled || processed">
+              <label v-for="option in angsuranOptions" :key="option.value" class="cicilan-option">
+                <input v-model="values.angsuran" type="radio" :name="cicilanGroupName" :value="option.value" :disabled="disabled || processed" required />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+          </div>
+         <FSelect label="Bank" v-model="values.bank" :options="bankOptions" required :disabled="disabled" />
         <div class="rekening">
           <label for="pinjaman-norek">No. Rekening <span class="req">*</span></label>
            <input id="pinjaman-norek" :value="values.norek" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="50" :disabled="disabled" @input="inputRekening" />
@@ -256,6 +268,14 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
 .loan-fields :deep(.field) { gap: 3px; }
 .loan-fields :deep(input), .loan-fields :deep(select) { height: 32px; border-radius: 4px; background: var(--ds-surface-raised); color: var(--ds-text); }
 .loan-fields :deep(input:disabled), .loan-fields :deep(select:disabled) { background: var(--ds-surface); color: var(--ds-text-muted, var(--ds-text)); }
+.cicilan-field { display: flex; align-items: center; gap: 3px; min-width: 0; min-height: 32px; }
+.cicilan-label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
+.cicilan-field .req { color: var(--ds-error, #dc2626); }
+.cicilan-options { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-height: 32px; }
+.cicilan-option { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ds-text); cursor: pointer; }
+.loan-fields .cicilan-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--ds-primary, #3b5998); cursor: pointer; }
+.cicilan-field.is-disabled .cicilan-option { color: var(--ds-text-muted, var(--ds-text)); cursor: default; }
+.cicilan-field.is-disabled input { cursor: default; }
 .form-schedule { margin: 0; }
 .payment-summary { display: grid; gap: 12px; margin: 20px 0 0; }
 .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }

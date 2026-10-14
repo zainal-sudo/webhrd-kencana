@@ -15,3 +15,10 @@ export function rupiah(value: unknown): string {
   if (value === null || value === undefined || value === "" || !Number.isFinite(Number(value))) return "—";
   return `Rp${Number(value).toLocaleString("id-ID", { maximumFractionDigits: 2 })}`;
 }
+/** Validate accounts as text so leading zeroes are preserved. */
+export function validasiRekeningPinjaman(bank: string | null | undefined, norek: unknown): void {
+  const panjang = bank === "CIMB" ? 12 : bank === "BSI" ? 10 : null;
+  if (panjang && (typeof norek !== "string" || !new RegExp(`^[0-9]{${panjang}}$`).test(norek))) {
+    throw new Error(`No. rekening ${bank} harus tepat ${panjang} digit angka.`);
+  }
+}

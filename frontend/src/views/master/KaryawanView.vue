@@ -53,7 +53,6 @@ onUnmounted(() => browseStore.setStatus("all"));
 
 const columns: BrowseColumn[] = [
   { key: "Nik", label: "NIK", width: "120px" },
-  { key: "Kd_Abs", label: "Kode Absensi", width: "110px" },
   { key: "Nama", label: "Nama Lengkap" },
   { key: "Nama Pabrik", label: "Nama Pabrik", width: "130px" },
   { key: "Jabatan", label: "Jabatan", width: "150px" },
