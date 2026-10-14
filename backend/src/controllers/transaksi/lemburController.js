@@ -28,7 +28,7 @@ import { normJam, toTime, cekTanggal } from './ijinController.js'
  *   absensi, baris dilewati (Delphi: Fields[0] kosong -> selisih besar -> gagal;
  *   di sini record kosong dianggap belum scan dan tetap boleh disimpan supaya
  *   SPL susulan tidak terkunci — perbedaannya dicatat pada pesan).
- * - cektanggal(tgl) < 2 bebas simpan, >= 2 wajib otorisasi atasan (token JWT).
+ * - cektanggal(tgl) <= 2 bebas simpan, > 2 wajib otorisasi atasan (token JWT).
  * - Simpan: upsert header, lalu DELETE detail + INSERT ulang tiap baris
  *   yang NIK-nya terisi (simpandata).
  */
@@ -446,7 +446,7 @@ export const saveLembur = async (req, res, next) => {
         }
 
         let atasan = null
-        if ((await cekTanggal(tanggal)) >= 2) {
+        if ((await cekTanggal(tanggal)) > 2) {
             atasan = userDariToken(b.otorisasi_token)
             if (!atasan) {
                 return error(res, 'Data lebih dari 2 hari memerlukan otorisasi atasan', 403)

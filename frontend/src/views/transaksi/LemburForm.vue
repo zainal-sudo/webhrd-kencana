@@ -32,7 +32,7 @@ import type { LookupItem } from "@/types";
  * - "Samakan Jam" (Button1Click): salin jam baris pertama ke semua baris.
  * - Validasi absensi (cekdata): jam akhir maksimal 30 menit setelah scan
  *   keluar; server menolak dengan 422 bila dilanggar.
- * - Otorisasi atasan model kode ala Delphi bila tanggal >= 2 hari.
+ * - Otorisasi atasan bila selisih tanggal lebih dari 2 hari (mulai H+3).
  */
 interface Baris {
   nik: string;
@@ -73,7 +73,7 @@ const jabatanOptions = ref<{ label: string; value: string | number }[]>([]);
 const departemenOptions = ref<{ label: string; value: string | number }[]>([]);
 const bagianOptions = ref<string[]>([]);
 
-const perluOtorisasi = computed(() => selisihHari(values.tanggal) >= 2);
+const perluOtorisasi = computed(() => selisihHari(values.tanggal) > 2);
 const otorisasiToken = ref("");
 
 function otorisasiOke(payload: { token: string; pemberi: string }) {
