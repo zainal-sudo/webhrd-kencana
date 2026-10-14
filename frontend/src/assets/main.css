@@ -47,6 +47,34 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ds-text-muted, #8494A7);
 }
+::-webkit-scrollbar-corner {
+  background: var(--ds-surface-inset, #E0E4EA);
+}
+/* The vertical bar stays native and reaches the full bottom edge. The sticky
+   horizontal bar occupies its own row so it never covers the last data row. */
+.split-scrollbar {
+  scroll-padding-bottom: var(--ds-horizontal-scrollbar-size, 14px);
+}
+.split-scrollbar::-webkit-scrollbar:horizontal { height: 0 !important; }
+.split-scrollbar-horizontal {
+  /* Sticky is pinned by the browser's scroll compositor, not a late scroll event. */
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  transform: translate(calc(-1 * var(--scrollbar-inset-left, 0px)), var(--scrollbar-inset-bottom, 0px));
+  z-index: 10;
+  height: var(--ds-horizontal-scrollbar-size, 14px);
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  background: var(--ds-surface-inset, #E0E4EA);
+  overscroll-behavior-x: contain;
+}
+.split-scrollbar-horizontal::-webkit-scrollbar:horizontal { height: var(--ds-horizontal-scrollbar-size, 14px) !important; }
+.split-scrollbar-spacer { height: 1px; padding: 0; margin: 0; pointer-events: none; }
 
 /* ── Vuetify overrides ── */
 /* Kontrol baris tabel form: konsisten untuk lembur, izin dan penilaian. */

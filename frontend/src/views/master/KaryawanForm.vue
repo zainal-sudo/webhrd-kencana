@@ -399,8 +399,8 @@ onUnmounted(() => {
           <legend>Identitas Utama</legend>
           <div class="grid identity-grid">
             <div class="field nik-field">
-              <label>NIK</label>
-              <input :value="nik || 'Otomatis setelah disimpan'" readonly aria-label="NIK" />
+              <span class="nik-label">NIK</span>
+              <div class="nik-value" :title="nik || 'Otomatis setelah disimpan'">{{ nik || 'Otomatis setelah disimpan' }}</div>
             </div>
             <FText v-model="values.kar_nama" label="Nama Lengkap" required />
             <FSelect
@@ -802,8 +802,9 @@ onUnmounted(() => {
 .identity-grid :deep(.field) { min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; }
 .identity-grid :deep(.field label) { flex: none; margin: 0; line-height: 1.4; }
 .identity-grid :deep(.field input), .identity-grid :deep(.select-wrap) { flex: none; width: 100%; min-width: 0; }
-.nik-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
-.nik-field input { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #eef1f6; font-size: 12px; color: #55637a; }
+.nik-label { display: block; font-size: 11px; font-weight: 700; margin: 0; line-height: 1.4; color: var(--ds-primary, #3b5998); }
+.nik-value { width: 100%; min-width: 0; height: 30px; box-sizing: border-box; line-height: 28px; padding: 0 8px; border: 1px solid var(--ds-border, #b0b8c4); background: var(--ds-surface-inset, var(--ds-surface)); font-size: 12px; color: var(--ds-text-muted, var(--ds-text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; cursor: default; }
+.nik-value { border-radius: 8px; }
 .rekrut-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
 .rekrut-row { display: flex; gap: 6px; }
 .rekrut-row input { flex: 1; min-width: 0; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; font-size: 12px; }

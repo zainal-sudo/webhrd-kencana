@@ -6,6 +6,7 @@ import MsIcon from "@/components/MsIcon.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useKaryawanBrowseStore, type KaryawanBrowseStatus } from "@/stores/karyawanBrowseStore";
 import { pickError, safeGet } from "@/api";
 import { api } from "@/api/axios";
 import { formatNumber, formatTanggal, todaySql } from "@/utils/format";
@@ -26,6 +27,7 @@ const toast = useToast();
 const authStore = useAuthStore();
 const permissionStore = usePermissionStore();
 const tabsStore = useTabsStore();
+const karyawanBrowseStore = useKaryawanBrowseStore();
 
 interface Ringkasan {
   totalKaryawan: number;
@@ -58,11 +60,12 @@ interface Kpi {
   icon: string;
   tone: string;
   route?: string;
+  status?: KaryawanBrowseStatus;
 }
 const kpis = computed<Kpi[]>(() => [
-  { label: "Total Karyawan", value: data.value?.totalKaryawan ?? 0, icon: "badge", tone: "blue", route: "/master/karyawan" },
-  { label: "Karyawan Aktif", value: data.value?.karyawanAktif ?? 0, icon: "how_to_reg", tone: "green", route: "/master/karyawan" },
-  { label: "Sudah Keluar", value: data.value?.karyawanKeluar ?? 0, icon: "logout", tone: "red", route: "/master/karyawan" },
+  { label: "Total Karyawan", value: data.value?.totalKaryawan ?? 0, icon: "badge", tone: "blue", route: "/master/karyawan", status: "all" },
+  { label: "Karyawan Aktif", value: data.value?.karyawanAktif ?? 0, icon: "how_to_reg", tone: "green", route: "/master/karyawan", status: "aktif" },
+  { label: "Sudah Keluar", value: data.value?.karyawanKeluar ?? 0, icon: "logout", tone: "red", route: "/master/karyawan", status: "nonaktif" },
   { label: "Pabrik / Unit", value: data.value?.pabrik ?? 0, icon: "factory", tone: "orange" },
   { label: "Departemen", value: data.value?.departments ?? 0, icon: "account_tree", tone: "violet" },
   { label: "Jabatan", value: data.value?.jabatan ?? 0, icon: "engineering", tone: "blue" },
@@ -198,6 +201,17 @@ function bukaRoute(route: string, label: string) {
   router.push(route);
 }
 
+function bukaKaryawan(status: KaryawanBrowseStatus) {
+  karyawanBrowseStore.setStatus(status, true);
+  bukaRoute("/master/karyawan", "Master Karyawan");
+}
+
+function bukaKpi(kpi: Kpi) {
+  if (!kpi.route || !bolehBuka(kpi.route)) return;
+  if (kpi.status) bukaKaryawan(kpi.status);
+  else bukaRoute(kpi.route, kpi.label);
+}
+
 function cellText(row: Record<string, any>, col: PanelKolom): string {
   const v = row[col.key];
   if (v === null || v === undefined || v === "") return "-";
@@ -302,7 +316,7 @@ onActivated(() => {
     <div
       class="saldo-hero"
       :class="{ clickable: bolehBuka('/master/karyawan') }"
-      @click="bolehBuka('/master/karyawan') && bukaRoute('/master/karyawan', 'Karyawan')"
+      @click="bolehBuka('/master/karyawan') && bukaKaryawan('aktif')"
     >
       <div class="saldo-hero-left">
         <div class="saldo-hero-label">
@@ -314,7 +328,7 @@ onActivated(() => {
           <span v-else>{{ formatNumber(data?.karyawanAktif ?? 0) }}</span>
         </div>
         <div class="saldo-hero-sub">
-          Per hari ini &middot; Klik untuk buka Karyawan
+          Berdasarkan status aktif &middot; Klik untuk lihat karyawan aktif
         </div>
       </div>
       <div class="saldo-hero-icon">
@@ -333,7 +347,7 @@ onActivated(() => {
         :key="k.label"
         class="task-card"
         :class="[`task-${k.tone}`, { clickable: k.route && bolehBuka(k.route) }]"
-        @click="k.route && bolehBuka(k.route) && bukaRoute(k.route, k.label)"
+        @click="bukaKpi(k)"
       >
         <div class="task-top">
           <div class="task-icon-wrap" :class="k.tone">
@@ -728,7 +742,8 @@ onActivated(() => {
 }
 .alert-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 11.5px;
 }
 .alert-table th {

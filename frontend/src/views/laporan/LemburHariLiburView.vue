@@ -94,7 +94,6 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <div class="report-page">
-    <p class="report-note">Tanggal mengikuti Master Hari Libur (tharilibur), hanya absensi yang memiliki scan. Lama = Scan 2 − Scan 1; Lama Lembur = Jam Selesai − Jam Mulai SPL. Baris ungu = sudah verifikasi.</p>
     <BaseBrowse
       ref="browseRef"
       module-title="Laporan Lembur Hari Libur"
@@ -145,15 +144,20 @@ function editAbsensi(row: Record<string, any>) {
 <style scoped>
 .report-page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
 .report-page :deep(.browse-panel) { flex: 1; height: auto; min-height: 0; }
-.report-note { flex-shrink: 0; }
-.report-note { margin: 0 0 8px; padding: 8px 12px; border: 1px solid var(--ds-border, #b0b8c4); background: #fffbeb; font-size: 12px; color: #854d0e; }
+.report-page :deep(.row-actions) { align-items: center; gap: 8px; flex-wrap: nowrap; }
+.report-page .row-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 24px; padding: 0; border: 1px solid transparent; background: transparent; cursor: pointer; }
+.report-page .row-btn { position: relative; isolation: isolate; }
+/* Expand only the hover paint, keeping the column and icon spacing unchanged. */
+.report-page .row-btn::before { content: ""; position: absolute; inset: -3px -7px; border-radius: 999px; background: transparent; pointer-events: none; z-index: -1; transition: background-color 120ms ease; }
+.report-page .row-btn:hover { background: transparent; }
+.report-page .row-btn:is(:hover, :focus-visible)::before { background: var(--action-hover); }
 .row-btn.verify { color: #15803d; }
-.row-btn.verify:hover { background: rgba(21, 128, 61, 0.12); }
+.row-btn.verify { --action-hover: rgba(21, 128, 61, 0.12); }
 .row-btn.verify:disabled { opacity: 0.35; cursor: not-allowed; }
 .row-btn.unverify { color: #b45309; }
-.row-btn.unverify:hover { background: rgba(180, 83, 9, 0.12); }
+.row-btn.unverify { --action-hover: rgba(180, 83, 9, 0.12); }
 .row-btn.unverify:disabled { opacity: 0.35; cursor: not-allowed; }
-.row-btn.edit { color: var(--ds-primary, #3b5998); }
+.row-btn.edit { color: var(--ds-primary, #3b5998); --action-hover: rgba(59, 89, 152, 0.14); }
 .verif-badge { display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 700; border: 1px solid transparent; }
 .verif-badge.ya { color: #86198f; background: #fae8ff; border-color: #e9a8f2; }
 .verif-badge.belum { color: #9aa7b8; }

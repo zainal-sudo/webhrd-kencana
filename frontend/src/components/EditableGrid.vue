@@ -220,7 +220,8 @@ defineExpose({
 }
 .grid {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 11.5px;
   white-space: nowrap;
 }
@@ -230,6 +231,8 @@ defineExpose({
   z-index: 1;
   background: var(--ds-surface-variant, #e0e4ea);
   border: 1px solid var(--ds-border, #b0b8c4);
+  border-left-width: 0;
+  background-clip: border-box;
   padding: 5px 7px;
   font-weight: 800;
   color: var(--ds-on-surface, #1b2d4a);
@@ -260,10 +263,15 @@ defineExpose({
 }
 .grid td {
   border: 1px solid #d5dbe3;
+  border-top-width: 0;
+  border-left-width: 0;
   padding: 3px 7px;
   min-width: 40px;
   background: #fff;
 }
+.grid tr > :first-child { border-left-width: 1px; }
+/* Keep totals above the dedicated horizontal scrollbar, not underneath it. */
+.grid-wrap.split-scrollbar .grid tfoot td { bottom: var(--ds-horizontal-scrollbar-size, 14px); }
 .grid td.kanan {
   text-align: right;
 }

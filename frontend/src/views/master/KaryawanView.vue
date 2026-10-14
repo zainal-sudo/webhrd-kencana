@@ -1,15 +1,55 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import { useKaryawanBrowseStore } from "@/stores/karyawanBrowseStore";
 import type { BrowseColumn } from "@/types";
 import { api, getErrorMessage } from "@/api/axios";
 import { fotoUrl } from "@/utils/foto";
 import { formatTanggal } from "@/utils/format";
+import { filterKey } from "@/utils/columnFilter";
 
 const toast = useToast();
 const endpoint = "/master/karyawan";
 const formPath = "/master/karyawan/form";
+const browseStore = useKaryawanBrowseStore();
+const initialFilters = computed((): Record<string, string[]> => {
+  if (browseStore.status === "aktif") return { Status: [filterKey("Aktif")] };
+  if (browseStore.status === "nonaktif") return { Status: [filterKey("Non Aktif")] };
+  return {};
+});
+const statusFilterValues = { Status: ["Aktif", "Non Aktif"] };
+
+function updateStatusFilter(filters: Record<string, string[]>) {
+  const selected = filters.Status || [];
+  // Jangan menaikkan revision: pilihan popup tidak perlu mereset browse.
+  browseStore.status = selected.length === 1 && selected[0] === filterKey("Aktif")
+    ? "aktif"
+    : selected.length === 1 && selected[0] === filterKey("Non Aktif")
+      ? "nonaktif"
+      : "all";
+}
+const statusMessage = computed(() => {
+  if (browseStore.status === "aktif") return "Menampilkan karyawan dengan status = Aktif.";
+  if (browseStore.status === "nonaktif") return "Menampilkan karyawan dengan status = Non Aktif. Data berdasarkan status, bukan tanggal keluar.";
+  return "Menampilkan seluruh karyawan, baik aktif maupun non aktif.";
+});
+
+watch(() => browseStore.revision, () => {
+  toast.dismiss("karyawan-status");
+  // Only dashboard summary cards request this one-shot notice.
+  if (!browseStore.notifyStatus) return;
+  browseStore.notifyStatus = false;
+  toast.info(statusMessage.value, {
+    id: "karyawan-status",
+    timeout: 5000,
+    pauseOnHover: false,
+    pauseOnFocusLoss: false,
+  });
+}, { immediate: true });
+
+// Tutup tab menghapus filter; perpindahan tab keep-alive tetap mempertahankannya.
+onUnmounted(() => browseStore.setStatus("all"));
 
 const columns: BrowseColumn[] = [
   { key: "Nik", label: "NIK", width: "120px" },
@@ -139,6 +179,7 @@ async function lihatDetail(nik: string) {
 
 <template>
   <BaseBrowse
+    :key="browseStore.revision"
     module-title="Master Karyawan"
     module-subtitle="Data induk karyawan beserta riwayat jabatan, pendidikan, keluarga dan jadwal kerja"
     :endpoint="endpoint"
@@ -149,7 +190,15 @@ async function lihatDetail(nik: string) {
     :edit-form-path="formPath"
     search-placeholder="Cari NIK / nama / kode absensi..."
     :per-page="25"
+    :initial-filters="initialFilters"
+    :filter-values="statusFilterValues"
+    @filters-change="updateStatusFilter"
   >
+    <template #toolbar-extra>
+      <button v-if="browseStore.status !== 'all'" class="status-reset" @click="browseStore.setStatus('all')">
+        Tampilkan Semua
+      </button>
+    </template>
     <template #row-actions="{ row }">
       <div class="row-actions">
         <button class="lnk" title="Lihat detail" @click.stop="lihatDetail(row.Nik)">Detail</button>
@@ -286,6 +335,16 @@ async function lihatDetail(nik: string) {
 </template>
 
 <style scoped>
+.status-reset {
+  border: 1px solid var(--ds-primary, #3b5998);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--ds-primary, #3b5998);
+  background: var(--ds-surface, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 table.mini td.education-note {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

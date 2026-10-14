@@ -6,6 +6,7 @@ import "vue-toastification/dist/index.css";
 import App from "./App.vue";
 import router from "./router";
 import vuetify from "./plugins/vuetify";
+import { installScrollbarLayout } from "./utils/scrollbarLayout";
 
 import "./assets/main.css";
 import "./assets/design-system.css";
@@ -28,3 +29,6 @@ app.use(Toast, {
 });
 
 app.mount("#app");
+// Include dialogs/popups teleported outside #app as well as ordinary pages.
+const disposeScrollbarLayout = installScrollbarLayout(document.body);
+if (import.meta.hot) import.meta.hot.dispose(disposeScrollbarLayout);

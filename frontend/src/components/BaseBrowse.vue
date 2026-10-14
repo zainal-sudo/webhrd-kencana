@@ -46,6 +46,10 @@ const props = withDefaults(
     exportName?: string;
     /** parameter query tambahan yang selalu dikirim (mis. { detail: 1 }) */
     extraQuery?: Record<string, any>;
+    /** Filter kolom awal, menggunakan key dari filterKey(). */
+    initialFilters?: Record<string, string[]>;
+    /** Pilihan tetap untuk kolom enumerasi, tidak menyempit mengikuti hasil tabel. */
+    filterValues?: Record<string, (string | number | null)[]>;
     /** Muat ulang saat kembali ke browse keep-alive; aktif secara default. */
     refreshOnActivate?: boolean;
     /** Opt-in dense columns; all existing browse layouts retain their defaults. */
@@ -89,6 +93,7 @@ const emit = defineEmits<{
   (e: "loaded", pagination?: Record<string, any>): void;
   (e: "load-start"): void;
   (e: "load-error"): void;
+  (e: "filters-change", filters: Record<string, string[]>): void;
   (e: "print", row: Record<string, any>): void;
   /** Dipanggil saat thumbnail foto diklik. Kolom harus bertipe "image". */
   (e: "preview-image", row: Record<string, any>): void;
@@ -149,7 +154,9 @@ const tableMinWidth = computed<string>(
 // ── Sort & filter per kolom (server-side, popup checklist di header) ──
 const sortBy = ref<string | null>(null);
 const sortDir = ref<"asc" | "desc" | null>(null);
-const filterSets = reactive<Record<string, string[]>>({});
+const filterSets = reactive<Record<string, string[]>>(
+  Object.fromEntries(Object.entries(props.initialFilters || {}).map(([key, values]) => [key, [...values]]))
+);
 const openFilterKey = ref<string | null>(null);
 const filterAnchor = shallowRef<HTMLElement | null>(null);
 
@@ -190,6 +197,7 @@ function clearFilters() {
     delete filterSets[k];
   }
   page.value = 1;
+  emit("filters-change", { ...filterSets });
   fetchData();
 }
 
@@ -204,6 +212,7 @@ function isFilterActive(col: BrowseColumn): boolean {
 }
 
 async function fetchDistinct(col: BrowseColumn): Promise<(string | number | null)[]> {
+  if (props.filterValues?.[col.key]) return [...props.filterValues[col.key]];
   const params: Record<string, any> = { ...props.extraQuery, distinct: col.key };
   if (search.value.trim()) params.search = search.value.trim();
   if (props.hasPeriod && startDate.value && endDate.value) {
@@ -229,6 +238,7 @@ function applyFilterSet(col: BrowseColumn, values: string[]) {
   }
   openFilterKey.value = null;
   page.value = 1;
+  emit("filters-change", { ...filterSets });
   fetchData();
 }
 
@@ -988,7 +998,9 @@ onActivated(() => {
 }
 .browse-table {
   width: 100%;
-  border-collapse: collapse;
+  /* Collapsed borders scroll with the body and expose a seam above sticky th. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
 }
 .compact .browse-table { table-layout: auto; font-size: 11px; }
@@ -1018,6 +1030,8 @@ onActivated(() => {
   text-align: left;
   white-space: nowrap;
   border: 1px solid #1b2d4a;
+  border-left-width: 0;
+  background-clip: border-box;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1107,9 +1121,12 @@ th.sorted .th-sort {
 .browse-table td {
   padding: 5px 8px;
   border: 1px solid #d7dde5;
+  border-top-width: 0;
+  border-left-width: 0;
   color: var(--ds-on-surface, #1b2d4a);
   white-space: nowrap;
 }
+.browse-table tr > :first-child { border-left-width: 1px; }
 /* ── Kolom foto ──
    Thumbnail sengaja kecil (40x30) dan padding sel diperketat supaya baris
    hanya tumbuh ~10px dari baris biasa. Kolom ini diletakkan paling depan di
