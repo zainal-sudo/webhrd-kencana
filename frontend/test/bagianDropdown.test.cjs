@@ -39,7 +39,7 @@ for (const name of ['Lembur', 'Ijin2']) {
     assert.match(empty, /Pilih Pabrik terlebih dahulu/);
     const active = await render('P-TEST', false, 'BAGIAN TEST B');
     assert.doesNotMatch(active, /<select[^>]*disabled/);
-    assert.match(active, /<select value="BAGIAN TEST B">/);
+    assert.match(active, /<select[^>]* value="BAGIAN TEST B">/);
     assert.match(active, /<option value="BAGIAN TEST B">BAGIAN TEST B<\/option>/);
     assert.match(active, /Pilih Bagian/);
     assert.match(await render('P-TEST', true), /<select[^>]*disabled/);

@@ -434,7 +434,7 @@ onUnmounted(() => {
               <div class="nik-value" :title="nik || 'Otomatis setelah disimpan'">{{ nik || 'Otomatis setelah disimpan' }}</div>
             </div>
             <FText v-model="values.kar_nama" label="Nama Lengkap" required />
-            <FSelect
+            <FSelect searchable
               v-model="values.kar_status_aktif"
               label="Status Aktif"
               :required="canChangeStatus && !isEdit"
@@ -473,12 +473,12 @@ onUnmounted(() => {
         <fieldset class="fs">
           <legend>Data Karyawan</legend>
           <div class="grid">
-            <FSelect v-model="values.kar_pab_kode" label="Pabrik" :options="opsiPabrik" required />
-            <FSelect v-model="values.kar_dep_kode" label="Departemen" :options="opsiDepartemen" />
-            <FSelect v-model="values.kar_jab_kode" label="Jabatan" :options="opsiJabatan" required />
-            <FSelect v-model="values.kar_bagian" label="Bagian" :options="opsiBagian" show-clear />
-            <FSelect v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" />
-            <FSelect v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" />
+            <FSelect searchable v-model="values.kar_pab_kode" label="Pabrik" :options="opsiPabrik" required />
+            <FSelect searchable v-model="values.kar_dep_kode" label="Departemen" :options="opsiDepartemen" />
+            <FSelect searchable v-model="values.kar_jab_kode" label="Jabatan" :options="opsiJabatan" required />
+            <FSelect searchable v-model="values.kar_bagian" label="Bagian" :options="opsiBagian" show-clear />
+            <FSelect searchable v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" />
+            <FSelect searchable v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" />
             <div class="field atasan-field">
               <label for="karyawan-atasan">Atasan Langsung</label>
               <v-autocomplete
@@ -496,6 +496,7 @@ onUnmounted(() => {
                 :list-props="{ density: 'compact' }"
                 density="compact"
                 variant="outlined"
+                menu-icon="mdi-chevron-down"
                 hide-details
                 clearable
                 autocomplete="off"
@@ -508,9 +509,9 @@ onUnmounted(() => {
               </v-autocomplete>
             </div>
             <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" />
-            <FText v-model="values.kar_no_NAKER" label="No. NAKER" />
-            <FSelect v-model="values.kar_status_bpjs" label="Status BPJS" :options="OPSI_BPJS" />
-            <FText v-model="values.kar_no_BPJS" label="No. BPJS" />
+            <FText v-model="values.kar_no_NAKER" label="BPJS TK" />
+            <FSelect searchable v-model="values.kar_status_bpjs" label="Status BPJS" :options="OPSI_BPJS" />
+            <FText v-model="values.kar_no_BPJS" label="BPJS KES" />
             <FDate v-model="values.kar_tglPKWT1" label="Tgl PKWT 1" />
             <FDate v-model="values.kar_tglPKWT2" label="Tgl PKWT 2" />
           </div>
@@ -525,12 +526,12 @@ onUnmounted(() => {
           <div class="grid">
             <FText v-model="values.kar_tempatlahir" label="Tempat Lahir" />
             <FDate v-model="values.kar_tgllahir" label="Tanggal Lahir" />
-            <FSelect v-model="values.kar_jenkel" label="Jenis Kelamin" :options="OPSI_JENKEL" />
-            <FSelect v-model="values.kar_gol_darah" label="Golongan Darah" :options="OPSI_GOLONGAN_DARAH" show-clear />
-            <FSelect v-model="values.kar_agama" label="Agama" :options="OPSI_AGAMA" show-clear />
-            <FSelect v-model="values.kar_status_kawin" label="Status Kawin" :options="OPSI_STATUS_KL" show-clear />
-            <FSelect v-model="values.kar_warganegara" label="Warga Negara" :options="OPSI_WARGA_NEGARA" show-clear />
-            <FSelect v-model="values.kar_status_tinggal" label="Status Tinggal" :options="OPSI_STATUS_TINGGAL" show-clear />
+            <FSelect searchable v-model="values.kar_jenkel" label="Jenis Kelamin" :options="OPSI_JENKEL" />
+            <FSelect searchable v-model="values.kar_gol_darah" label="Golongan Darah" :options="OPSI_GOLONGAN_DARAH" show-clear />
+            <FSelect searchable v-model="values.kar_agama" label="Agama" :options="OPSI_AGAMA" show-clear />
+            <FSelect searchable v-model="values.kar_status_kawin" label="Status Kawin" :options="OPSI_STATUS_KL" show-clear />
+            <FSelect searchable v-model="values.kar_warganegara" label="Warga Negara" :options="OPSI_WARGA_NEGARA" show-clear />
+            <FSelect searchable v-model="values.kar_status_tinggal" label="Status Tinggal" :options="OPSI_STATUS_TINGGAL" show-clear />
             <FText v-model="values.kar_noidentitas" label="No. Identitas ( KTP/SIM )" />
             <FText v-model="values.kar_size" label="Ukuran Kaos" />
           </div>
@@ -568,7 +569,7 @@ onUnmounted(() => {
               <template #activator="{ props: menuProps }">
                 <button v-bind="menuProps" type="button" class="schedule-select" aria-label="Pilih jadwal kerja">
                   <span>{{ jadwalTerpilih.length ? `${jadwalTerpilih.length} jadwal dipilih` : 'Pilih jadwal kerja...' }}</span>
-                  <span aria-hidden="true">▾</span>
+                  <i class="mdi mdi-chevron-down schedule-chevron" :class="{ 'is-open': jadwalMenu }" aria-hidden="true"></i>
                 </button>
               </template>
               <div class="schedule-menu">
@@ -631,14 +632,14 @@ onUnmounted(() => {
             <FText v-model="values.kar_ibukandung" label="Ibu Kandung" />
             <FText v-model="values.kar_namapasangan" label="Nama Pasangan" />
             <div class="family-spacer" aria-hidden="true"></div>
-            <FSelect v-model="values.kar_status_hidup" label="Status Hidup"
+            <FSelect searchable v-model="values.kar_status_hidup" label="Status Hidup"
               :options="[{ label: 'Masih Hidup', value: 1 }, { label: 'Meninggal', value: 0 }]" />
-            <FSelect v-model="values.kar_hubungan" label="Hubungan"
+            <FSelect searchable v-model="values.kar_hubungan" label="Hubungan"
               :options="[{ label: 'Suami', value: 0 }, { label: 'Istri', value: 1 }]" />
             <div class="family-spacer" aria-hidden="true"></div>
             <FDate v-model="values.kar_tgllahir2" label="Tanggal Lahir" />
-            <FSelect v-model="values.kar_pk_id" label="Pekerjaan" :options="opsiPekerjaan" />
-            <FTextarea v-model="values.kar_keterangan_kerja" class="family-work-note" label="Ket. Pekerjaan" :rows="2" />
+            <FSelect searchable v-model="values.kar_pk_id" label="Pekerjaan" :options="opsiPekerjaan" />
+            <FTextarea v-model="values.kar_keterangan_kerja" class="family-work-note" label="Ket. Pekerjaan" :rows="1" />
             <FTextarea v-model="values.kar_alamat2" label="Alamat" :rows="2" />
             <FText v-model="values.kar_telp2" label="No. Telp" />
           </div>
@@ -697,7 +698,7 @@ onUnmounted(() => {
             </thead>
             <tbody>
               <tr v-for="(d, i) in pendidikan" :key="i">
-                <td class="education-level-col"><FSelect v-model="d.kard_jenjang" label="" :options="opsiJenjang" show-clear /></td>
+                <td class="education-level-col"><FSelect searchable v-model="d.kard_jenjang" label="" :options="opsiJenjang" show-clear /></td>
                 <td><TableTextInput v-model="d.kard_nama" label="Nama Sekolah" /></td>
                 <td><TableTextInput v-model="d.kard_jurusan" label="Jurusan" /></td>
                 <td><TableTextInput v-model="d.kard_fakultas" label="Fakultas" /></td>
@@ -979,10 +980,18 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 .grid > :deep(.field) {
   min-width: 0;
 }
+/* Give inputs more room while keeping labels aligned across each section. */
+.grid:not(.identity-grid) > :deep(.field > label),
+.family-grid > :deep(.field > label) { flex: 0 0 120px; }
+.family-grid { align-items: start; }
+.family-grid > :deep(.field > label) { flex-basis: 110px; }
+.family-grid > :deep(.family-work-note) { align-items: center; }
+.family-grid > :deep(.family-work-note > label) { padding-top: 0; }
+.family-grid > :deep(.family-work-note textarea) { box-sizing: border-box; height: 30px; min-height: 30px; padding: 5px 9px; line-height: 18px; border-radius: 8px !important; }
 .atasan-field { display: flex; align-items: center; gap: 8px; }
 .atasan-field > label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
-.atasan-input { flex: 1; min-width: 0; font-size: 12px; --v-input-control-height: 30px; }
-.atasan-input :deep(.v-field) { background: var(--ds-surface-raised, #fff); color: var(--ds-text, #1b2d4a); font-size: 12px; --v-field-padding-start: 8px; --v-field-padding-end: 6px; --v-field-border-width: 1px; }
+.atasan-input { flex: 1; min-width: 0; font-size: 11px; --v-input-control-height: 30px; }
+.atasan-input :deep(.v-field) { background: var(--ds-surface-raised, #fff); color: var(--ds-text, #1b2d4a); font-size: 11px; --v-field-padding-start: 8px; --v-field-padding-end: 6px; --v-field-border-width: 1px; }
 .atasan-input :deep(.v-field__input) { min-height: 30px; padding: 0 4px; gap: 0; }
 /* The autocomplete owns its border; reset the global native input decoration. */
 .atasan-input :deep(input#karyawan-atasan), .atasan-input :deep(input#karyawan-atasan:focus) { border: 0 !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; height: 30px; min-width: 0; font: inherit; }
@@ -994,8 +1003,8 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 .atasan-input :deep(.v-autocomplete__selection) { max-width: 100%; }
 .atasan-input :deep(.v-autocomplete__selection-text) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :global(.atasan-menu .v-list) { padding: 4px !important; background: var(--ds-surface-raised, #fff) !important; color: var(--ds-text, #1b2d4a); border: 1px solid var(--ds-border-light, #d5dce6); border-radius: 8px !important; }
-:global(.atasan-menu .v-list-item) { min-height: 46px !important; padding: 7px 10px !important; border-radius: 5px !important; }
-:global(.atasan-menu .v-list-item-title) { font-size: 12px !important; font-weight: 600; line-height: 1.45 !important; white-space: normal; overflow-wrap: anywhere; }
+:global(.atasan-menu .v-list-item) { min-height: 40px !important; padding: 5px 10px !important; border-radius: 5px !important; }
+:global(.atasan-menu .v-list-item-title) { font-size: 11px !important; font-weight: 600; line-height: 1.45 !important; white-space: normal; overflow-wrap: anywhere; }
 :global(.atasan-menu .v-list-item-subtitle) { margin-top: 2px; font-size: 10px !important; line-height: 1.4 !important; color: var(--ds-text-secondary, #5a6a7e); opacity: 1; }
 .foto-row {
   width: 100%;
@@ -1078,6 +1087,9 @@ table.grid-table :deep(label) {
 .schedule-field { max-width: 480px; }
 .schedule-label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
 .schedule-select { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 9px; border: 1px solid var(--ds-border, #b0b8c4); background: #fff; color: var(--ds-on-surface, #1b2d4a); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.karyawan-form .schedule-select { border-radius: 8px !important; }
+.schedule-chevron { flex-shrink: 0; color: var(--ds-text-secondary, #5a6a7e); font-size: 16px; line-height: 1; transition: transform .15s ease; }
+.schedule-chevron.is-open { transform: rotate(180deg); }
 .schedule-select:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); }
 .schedule-menu { width: 480px; max-width: calc(100vw - 24px); max-height: min(360px, 60vh); display: flex; flex-direction: column; padding: 10px; background: #fff; border: 1px solid var(--ds-border, #b0b8c4); box-shadow: 0 6px 18px #0f1a2e26; }
 .schedule-search { flex-shrink: 0; width: 100%; min-width: 0; height: 32px; padding: 4px 8px; margin-bottom: 6px; border: 1px solid var(--ds-border, #b0b8c4); font: inherit; font-size: 12px; }

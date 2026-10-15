@@ -231,4 +231,4 @@ export const OPSI_BPJS = [
   { label: "Nonaktif Perusahaan", value: 5 },
 ];
 
-export const OPSI_SISTEM_GAJI = ["Bulanan", "Harian", "Mingguan"].map((v) => ({ label: v, value: v }));
+export const OPSI_SISTEM_GAJI = ["Bulanan", "Harian"].map((v) => ({ label: v, value: v }));
