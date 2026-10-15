@@ -208,7 +208,7 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
             <div class="cicilan-options" role="radiogroup" aria-label="Jumlah Cicilan" aria-required="true" :aria-disabled="disabled || processed">
               <label v-for="option in angsuranOptions" :key="option.value" class="cicilan-option">
                 <input v-model="values.angsuran" type="radio" :name="cicilanGroupName" :value="option.value" :disabled="disabled || processed" required />
-                <span>{{ option.label }}</span>
+                <span class="cicilan-choice"><span>{{ option.label }}</span><MsIcon name="check_circle" :size="16" class="cicilan-check" /></span>
               </label>
             </div>
           </div>
@@ -271,11 +271,25 @@ const liveSearch = useLiveSearch(search, { enabled: () => cariOpen.value, invali
 .cicilan-field { display: flex; align-items: center; gap: 3px; min-width: 0; min-height: 32px; }
 .cicilan-label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
 .cicilan-field .req { color: var(--ds-error, #dc2626); }
-.cicilan-options { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-height: 32px; }
-.cicilan-option { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ds-text); cursor: pointer; }
-.loan-fields .cicilan-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--ds-primary, #3b5998); cursor: pointer; }
-.cicilan-field.is-disabled .cicilan-option { color: var(--ds-text-muted, var(--ds-text)); cursor: default; }
-.cicilan-field.is-disabled input { cursor: default; }
+.cicilan-options { display: flex; flex: 1; min-width: 0; max-width: 300px; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; box-sizing: border-box; border: 1px solid var(--ds-border-light, #d5dce6); background: var(--ds-surface, #f0f3f8); }
+.cicilan-option { position: relative; flex: 1 1 80px; min-width: 0; font-size: 12px; color: var(--ds-text-secondary, #5a6a7e); cursor: pointer; }
+.loan-fields .cicilan-option input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cicilan-choice { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 5px 12px; box-sizing: border-box; border: 1px solid transparent; font-weight: 600; transition: background .15s, border-color .15s, color .15s; }
+/* Local radius exception to the app-shell reset. */
+.loan-card .cicilan-options { border-radius: 10px !important; }
+.loan-card .cicilan-choice { border-radius: 7px !important; }
+.cicilan-check { opacity: 0; }
+.cicilan-option input:not(:disabled) + .cicilan-choice:hover { background: var(--ds-surface-raised, white); color: var(--ds-text, #1b2d4a); }
+.cicilan-option input:checked + .cicilan-choice { color: var(--ds-primary, #1b5e9e); background: var(--ds-surface-raised, white); border-color: var(--ds-primary, #1b5e9e); box-shadow: 0 1px 3px rgb(15 23 42 / 8%); }
+.cicilan-option input:checked + .cicilan-choice .cicilan-check { opacity: 1; }
+.cicilan-option input:focus-visible + .cicilan-choice { outline: 2px solid var(--ds-primary, #1b5e9e); outline-offset: 2px; }
+.cicilan-field.is-disabled .cicilan-option { cursor: not-allowed; }
+.cicilan-option input:disabled + .cicilan-choice { opacity: .55; }
+@media (max-width: 600px) {
+  .cicilan-field { flex-direction: column; align-items: stretch; gap: 4px; }
+  .cicilan-label { flex-basis: auto; }
+  .cicilan-options { width: 100%; max-width: none; }
+}
 .form-schedule { margin: 0; }
 .payment-summary { display: grid; gap: 12px; margin: 20px 0 0; }
 .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }

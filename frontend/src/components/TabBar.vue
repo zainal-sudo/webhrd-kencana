@@ -189,7 +189,10 @@ function refresh() {
   top: 1px;
 }
 .tab-btn[draggable="true"] {
-  cursor: grab;
+  cursor: default;
+}
+.tab-btn[draggable="true"]:active {
+  cursor: grabbing;
 }
 .tab-btn.dragging {
   opacity: 0.45;
@@ -225,6 +228,7 @@ function refresh() {
 }
 .tab-close {
   display: flex;
+  cursor: pointer;
   align-items: center;
   justify-content: center;
   width: 16px;
