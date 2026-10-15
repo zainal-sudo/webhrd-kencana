@@ -17,6 +17,7 @@ const canInsert = computed(() => auth.can("frmSandiBPJS", "insert"));
 const canEdit = computed(() => auth.can("frmSandiBPJS", "edit"));
 const canDelete = computed(() => auth.can("frmSandiBPJS", "delete"));
 const columns: BrowseColumn[] = [
+  { key: "sb_judul", label: "Judul", width: "180px" },
   { key: "sb_username", label: "Username", width: "auto" },
   { key: "sb_password", label: "Password", width: "200px", sortable: false, filterable: false },
   { key: "sb_updated_at", label: "Terakhir Diubah", width: "170px", type: "datetime" },
@@ -37,10 +38,10 @@ async function remove() {
   try {
     await api.delete(`${endpoint}/${id}`);
     deleteTarget.value = null;
-    toast.success("Akun BPJS berhasil dihapus.");
+    toast.success("Akun berhasil dihapus.");
     browse.value?.refreshAfterDelete();
   } catch (err) {
-    toast.error(getErrorMessage(err, "Gagal menghapus akun BPJS."));
+    toast.error(getErrorMessage(err, "Gagal menghapus akun."));
   } finally {
     deleting.value = false;
   }
@@ -51,12 +52,12 @@ async function remove() {
   <BaseBrowse
     class="sandi-bpjs-browse"
     ref="browse"
-    module-title="Sandi BPJS"
+    module-title="Sandi"
     :endpoint="endpoint"
     :columns="columns"
     primary-key="sb_id"
     row-number-label="No"
-    add-label="Tambah Akun BPJS"
+    add-label="Tambah Akun"
     :add-form-path="canInsert ? formPath : ''"
     :edit-form-path="canEdit ? formPath : ''"
     :can-delete="false"
@@ -66,7 +67,7 @@ async function remove() {
     :action-width="80"
     :refresh-on-activate="true"
     :per-page="25"
-    search-placeholder="Cari username / oleh..."
+    search-placeholder="Cari judul / username / oleh..."
   >
     <template #cell="{ row, column, text }">
       <div v-if="column.key === 'sb_username' || column.key === 'sb_password'" class="credential-cell">
@@ -82,7 +83,7 @@ async function remove() {
       <template v-else>{{ text }}</template>
     </template>
     <template #row-actions-end="{ row }">
-      <button v-if="canDelete" type="button" class="delete-btn" title="Hapus" aria-label="Hapus akun BPJS" @click.stop="confirmDelete(row)">
+      <button v-if="canDelete" type="button" class="delete-btn" title="Hapus" aria-label="Hapus akun" @click.stop="confirmDelete(row)">
         <MsIcon name="delete" :size="16" />
       </button>
     </template>
@@ -90,7 +91,7 @@ async function remove() {
   <v-dialog :model-value="!!deleteTarget" max-width="420" persistent>
     <v-card>
       <v-card-title class="text-body-1 font-weight-bold">Konfirmasi Hapus</v-card-title>
-      <v-card-text>Hapus akun BPJS dengan username {{ deleteTarget?.username }}?</v-card-text>
+      <v-card-text>Hapus akun dengan username {{ deleteTarget?.username }}?</v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn :disabled="deleting" variant="text" @click="deleteTarget = null">Batal</v-btn>

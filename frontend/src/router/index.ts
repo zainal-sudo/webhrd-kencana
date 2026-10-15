@@ -26,8 +26,8 @@ const routes = [
   },
 
   /* ── Master ── */
-  { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi BPJS", form: "frmSandiBPJS" } },
-  { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi BPJS", form: "frmSandiBPJS" } },
+  { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi", form: "frmSandiBPJS" } },
+  { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi", form: "frmSandiBPJS" } },
   {
     path: "/master/karyawan",
     component: () => import("@/views/master/KaryawanView.vue"),

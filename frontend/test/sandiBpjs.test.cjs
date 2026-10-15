@@ -19,7 +19,7 @@ const snapshotUtils = compile(read('utils/formSnapshot.ts'), {});
 
 function formFixture({ edit = false, permitted = true, failLoad = false } = {}) {
   const calls = [], mounted = [], confirmations = [];
-  const loaded = { sb_username: 'LoadedUser', sb_password: '  LOad!  ' };
+  const loaded = { sb_judul: 'Portal Lama', sb_username: 'LoadedUser', sb_password: '  LOad!  ' };
   const reset = compile(read('composables/useTransactionReset.ts'), { vue, '@/utils/formSnapshot': snapshotUtils },
     { window: { confirm(message) { confirmations.push(message); return true; } } });
   const route = { query: edit ? { id: '7' } : {} };
@@ -43,13 +43,14 @@ function formFixture({ edit = false, permitted = true, failLoad = false } = {}) 
 for (const edit of [false, true]) test(`${edit ? 'Edit' : 'Tambah'}: payload exact, reset snapshot dan tidak menyimpan metadata`, async () => {
   const f = formFixture({ edit }); await f.mount();
   const baseline = JSON.stringify(f.values);
-  f.values.sb_username = 'CaSeUser'; f.values.sb_password = '  AbC! @# xYz  ';
+  f.values.sb_judul = 'Portal Karyawan'; f.values.sb_username = 'CaSeUser'; f.values.sb_password = '  AbC! @# xYz  ';
   await f.save();
   const request = f.calls.at(-1);
   assert.equal(request.method, edit ? 'put' : 'post');
   assert.equal(request.body.sb_username, 'CaSeUser');
   assert.equal(request.body.sb_password, '  AbC! @# xYz  ');
-  assert.deepEqual(Object.keys(request.body).sort(), ['sb_password', 'sb_username']);
+  assert.equal(request.body.sb_judul, 'Portal Karyawan');
+  assert.deepEqual(Object.keys(request.body).sort(), ['sb_judul', 'sb_password', 'sb_username']);
   assert.ok(!request.url.includes(request.body.sb_password));
   const count = f.calls.length;
   assert.equal(f.resetState.reset(), true); await vue.nextTick();
@@ -59,14 +60,15 @@ for (const edit of [false, true]) test(`${edit ? 'Edit' : 'Tambah'}: payload exa
   if (edit) {
     f.route.query.id = '99'; assert.equal(f.id, '7');
     assert.equal(f.values.sb_password, f.loaded.sb_password);
+    assert.equal(f.values.sb_judul, f.loaded.sb_judul);
   } else assert.equal(f.values.sb_password, '');
 });
 
 test('Form validasi required/max, izin save dan gagal load', async () => {
   const f = formFixture(); await f.mount();
-  await assert.rejects(f.save(), /Username BPJS wajib/);
+  await assert.rejects(f.save(), /Username wajib/);
   f.values.sb_username = 'x'.repeat(101); await assert.rejects(f.save(), /maksimal 100/);
-  f.values.sb_username = 'ok'; await assert.rejects(f.save(), /Password BPJS wajib/);
+  f.values.sb_username = 'ok'; await assert.rejects(f.save(), /Password wajib/);
   f.values.sb_password = 'x'.repeat(256); await assert.rejects(f.save(), /maksimal 255/);
   const denied = formFixture({ permitted: false }); await denied.mount();
   assert.equal(denied.canSave.value, false); await assert.rejects(denied.save(), /Tidak memiliki hak/);
@@ -100,7 +102,7 @@ test('Browse buttons mengikuti auth.can; confirmation hanya username; Delete ref
   assert.equal(f.calls[0].url, '/master/sandi-bpjs/7');
   assert.ok(f.calls.some(call => call.refresh)); assert.equal(f.deleteTarget.value, null);
   const source = read('views/master/SandiBpjsView.vue');
-  assert.match(source, /Hapus akun BPJS dengan username \{\{ deleteTarget\?\.username \}\}\?/);
+  assert.match(source, /Hapus akun dengan username \{\{ deleteTarget\?\.username \}\}\?/);
   assert.match(source, /:add-form-path="canInsert \? formPath : ''"/);
   assert.match(source, /:edit-form-path="canEdit \? formPath : ''"/);
   assert.match(source, /v-if="canDelete"/);
@@ -114,13 +116,15 @@ test('Browse plaintext/date-time, tidak ada filter/search password atau export/p
   const source = read('views/master/SandiBpjsView.vue');
   assert.match(source, /class="password-text">\{\{ text \}\}/);
   assert.match(source, /:exportable="false"/);
-  assert.match(source, /search-placeholder="Cari username \/ oleh/);
+  assert.equal(f.columns[0].key, 'sb_judul');
+  assert.equal(f.columns[1].key, 'sb_username');
+  assert.match(source, /search-placeholder="Cari judul \/ username \/ oleh/);
   for (const file of ['views/master/SandiBpjsView.vue', 'views/master/SandiBpjsForm.vue']) {
     assert.doesNotMatch(read(file), /localStorage|sessionStorage|console\.|v-model\.trim|sb_password\.trim\(/);
   }
 });
 
-test('Font mengikuti Master lain dan kolom Aksi ringkas, hanya pada Sandi BPJS', () => {
+test('Font mengikuti Master lain dan kolom Aksi ringkas, hanya pada Sandi', () => {
   const source = read('views/master/SandiBpjsView.vue');
   assert.match(source, /class="sandi-bpjs-browse"/);
   assert.match(source, /\.sandi-bpjs-browse :deep\(\.browse-table\) \{ font-size: 12px; \}/);
@@ -163,6 +167,7 @@ test('Auto-refresh shared browse dan navigasi kembali setelah save tetap terpasa
 test('Sidebar mengikuti row menu; tidak ada hardcoded username', () => {
   pinia.setActivePinia(pinia.createPinia());
   const menuMap = compile(read('utils/menuMap.ts'), {});
+  assert.equal(menuMap.definisiMenu('frmSandiBPJS').label, 'Sandi');
   const auth = { menus: [] };
   const storeModule = compile(read('stores/permissionStore.ts'), {
     pinia, '@/utils/menuMap': menuMap, '@/stores/authStore': { useAuthStore: () => auth },
@@ -214,7 +219,7 @@ test('Actual Browse render: password plaintext, date-time, aksi menurut permissi
       if (capture) source = source.replace('</script>', '\ncapture({ rows });\n</script>');
       const { descriptor } = parse(source);
       return compile(compileScript(descriptor, { id: file, inlineTemplate: true }).content, deps, {
-        capture({ rows }) { rows.value = [{ sb_id: 1, sb_username: 'BPJSUser', sb_password: '  AbC! Secret  ', sb_updated_at: '2026-10-14 09:15:00', sb_updated_by: 'EDITOR' }]; },
+        capture({ rows }) { rows.value = [{ sb_id: 1, sb_judul: 'Portal Karyawan', sb_username: 'BPJSUser', sb_password: '  AbC! Secret  ', sb_updated_at: '2026-10-14 09:15:00', sb_updated_by: 'EDITOR' }]; },
       }).default;
     }
     deps['@/components/BaseBrowse.vue'] = { default: component('components/BaseBrowse.vue', true) };
@@ -223,6 +228,8 @@ test('Actual Browse render: password plaintext, date-time, aksi menurut permissi
     for (const tag of ['v-dialog', 'v-card', 'v-card-item', 'v-card-title', 'v-card-text', 'v-card-actions', 'v-spacer', 'v-btn']) app.component(tag, vue.defineComponent({ setup: () => () => null }));
     const html = await renderToString(app);
     assert.ok(html.includes('  AbC! Secret  '));
+    assert.ok(html.includes('Portal Karyawan'));
+    assert.ok(html.indexOf('>Judul<') < html.indexOf('>Username<'));
     assert.ok(html.includes('BPJSUser')); assert.ok(html.includes('EDITOR')); assert.ok(html.includes('09:15'));
     assert.ok(html.includes('aria-label="Salin Password"')); assert.ok(html.includes('aria-label="Salin Username"'));
     if (rights.edit || rights.delete) {
@@ -232,6 +239,6 @@ test('Actual Browse render: password plaintext, date-time, aksi menurut permissi
     assert.ok(!html.includes('••••')); assert.ok(!html.includes('>Excel<'));
     assert.equal(html.includes('title="Edit"'), !!rights.edit);
     assert.equal(html.includes('title="Hapus"'), !!rights.delete);
-    assert.equal(html.includes('Tambah Akun BPJS'), !!rights.insert);
+    assert.equal(html.includes('Tambah Akun'), !!rights.insert);
   }
 });

@@ -13,15 +13,15 @@ function fixture() {
     const pool = { async query(sql, params = []) {
         calls.push({ sql, params: [...params] })
         if (sql.startsWith('INSERT')) {
-            if (rows.some(row => row.sb_username.toLowerCase() === params[0].toLowerCase())) throw { code: 'ER_DUP_ENTRY' }
-            const row = { sb_id: rows.length + 1, sb_username: params[0], sb_password: params[1], sb_updated_by: params[2], sb_updated_at: `database-time-${++clock}` }
+            if (rows.some(row => row.sb_username.toLowerCase() === params[1].toLowerCase())) throw { code: 'ER_DUP_ENTRY' }
+            const row = { sb_id: rows.length + 1, sb_judul: params[0], sb_username: params[1], sb_password: params[2], sb_updated_by: params[3], sb_updated_at: `database-time-${++clock}` }
             rows.push(row)
             return [{ insertId: row.sb_id }]
         }
         if (sql.startsWith('UPDATE')) {
-            if (rows.some(row => String(row.sb_id) !== String(params[3]) && row.sb_username.toLowerCase() === params[0].toLowerCase())) throw { code: 'ER_DUP_ENTRY' }
-            const row = rows.find(row => String(row.sb_id) === String(params[3]))
-            Object.assign(row, { sb_username: params[0], sb_password: params[1], sb_updated_by: params[2], sb_updated_at: `database-time-${++clock}` })
+            if (rows.some(row => String(row.sb_id) !== String(params[4]) && row.sb_username.toLowerCase() === params[1].toLowerCase())) throw { code: 'ER_DUP_ENTRY' }
+            const row = rows.find(row => String(row.sb_id) === String(params[4]))
+            Object.assign(row, { sb_judul: params[0], sb_username: params[1], sb_password: params[2], sb_updated_by: params[3], sb_updated_at: `database-time-${++clock}` })
             return [{ affectedRows: 1 }]
         }
         if (sql.startsWith('DELETE')) {
@@ -34,7 +34,7 @@ function fixture() {
         if (sql.includes('WHERE sb_id = ?')) found = found.filter(row => String(row.sb_id) === String(params[0]))
         if (sql.includes('sb_username LIKE ?')) {
             const search = params[0].slice(1, -1).toLowerCase()
-            found = found.filter(row => row.sb_username.toLowerCase().includes(search) || row.sb_updated_by.toLowerCase().includes(search))
+            found = found.filter(row => (row.sb_judul || '').toLowerCase().includes(search) || row.sb_username.toLowerCase().includes(search) || row.sb_updated_by.toLowerCase().includes(search))
         }
         if (sql.includes('COUNT(*)')) return [[{ total: found.length }]]
         if (sql.includes('ORDER BY sb_updated_at DESC')) found.reverse()
@@ -103,7 +103,7 @@ test('Duplicate username POST/PUT ditolak tanpa bocor password', async () => {
         const res = response()
         await f[method](f.req({ sb_username: 'One', sb_password: 'Private' }, '2'), res)
         assert.equal(res.statusCode, 409)
-        assert.equal(res.body.message, 'Username BPJS sudah terdaftar.')
+        assert.equal(res.body.message, 'Username sudah terdaftar.')
         assert.ok(!JSON.stringify(res.body).includes('Private'))
     }
 })
@@ -139,6 +139,31 @@ test('Browse: plaintext, search username/oleh, pagination dan sorting/filter whi
     assert.match(f.calls.at(-1).sql, /sb_updated_by IN \(\?\).*ORDER BY sb_username asc/)
     for (const query of [{ distinct: 'sb_password' }, { export: 'xlsx' }]) {
         const result = response(); await f.getSandiBpjsList({ query }, result); assert.equal(result.statusCode, 400)
+    }
+})
+
+test('Judul tersimpan, dapat dicari/filter/sort, diedit dan dibaca kembali', async () => {
+    const f = fixture()
+    const created = response()
+    await f.createSandiBpjs(f.req({ sb_judul: 'Portal Karyawan', sb_username: 'User', sb_password: 'Secret' }), created)
+    assert.equal(created.statusCode, 201)
+    assert.equal(f.rows[0].sb_judul, 'Portal Karyawan')
+    const list = response()
+    await f.getSandiBpjsList({ query: { search: 'Portal' } }, list)
+    assert.equal(list.body.data[0].sb_judul, 'Portal Karyawan')
+    assert.match(f.calls.at(-1).sql, /SELECT sb_id, sb_judul/)
+    await f.getSandiBpjsList({ query: { sort_by: 'sb_judul', sort_dir: 'asc', filterSet_sb_judul: ['Portal Karyawan'] } }, response())
+    assert.match(f.calls.at(-1).sql, /sb_judul IN \(\?\).*ORDER BY sb_judul asc/)
+    await f.getSandiBpjsList({ query: { distinct: 'sb_judul' } }, response())
+    assert.match(f.calls.at(-1).sql, /SELECT DISTINCT sb_judul/)
+    await f.updateSandiBpjs(f.req({ sb_judul: 'Portal Baru', sb_username: 'User', sb_password: 'Secret' }), response())
+    const detail = response()
+    await f.getSandiBpjs(f.req(), detail)
+    assert.equal(detail.body.data.sb_judul, 'Portal Baru')
+    for (const sb_judul of [123, [], 'x'.repeat(256)]) {
+        const result = response()
+        await f.createSandiBpjs(f.req({ sb_judul, sb_username: 'New', sb_password: 'Secret' }), result)
+        assert.equal(result.statusCode, 400)
     }
 })
 

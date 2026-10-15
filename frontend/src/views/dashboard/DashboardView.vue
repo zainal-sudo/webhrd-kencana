@@ -113,21 +113,6 @@ const panels: Panel[] = [
     ],
   },
   {
-    key: "mangkir_2hari",
-    title: "Tidak Masuk 2 Hari Berturut-turut",
-    desc: "Status 0 tanpa ijin pada 3 hari kerja terakhir",
-    icon: "person_off",
-    tone: "red",
-    route: "/laporan/tidak-masuk",
-    routeLabel: "Tidak Masuk",
-    columns: [
-      { key: "Nik", label: "NIK" },
-      { key: "Nama", label: "Nama" },
-      { key: "Pabrik", label: "Pabrik" },
-      { key: "Bagian", label: "Bagian" },
-    ],
-  },
-  {
     key: "nonaktif_bpjs",
     title: "Tidak Aktif, BPJS Masih Perusahaan",
     desc: "Sudah keluar tapi status BPJS belum dipindah",
@@ -141,6 +126,21 @@ const panels: Panel[] = [
       { key: "Pabrik", label: "Pabrik" },
       { key: "Bagian", label: "Bagian" },
       { key: "Tgl_Keluar", label: "Tgl Keluar", date: true },
+    ],
+  },
+  {
+    key: "mangkir_2hari",
+    title: "Tidak Masuk 2 Hari Berturut-turut",
+    desc: "Status 0 tanpa ijin pada 3 hari kerja terakhir",
+    icon: "person_off",
+    tone: "red",
+    route: "/laporan/tidak-masuk",
+    routeLabel: "Tidak Masuk",
+    columns: [
+      { key: "Nik", label: "NIK" },
+      { key: "Nama", label: "Nama" },
+      { key: "Pabrik", label: "Pabrik" },
+      { key: "Bagian", label: "Bagian" },
     ],
   },
   {

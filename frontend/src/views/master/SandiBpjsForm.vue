@@ -14,7 +14,7 @@ const id = String(useRoute().query.id || "");
 const isEdit = !!id;
 const endpoint = "/master/sandi-bpjs";
 const formPath = "/master/sandi-bpjs/form";
-const values = reactive({ sb_username: "", sb_password: "" });
+const values = reactive({ sb_judul: "", sb_username: "", sb_password: "" });
 const loading = ref(true);
 const ready = ref(false);
 const saving = ref(false);
@@ -29,32 +29,34 @@ onMounted(async () => {
   try {
     if (isEdit) {
       const { data } = await api.get(`${endpoint}/${encodeURIComponent(id)}`);
+      values.sb_judul = data.data.sb_judul ?? "";
       values.sb_username = data.data.sb_username;
       values.sb_password = data.data.sb_password;
     }
     ready.value = true;
     resetState.capture();
   } catch (err) {
-    toast.error(getErrorMessage(err, "Gagal memuat akun BPJS."));
+    toast.error(getErrorMessage(err, "Gagal memuat akun."));
   } finally {
     loading.value = false;
   }
 });
 
 async function save(): Promise<string> {
-  if (!canSave.value) throw new Error("Tidak memiliki hak menyimpan akun BPJS.");
+  if (!canSave.value) throw new Error("Tidak memiliki hak menyimpan akun.");
   if (loading.value || !ready.value || saving.value || resetState.restoring.value) throw new Error("Form belum siap disimpan.");
-  if (!values.sb_username.trim()) throw new Error("Username BPJS wajib diisi.");
-  if ([...values.sb_username].length > 100) throw new Error("Username BPJS maksimal 100 karakter.");
-  if (!values.sb_password.length) throw new Error("Password BPJS wajib diisi.");
-  if ([...values.sb_password].length > 255) throw new Error("Password BPJS maksimal 255 karakter.");
+  if ([...values.sb_judul].length > 255) throw new Error("Judul maksimal 255 karakter.");
+  if (!values.sb_username.trim()) throw new Error("Username wajib diisi.");
+  if ([...values.sb_username].length > 100) throw new Error("Username maksimal 100 karakter.");
+  if (!values.sb_password.length) throw new Error("Password wajib diisi.");
+  if ([...values.sb_password].length > 255) throw new Error("Password maksimal 255 karakter.");
   saving.value = true;
   try {
     // Payload hanya data akun; metadata perubahan ditentukan backend/database.
-    const payload = { sb_username: values.sb_username, sb_password: values.sb_password };
+    const payload = { sb_judul: values.sb_judul, sb_username: values.sb_username, sb_password: values.sb_password };
     if (isEdit) await api.put(`${endpoint}/${encodeURIComponent(id)}`, payload);
     else await api.post(endpoint, payload);
-    return isEdit ? "Akun BPJS berhasil diperbarui." : "Akun BPJS berhasil ditambahkan.";
+    return isEdit ? "Akun berhasil diperbarui." : "Akun berhasil ditambahkan.";
   } finally {
     saving.value = false;
   }
@@ -63,8 +65,8 @@ async function save(): Promise<string> {
 
 <template>
   <BaseForm
-    :title="isEdit ? 'Edit Sandi BPJS' : 'Tambah Sandi BPJS'"
-    :crumbs="[{ label: 'Sandi BPJS', path: '/master/sandi-bpjs' }, { label: isEdit ? 'Edit' : 'Tambah' }]"
+    :title="isEdit ? 'Edit Sandi' : 'Tambah Sandi'"
+    :crumbs="[{ label: 'Sandi', path: '/master/sandi-bpjs' }, { label: isEdit ? 'Edit' : 'Tambah' }]"
     :save-fn="canSave ? save : undefined"
     :show-save="canSave"
     :save-disabled="loading || !ready || saving || resetState.restoring.value"
@@ -77,6 +79,10 @@ async function save(): Promise<string> {
     <template #form-content>
       <div class="credential-form">
         <div v-if="loading" class="load-note">Memuat data...</div>
+        <label class="credential-field">
+          <span>Judul</span>
+          <input v-model="values.sb_judul" type="text" maxlength="255" autocomplete="off" :disabled="loading || !ready || saving || !canSave" />
+        </label>
         <label class="credential-field">
           <span>Username <b>*</b></span>
           <input v-model="values.sb_username" type="text" maxlength="100" autocomplete="off" autocapitalize="off" :spellcheck="false" :disabled="loading || !ready || saving || !canSave" />
