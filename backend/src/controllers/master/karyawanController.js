@@ -304,7 +304,8 @@ export const saveKaryawan = async (req, res, next) => {
         const b = kanonik(req.body || {})
         // NIK pada PUT berasal dari URL; body dipakai untuk insert (dibuat dari nomor otomatis)
         const nikParam = req.params.nik || ''
-        const isEdit = !!nikParam || !!b.kar_Nik
+        const isEdit = req.method === 'PUT'
+        const canChangeStatus = ['hrd', 'super'].includes(String(req.user?.user || '').toLowerCase())
         const nik = nikParam || b.kar_Nik || await nomorNik(b.kar_pab_kode, b.kar_tgl_masuk)
         if (req.method === 'PUT' && nikParam && b.kar_Nik && b.kar_Nik !== nikParam) {
             return error(res, 'NIK pada body tidak boleh berbeda dari NIK pada URL', 400)
@@ -313,14 +314,30 @@ export const saveKaryawan = async (req, res, next) => {
         if (!isEdit && !nik) return error(res, 'NIK kosong, tidak bisa membuat nomor', 400)
 
         // validasi unik
-        const [dup] = await conn.query('SELECT kar_Nik FROM tkaryawan WHERE kar_Nik = ?', [nik])
+        const [dup] = await conn.query('SELECT kar_Nik, kar_status_aktif FROM tkaryawan WHERE kar_Nik = ?', [nik])
         if (dup.length > 0 && !isEdit) {
             return error(res, `NIK ${nik} sudah dipakai`, 409)
+        }
+        if (isEdit && !dup.length) return error(res, 'Karyawan tidak ditemukan', 404)
+
+        const hasStatus = Object.hasOwn(b, 'kar_status_aktif')
+        const validStatus = [0, 1, '0', '1'].includes(b.kar_status_aktif)
+        const currentStatus = isEdit ? dup[0].kar_status_aktif : null
+        if (isEdit && !canChangeStatus && hasStatus && !(
+            (b.kar_status_aktif === null && currentStatus === null) ||
+            (validStatus && currentStatus != null && Number(b.kar_status_aktif) === Number(currentStatus))
+        )) return error(res, 'Status aktif/non aktif hanya dapat diubah oleh HRD', 403)
+        let status = isEdit ? currentStatus : 0
+        if (canChangeStatus) {
+            if (validStatus) status = Number(b.kar_status_aktif)
+            else {
+                return error(res, 'Status Aktif wajib dipilih (Aktif atau Non Aktif)', 400)
+            }
         }
 
         const values = {
             kar_nama: b.kar_nama,
-            kar_status_aktif: num(b.kar_status_aktif),
+            kar_status_aktif: status,
             kar_tempatlahir: b.kar_tempatlahir ?? '',
             kar_kode_absensi: b.kar_kode_absensi ?? (await nomorKodeAbsensi()),
             kar_tgllahir: b.kar_tgllahir || null,
@@ -375,9 +392,10 @@ export const saveKaryawan = async (req, res, next) => {
         await conn.beginTransaction()
 
         if (isEdit) {
-            const sets = FORM_COLUMNS.map((c) => `\`${c}\` = ?`).join(', ')
+            const updateColumns = canChangeStatus ? FORM_COLUMNS : FORM_COLUMNS.filter(c => c !== 'kar_status_aktif')
+            const sets = updateColumns.map((c) => `\`${c}\` = ?`).join(', ')
             await conn.query(`UPDATE tkaryawan SET ${sets} WHERE kar_Nik = ?`, [
-                ...FORM_COLUMNS.map((c) => values[c]),
+                ...updateColumns.map((c) => values[c]),
                 nik,
             ])
         } else {

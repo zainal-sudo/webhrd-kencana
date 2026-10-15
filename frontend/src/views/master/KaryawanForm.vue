@@ -33,9 +33,10 @@ const auth = useAuthStore();
 const nik = computed(() => (route.query.nik as string) || (route.query.id as string) || "");
 const isEdit = computed(() => nik.value !== "");
 const canSave = computed(() => auth.can("frmKaryawan", isEdit.value ? "edit" : "insert"));
+const canChangeStatus = computed(() => ["hrd", "super"].includes(String(auth.user?.user_kode || "").toLowerCase()));
 
 const values = reactive<Record<string, any>>({
-  kar_status_aktif: null,
+  kar_status_aktif: canChangeStatus.value ? null : 0,
   ...(isEdit.value ? {} : { kar_tgl_masuk: todaySql() }),
 });
 const anak = ref<any[]>([]);
@@ -244,7 +245,7 @@ function toggleJadwal(id: number) {
 async function simpan(): Promise<string> {
   if (!canSave.value) throw new Error("Tidak memiliki hak untuk menyimpan data karyawan.");
   if (memuat.value || !formReady.value) throw new Error("Form belum siap disimpan.");
-  if (![0, 1, "0", "1"].includes(values.kar_status_aktif)) {
+  if (canChangeStatus.value && ![0, 1, "0", "1"].includes(values.kar_status_aktif)) {
     throw new Error("Status Aktif wajib dipilih (Aktif atau Non Aktif)");
   }
   if (!values.kar_nama || !String(values.kar_nama).trim()) throw new Error("Nama karyawan wajib diisi");
@@ -252,6 +253,10 @@ async function simpan(): Promise<string> {
   if (!values.kar_jab_kode) throw new Error("Jabatan wajib diisi");
 
   const body: Record<string, any> = { ...values };
+  if (!canChangeStatus.value) {
+    if (isEdit.value) delete body.kar_status_aktif;
+    else body.kar_status_aktif = 0;
+  }
   if (isEdit.value) body.kar_Nik = nik.value;
   body.anak = anak.value;
   body.pendidikan = pendidikan.value;
@@ -430,7 +435,8 @@ onUnmounted(() => {
             <FSelect
               v-model="values.kar_status_aktif"
               label="Status Aktif"
-              required
+              :required="canChangeStatus && !isEdit"
+              :disabled="!canChangeStatus || !canSave || memuat || !formReady"
               placeholder="Pilih Status Aktif..."
               :options="[
                 { label: 'Aktif', value: 1 },
@@ -438,6 +444,7 @@ onUnmounted(() => {
               ]"
             />
             <FText v-model="values.kar_kode_absensi" label="Kode Absensi" :disabled="isEdit" />
+            <p v-if="!canChangeStatus" class="status-access-notice" role="note">Status aktif/non aktif hanya dapat diubah oleh HRD</p>
             <div class="field rekrut-field">
               <label>No Rekruitmen</label>
               <div class="rekrut-row">
@@ -823,6 +830,7 @@ onUnmounted(() => {
 .identity-main.fs { padding: 2px 10px 6px; margin-bottom: 6px; }
 .identity-main :deep(.field input), .identity-main :deep(.field select) { height: 30px; }
 .grid.identity-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.status-access-notice { grid-column: 1 / -1; margin: 0; color: var(--ds-text-secondary, #5a6a7e); font-size: 11px; line-height: 1.5; }
 .identity-grid :deep(.field) { min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; }
 .identity-grid :deep(.field label) { flex: none; margin: 0; line-height: 1.4; }
 .identity-grid :deep(.field input), .identity-grid :deep(.select-wrap) { flex: none; width: 100%; min-width: 0; }
