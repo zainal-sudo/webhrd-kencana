@@ -211,16 +211,41 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
     </BaseBrowse>
     <Teleport to="body">
       <div v-if="deleteOpen" class="loan-overlay" @click.self="closeDelete" @keydown.esc="closeDelete">
-        <section class="loan-dialog" role="dialog" aria-modal="true" aria-labelledby="loan-delete-title">
-          <header><h2 id="loan-delete-title">Verifikasi Hapus Permanen</h2><button type="button" class="close-button" aria-label="Tutup verifikasi hapus" :disabled="deleting" @click="closeDelete"><MsIcon name="close" :size="22" /></button></header>
-          <p class="delete-warning" role="alert">Histori pinjaman akan dihapus permanen dan tidak dapat dipulihkan. Termasuk pinjaman lunas. Verifikasi dampaknya terhadap proses potongan gaji sebelum melanjutkan.</p>
-          <p v-if="deleteLoading" role="status">Memuat data terbaru…</p>
+        <section class="loan-dialog loan-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="loan-delete-title" aria-describedby="loan-delete-warning" :aria-busy="deleteLoading || deleting">
+          <header>
+            <span class="delete-heading-icon"><MsIcon name="delete_forever" :size="24" /></span>
+            <div class="delete-heading"><h2 id="loan-delete-title">Hapus pinjaman permanen?</h2><p>Periksa data pinjaman sebelum melanjutkan.</p></div>
+            <button type="button" class="close-button" aria-label="Tutup verifikasi hapus" :disabled="deleting" @click="closeDelete"><MsIcon name="close" :size="20" /></button>
+          </header>
+          <div id="loan-delete-warning" class="delete-warning" role="alert">
+            <MsIcon name="warning" :size="20" />
+            <div><strong>Data yang dihapus tidak dapat dipulihkan.</strong><p>Seluruh histori pinjaman, termasuk pinjaman lunas, akan dihapus. Pastikan dampaknya terhadap potongan gaji sudah diverifikasi.</p></div>
+          </div>
+          <p v-if="deleteLoading" class="delete-state" role="status">Memuat data terbaru…</p>
           <template v-else-if="deleteTarget">
-            <dl><dt>Nomor</dt><dd>{{ deleteTarget.Nomor }}</dd><dt>Karyawan</dt><dd>{{ deleteTarget.Nik }} · {{ deleteTarget.Nama || '—' }}</dd><dt>Nominal</dt><dd>{{ rupiah(deleteTarget.Pinjam) }}</dd><dt>Bayar</dt><dd>{{ rupiah(deleteTarget.Bayar) }}</dd><dt>Sisa Pinjaman</dt><dd>{{ rupiah(deleteTarget.SisaBayar) }}</dd><dt>Status</dt><dd>{{ deleteTarget.Status || '—' }}</dd></dl>
-            <label class="delete-verification">Ketik <strong>{{ deleteTarget.Nomor }}</strong> untuk verifikasi<input v-model="deleteVerification" type="text" :disabled="deleting" autocomplete="off" /></label>
-            <button type="button" class="delete-button" :disabled="deleting || deleteVerification !== deleteTarget.Nomor" @click="confirmPermanentDelete">{{ deleting ? 'Menghapus…' : 'Hapus Permanen' }}</button>
+            <div class="delete-record">
+              <dl class="delete-identity">
+                <div><dt>Nomor pinjaman</dt><dd>{{ deleteTarget.Nomor }}</dd></div>
+                <div><dt>Status</dt><dd><span class="status-badge" :class="{ 'status-outstanding': deleteTarget.Status === 'Belum Lunas', 'status-paid': deleteTarget.Status === 'Lunas' }">{{ deleteTarget.Status || '—' }}</span></dd></div>
+                <div class="delete-employee"><dt>Karyawan</dt><dd>{{ deleteTarget.Nama || '—' }}<span>NIK {{ deleteTarget.Nik }}</span></dd></div>
+              </dl>
+              <dl class="delete-amounts">
+                <div><dt>Nominal pinjaman</dt><dd>{{ rupiah(deleteTarget.Pinjam) }}</dd></div>
+                <div><dt>Sudah dibayar</dt><dd>{{ rupiah(deleteTarget.Bayar) }}</dd></div>
+                <div><dt>Sisa pinjaman</dt><dd>{{ rupiah(deleteTarget.SisaBayar) }}</dd></div>
+              </dl>
+            </div>
+            <div class="delete-verification">
+              <label for="loan-delete-verification">Ketik <strong>{{ deleteTarget.Nomor }}</strong> untuk konfirmasi</label>
+              <input id="loan-delete-verification" v-model="deleteVerification" type="text" :placeholder="deleteTarget.Nomor" :disabled="deleting" autocomplete="off" autocapitalize="off" :spellcheck="false" aria-describedby="loan-delete-hint" />
+              <p id="loan-delete-hint" :class="{ 'verification-matched': deleteVerification === deleteTarget.Nomor }" aria-live="polite"><MsIcon :name="deleteVerification === deleteTarget.Nomor ? 'check_circle' : 'info'" :size="15" />{{ deleteVerification === deleteTarget.Nomor ? 'Nomor sesuai. Penghapusan dapat dilanjutkan.' : 'Nomor harus sama persis untuk mengaktifkan tombol hapus.' }}</p>
+            </div>
           </template>
-          <p v-else>Data tidak dapat dimuat. Tutup dialog dan coba kembali.</p>
+          <p v-else class="delete-state" role="alert">Data tidak dapat dimuat. Tutup dialog dan coba kembali.</p>
+          <footer class="delete-actions">
+            <button type="button" class="delete-cancel" :disabled="deleting" @click="closeDelete">Batal</button>
+            <button type="button" class="delete-confirm" :disabled="deleting || deleteLoading || !deleteTarget || deleteVerification !== deleteTarget.Nomor" @click="confirmPermanentDelete"><MsIcon name="delete_forever" :size="18" />{{ deleting ? 'Menghapus…' : 'Hapus Permanen' }}</button>
+          </footer>
         </section>
       </div>
       <div v-if="detailOpen" class="loan-overlay" @click.self="closeDetail" @keydown.esc="closeDetail">
@@ -306,14 +331,57 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .delete-warning, .loan-dialog .delete-button, .delete-button { color: var(--ds-error, #dc2626); }
 .delete-button { cursor: pointer; padding: 6px 10px; border: 1px solid currentColor; border-radius: 5px; background: var(--ds-surface, white); }
 button:disabled { opacity: .5; cursor: not-allowed; }
-.delete-verification { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
-.delete-verification input { padding: 9px; background: var(--ds-surface, white); color: inherit; border: 1px solid var(--ds-border, #dde3ec); border-radius: 5px; }
 .loan-dialog .close-button { display: inline-flex; align-items: center; justify-content: center; padding: 6px; color: var(--ds-error, #dc2626); border-color: transparent; background: transparent; }
 .loan-dialog .close-button:hover { background: var(--ds-surface-inset, #fee2e2); }
 .loan-dialog dl { display: grid; grid-template-columns: 160px 1fr; gap: 10px 16px; }
 .loan-dialog dd { margin: 0; overflow-wrap: anywhere; }
 .loan-dialog dt { font-weight: 600; }
 @media (max-width: 600px) { .loan-summary { grid-template-columns: 1fr; } .loan-dialog dl { grid-template-columns: 1fr; } }
+.loan-delete-dialog { box-sizing: border-box; width: min(560px, 100%); max-height: 90dvh; padding: 24px; font-size: 13px; line-height: 1.5; }
+.loan-delete-dialog > header { align-items: flex-start; gap: 12px; }
+.delete-heading-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; color: var(--ds-error, #dc2626); background: color-mix(in srgb, var(--ds-error, #dc2626) 10%, var(--ds-surface-raised, white)); }
+.delete-heading { flex: 1; min-width: 0; }
+.delete-heading p { margin: 4px 0 0; color: var(--ds-text-secondary, #5a6a7e); font-size: 12px; }
+.loan-delete-dialog .close-button { color: var(--ds-text-secondary, #5a6a7e); flex-shrink: 0; }
+.loan-delete-dialog .delete-warning { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 20px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--ds-error, #dc2626) 22%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--ds-error, #dc2626) 6%, var(--ds-surface-raised, white)); color: var(--ds-text, #1b2d4a); }
+.delete-warning > .ms-icon { margin-top: 1px; color: var(--ds-error, #dc2626); }
+.delete-warning strong { font-size: 12px; }
+.delete-warning p { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: var(--ds-text-secondary, #5a6a7e); }
+.delete-record { overflow: hidden; border: 1px solid var(--ds-border-light, #dde3ec); border-radius: 12px; background: var(--ds-surface-raised, white); }
+.loan-delete-dialog dl { margin: 0; gap: 16px; }
+.loan-delete-dialog dt { margin: 0 0 4px; color: var(--ds-text-secondary, #5a6a7e); font-size: 11px; font-weight: 500; }
+.loan-delete-dialog dd { font-weight: 650; font-size: 13px; }
+.loan-delete-dialog .delete-identity { padding: 16px; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+.delete-employee { grid-column: 1 / -1; }
+.delete-employee dd > span { display: block; margin-top: 2px; color: var(--ds-text-secondary, #5a6a7e); font-size: 11px; font-weight: 400; }
+.loan-delete-dialog .delete-amounts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 14px 16px; border-top: 1px solid var(--ds-border-light, #dde3ec); background: color-mix(in srgb, var(--ds-surface, #f0f3f8) 65%, var(--ds-surface-raised, white)); }
+.delete-amounts dd { font-variant-numeric: tabular-nums; }
+.delete-amounts > div:last-child dd { color: var(--ds-error, #dc2626); }
+.delete-verification { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; }
+.delete-verification label { font-size: 12px; }
+.delete-verification label strong { white-space: nowrap; }
+.delete-verification input { box-sizing: border-box; width: 100%; min-width: 0; height: 42px; padding: 0 12px; background: var(--ds-surface-raised, white); color: inherit; border: 1px solid var(--ds-border, #a0aab8); border-radius: 8px; font: inherit; }
+.delete-verification input::placeholder { color: var(--ds-text-muted, #8494a7); }
+.delete-verification p { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; color: var(--ds-text-secondary, #5a6a7e); }
+.delete-verification .verification-matched { color: var(--ds-success, #15803d); }
+.delete-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--ds-border-light, #dde3ec); }
+.loan-delete-dialog .delete-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 16px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; }
+.loan-delete-dialog .delete-cancel { background: var(--ds-surface-raised, white); }
+.loan-delete-dialog .delete-cancel:not(:disabled):hover { background: var(--ds-surface-inset, #e0e4ea); }
+.loan-delete-dialog .delete-confirm { border-color: #dc2626; background: #dc2626; color: white; }
+.loan-delete-dialog .delete-confirm:not(:disabled):hover { background: #b91c1c; border-color: #b91c1c; }
+.loan-delete-dialog .delete-confirm:disabled { opacity: 1; background: var(--ds-surface-inset, #e0e4ea); border-color: var(--ds-border-light, #dde3ec); color: var(--ds-text-secondary, #5a6a7e); }
+.loan-delete-dialog :is(input, button):focus-visible { outline: 2px solid var(--ds-primary, #1b5e9e); outline-offset: 3px; }
+.delete-state { padding: 20px 0; color: var(--ds-text-secondary, #5a6a7e); }
+@media (max-width: 480px) {
+  .loan-delete-dialog { padding: 18px; }
+  .delete-heading-icon { width: 36px; height: 36px; }
+  .loan-delete-dialog .delete-identity { gap: 12px; }
+  .loan-delete-dialog .delete-amounts { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .delete-amounts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .delete-amounts dt { margin: 0; }
+  .delete-actions > button { flex: 1; }
+}
 /* Detail-only layout: shared browse, delete dialog and schedule stay unchanged. */
 .loan-detail-dialog { box-sizing: border-box; width: min(680px, 100%); max-height: 90dvh; padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .loan-detail-dialog > header { flex-shrink: 0; }
