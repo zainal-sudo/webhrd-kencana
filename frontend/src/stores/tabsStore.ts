@@ -93,6 +93,15 @@ export const useTabsStore = defineStore("tabs", {
       this.activeTabId = tabId;
     },
 
+    moveTab(tabId: string, targetIndex: number) {
+      const index = this.tabs.findIndex((tab) => tab.id === tabId);
+      if (index < 0 || !Number.isInteger(targetIndex)) return;
+      const destination = Math.max(0, Math.min(targetIndex, this.tabs.length - 1));
+      if (index === destination) return;
+      const [tab] = this.tabs.splice(index, 1);
+      this.tabs.splice(destination, 0, tab);
+    },
+
     setActiveTab(tabId: string) {
       const tab = this.tabs.find((t) => t.id === tabId);
       if (tab) this.activeTabId = tabId;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
@@ -8,6 +9,61 @@ const route = useRoute();
 const router = useRouter();
 const tabsStore = useTabsStore();
 const { closeAllTabs } = useTabNavigation();
+
+const draggedTabId = ref<string | null>(null);
+const dropIndex = ref<number | null>(null);
+
+function startDrag(event: DragEvent, tabId: string) {
+  if (!event.dataTransfer) return;
+  draggedTabId.value = tabId;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", tabId);
+}
+
+function endDrag() {
+  draggedTabId.value = null;
+  dropIndex.value = null;
+}
+
+function dragOver(event: DragEvent) {
+  if (!draggedTabId.value) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  const strip = event.currentTarget as HTMLElement;
+  const bounds = strip.getBoundingClientRect();
+  if (event.clientX < bounds.left + 28) strip.scrollLeft -= 16;
+  else if (event.clientX > bounds.right - 28) strip.scrollLeft += 16;
+  const buttons = Array.from(strip.querySelectorAll<HTMLElement>(".tab-btn"));
+  const index = buttons.findIndex((button) => {
+    const rect = button.getBoundingClientRect();
+    return event.clientX < rect.left + rect.width / 2;
+  });
+  dropIndex.value = index < 0 ? buttons.length : index;
+}
+
+function drop(event: DragEvent) {
+  if (!draggedTabId.value) return;
+  dragOver(event);
+  const from = tabsStore.tabs.findIndex((tab) => tab.id === draggedTabId.value);
+  if (from >= 0 && dropIndex.value !== null) {
+    tabsStore.moveTab(draggedTabId.value, dropIndex.value - (from < dropIndex.value ? 1 : 0));
+  }
+  endDrag();
+}
+
+function leaveStrip(event: DragEvent) {
+  const strip = event.currentTarget as HTMLElement;
+  if (!(event.relatedTarget instanceof Node) || !strip.contains(event.relatedTarget)) {
+    dropIndex.value = null;
+  }
+}
+
+function moveWithKeyboard(event: KeyboardEvent, tabId: string) {
+  if (!event.altKey || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+  event.preventDefault();
+  const index = tabsStore.tabs.findIndex((tab) => tab.id === tabId);
+  tabsStore.moveTab(tabId, index + (event.key === "ArrowLeft" ? -1 : 1));
+}
 
 function activate(tabId: string) {
   tabsStore.setActiveTab(tabId);
@@ -43,15 +99,24 @@ function refresh() {
 
 <template>
   <div class="tab-strip-wrap">
-    <div class="tab-strip">
+    <div class="tab-strip" @dragover="dragOver" @drop="drop" @dragleave="leaveStrip">
       <button
-        v-for="tab in tabsStore.tabs"
+        v-for="(tab, index) in tabsStore.tabs"
         :key="tab.id"
         class="tab-btn"
-        :class="{ active: tab.id === tabsStore.activeTabId }"
+        :class="{
+          active: tab.id === tabsStore.activeTabId,
+          dragging: tab.id === draggedTabId,
+          'drop-before': dropIndex === index,
+          'drop-after': dropIndex === tabsStore.tabs.length && index === tabsStore.tabs.length - 1,
+        }"
+        draggable="true"
+        @dragstart="startDrag($event, tab.id)"
+        @dragend="endDrag"
+        @keydown="moveWithKeyboard($event, tab.id)"
         @click="activate(tab.id)"
         @dblclick="close(tab.id)"
-        :title="tab.path"
+        :title="`${tab.path} — Geser untuk memindahkan tab, atau Alt + panah kiri/kanan`"
       >
         <span class="tab-icon" v-if="tab.icon">
           <i :class="tab.icon"></i>
@@ -117,9 +182,34 @@ function refresh() {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
   border-bottom: none;
   position: relative;
   top: 1px;
+}
+.tab-btn[draggable="true"] {
+  cursor: grab;
+}
+.tab-btn.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.tab-btn.drop-before::before,
+.tab-btn.drop-after::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ds-primary, #3b5998);
+  pointer-events: none;
+}
+.tab-btn.drop-before::before {
+  left: -2px;
+}
+.tab-btn.drop-after::after {
+  right: -2px;
 }
 .tab-btn:hover {
   background: #dfe4ec;

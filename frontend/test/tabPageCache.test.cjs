@@ -176,3 +176,41 @@ test('Automatic oldest-tab closure disposes cache and all 12 open tabs retain st
     await f.open('/page1'); assert.equal(f.states.get('/page1').employee, '');
   } finally { f.dispose(); }
 });
+
+test('Reordering any tab preserves active page, cached drafts, and tab identity', async () => {
+  const f = await fixture(true);
+  try {
+    const a = await f.open('/a'); f.states.get(a).employee = 'Draft A';
+    const b = await f.open('/b'); f.states.get(b).employee = 'Draft B';
+    const original = f.tabs.tabs.find(tab => tab.id === a);
+    f.tabs.moveTab(a, 2); await vue.nextTick();
+    assert.deepEqual(Array.from(f.tabs.tabs, tab => tab.id), ['/dashboard', b, a]);
+    f.tabs.moveTab('/dashboard', 2); await vue.nextTick();
+    assert.deepEqual(Array.from(f.tabs.tabs, tab => tab.id), [b, a, '/dashboard']);
+    f.tabs.moveTab(a, 0); await vue.nextTick();
+    assert.deepEqual(Array.from(f.tabs.tabs, tab => tab.id), [a, b, '/dashboard']);
+    assert.equal(f.tabs.activeTabId, b); assert.equal(f.routeId.value, b);
+    assert.equal(f.tabs.tabs[0], original);
+    assert.equal(f.states.get(a).employee, 'Draft A');
+    assert.equal(f.states.get(b).employee, 'Draft B');
+    assert.deepEqual(f.destroyed, []);
+    await f.open('/a'); assert.equal(f.mounts.get(a), 1);
+    assert.equal(f.states.get(a).employee, 'Draft A');
+  } finally { f.dispose(); }
+});
+
+test('Reordering ignores missing IDs and invalid positions and clamps out-of-range positions', () => {
+  pinia.setActivePinia(pinia.createPinia());
+  const tabs = useTabsStore();
+  tabs.initDefaultTabs();
+  tabs.openTab({ path: '/a', title: 'A', closable: true });
+  tabs.moveTab('/missing', 0);
+  tabs.moveTab('/a', NaN);
+  tabs.moveTab('/a', 0.5);
+  assert.deepEqual(Array.from(tabs.tabs, tab => tab.id), ['/dashboard', '/a']);
+  tabs.moveTab('/a', -10);
+  assert.deepEqual(Array.from(tabs.tabs, tab => tab.id), ['/a', '/dashboard']);
+  tabs.moveTab('/a', 100);
+  assert.deepEqual(Array.from(tabs.tabs, tab => tab.id), ['/dashboard', '/a']);
+  assert.equal(tabs.activeTabId, '/a');
+});
