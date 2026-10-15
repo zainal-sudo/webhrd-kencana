@@ -62,6 +62,7 @@ const columns: BrowseColumn[] = [
   { key: "Status Karyawan", label: "Status Kerja", width: "110px" },
   { key: "JenisKelamin", label: "L/P", width: "90px", align: "center" },
   { key: "TglMasuk", label: "Tgl Masuk", type: "date", width: "105px" },
+  { key: "TglKeluar", label: "Tgl Keluar", type: "date", width: "105px" },
   { key: "MasaKerja", label: "Masa Kerja", width: "95px", align: "center", type: "align-right" },
   { key: "Status", label: "Status", width: "90px", align: "center" },
 ];

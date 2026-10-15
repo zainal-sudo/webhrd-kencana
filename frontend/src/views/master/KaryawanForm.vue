@@ -253,6 +253,8 @@ async function simpan(): Promise<string> {
   if (!values.kar_jab_kode) throw new Error("Jabatan wajib diisi");
 
   const body: Record<string, any> = { ...values };
+  // Tanggal keluar dikelola transaksi Karyawan Keluar, bukan form master.
+  delete body.kar_tgl_keluar;
   if (!canChangeStatus.value) {
     if (isEdit.value) delete body.kar_status_aktif;
     else body.kar_status_aktif = 0;
@@ -506,7 +508,6 @@ onUnmounted(() => {
               </v-autocomplete>
             </div>
             <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" />
-            <FDate v-model="values.kar_tgl_keluar" label="Tanggal Keluar" />
             <FText v-model="values.kar_no_NAKER" label="No. NAKER" />
             <FSelect v-model="values.kar_status_bpjs" label="Status BPJS" :options="OPSI_BPJS" />
             <FText v-model="values.kar_no_BPJS" label="No. BPJS" />

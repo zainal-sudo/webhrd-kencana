@@ -53,3 +53,17 @@ test('Status control is locked with the exact notice; browse retains active/inac
   assert.match(browse, /Status: \["Aktif", "Non Aktif"\]/);
   assert.doesNotMatch(browse, /Belum Ditentukan/);
 });
+
+test('Employee exit date is omitted from add/edit payload; work history dates remain', async () => {
+  for (const edit of [false, true]) {
+    const f = fixture('HRD', edit, 1);
+    f.values.kar_tgl_keluar = '2026-10-15';
+    await f.simpan();
+    assert.equal(Object.hasOwn(f.calls[0], 'kar_tgl_keluar'), false);
+    assert.equal(f.values.kar_tgl_keluar, '2026-10-15');
+  }
+  assert.doesNotMatch(source, /v-model="values.kar_tgl_keluar"/);
+  assert.match(source, /karp_tglkeluar/);
+  const browse = fs.readFileSync(path.join(__dirname, '../src/views/master/KaryawanView.vue'), 'utf8');
+  assert.match(browse, /key: "TglMasuk"[^\n]*\n\s*\{ key: "TglKeluar", label: "Tgl Keluar", type: "date"/);
+});

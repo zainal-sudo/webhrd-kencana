@@ -88,6 +88,30 @@ test('POST with existing NIK cannot update; missing PUT returns 404', async () =
     assert.equal((await fixture().save('HRD', 1)).statusCode, 404)
 })
 
+test('Master saves never write exit date, including forged payload keys for any account', async () => {
+    for (const user of ['HRD', 'super', 'STAFF']) for (const method of ['POST', 'PUT']) {
+        for (const body of [{}, { kar_tgl_keluar: '2026-10-15' }, { kar_tgl_keluar: null }, { KAR_TGL_KELUAR: '2026-10-15' }]) {
+            const f = fixture(method === 'PUT' ? 1 : undefined)
+            const res = await f.save(user, 1, { method, body })
+            assert.equal(res.statusCode, method === 'PUT' ? 200 : 201)
+            const write = f.calls.find(c => /^(INSERT INTO tkaryawan \(|UPDATE tkaryawan SET)/.test(c.sql))
+            assert.ok(write)
+            assert.doesNotMatch(write.sql, /kar_tgl_keluar/i)
+        }
+    }
+})
+
+test('Exit date remains selectable, sortable and filterable in employee browse', async () => {
+    const f = fixture()
+    await f.list({ query: { sort_by: 'TglKeluar', sort_dir: 'desc', filterSet_TglKeluar: ['2026-10-15'] } },
+        { status() { return this }, json() {} }, err => { throw err })
+    const query = f.calls.at(-1)
+    assert.ok(query.sql.includes('k.kar_tgl_keluar AS `TglKeluar`'))
+    assert.match(query.sql, /k.kar_tgl_keluar IN \(\?\)/)
+    assert.match(query.sql, /ORDER BY k.kar_tgl_keluar desc/)
+    assert.ok(query.params.includes('2026-10-15'))
+})
+
 test('Browse and status filters retain active/inactive labels', async () => {
     for (const status of ['Aktif', 'Non Aktif']) {
         const f = fixture()

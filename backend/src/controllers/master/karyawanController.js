@@ -250,7 +250,7 @@ const FORM_COLUMNS = [
     'kar_sistem_gaji', 'kar_status_BPJS', 'kar_no_BPJS', 'kar_no_NAKER', 'kar_namapasangan',
     'kar_ibukandung', 'kar_email', 'kar_hubungan', 'kar_status_hidup', 'kar_tgllahir2',
     'kar_alamat2', 'kar_pk_id', 'kar_keterangan_kerja', 'kar_telp2', 'kar_pendidikanterakhir',
-    'kar_jurusan', 'kar_size', 'kar_tgl_keluar',
+    'kar_jurusan', 'kar_size',
 ]
 
 const num = (v) => (v === '' || v === undefined || v === null ? 0 : parseInt(v, 10) || 0)
@@ -378,7 +378,6 @@ export const saveKaryawan = async (req, res, next) => {
             kar_pendidikanterakhir: b.kar_pendidikanterakhir ?? null,
             kar_jurusan: b.kar_jurusan ?? null,
             kar_size: b.kar_size ?? '',
-            kar_tgl_keluar: b.kar_tgl_keluar || null,
         }
 
         if (!values.kar_nama) return error(res, 'Nama karyawan wajib diisi', 400)
