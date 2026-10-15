@@ -105,6 +105,7 @@ async function remove() {
 .sandi-bpjs-browse.compact :deep(.browse-table) { table-layout: fixed; }
 .sandi-bpjs-browse.compact :deep(.action-col) { width: 80px; min-width: 80px; max-width: 80px; padding-left: 6px; padding-right: 6px; }
 .sandi-bpjs-browse :deep(.th-label) { text-transform: none; }
+.sandi-bpjs-browse.compact :deep(th:not(.sorted) .th-sort) { display: inline-flex; }
 .sandi-bpjs-browse.compact :deep(.row-actions) { justify-content: center; align-items: center; gap: 12px; }
 .sandi-bpjs-browse :deep(.row-btn.edit),
 .delete-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: none; border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 0.15s ease; }

@@ -127,6 +127,7 @@ test('Font mengikuti Master lain dan kolom Aksi ringkas, hanya pada Sandi BPJS',
   assert.match(source, /\.sandi-bpjs-browse.compact :deep\(\.action-col\) \{ width: 80px; min-width: 80px; max-width: 80px;/);
   assert.match(source, /:deep\(\.row-actions\) \{ justify-content: center; align-items: center; gap: 12px;/);
   assert.match(source, /:action-width="80"/);
+  assert.match(source, /\.sandi-bpjs-browse\.compact :deep\(th:not\(\.sorted\) \.th-sort\) \{ display: inline-flex; \}/);
   assert.match(source, /border-radius: 50%/);
   assert.match(source, /\.delete-btn:hover \{ background: rgba\(220, 38, 38, 0.12\)/);
   assert.match(source, /name="delete" :size="16"/);
