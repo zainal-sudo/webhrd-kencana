@@ -115,7 +115,7 @@ for (const kind of ['simple', 'employee']) {
     assert.equal(f.calls.length, 1); assert.equal(f.calls[0].method, 'post');
     const next = fixture(kind); await next.mount();
     if (kind === 'employee') {
-      assert.equal(next.form.values.kar_nama, undefined); assert.equal(next.form.values.kar_status_aktif, null);
+      assert.equal(next.form.values.kar_nama, undefined); assert.equal(next.form.values.kar_status_aktif, 0);
       assert.equal(next.form.values.kar_tgl_masuk, '2026-10-14'); assert.equal(next.form.fotoBase64.value, '');
       assert.equal(next.form.anak.value.length, 0); assert.equal(next.form.jadwalTerpilih.value.length, 0);
     } else { assert.equal(next.form.values.jab_kode, null); assert.equal(next.form.values.jab_nama, null); }

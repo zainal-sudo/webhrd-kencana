@@ -477,7 +477,34 @@ onUnmounted(() => {
             <FSelect v-model="values.kar_bagian" label="Bagian" :options="opsiBagian" show-clear />
             <FSelect v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" />
             <FSelect v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" />
-            <FSelect v-model="values.kar_nik_atasan" label="Atasan Langsung" :options="opsiAtasan" show-clear />
+            <div class="field atasan-field">
+              <label for="karyawan-atasan">Atasan Langsung</label>
+              <v-autocomplete
+                id="karyawan-atasan"
+                v-model="values.kar_nik_atasan"
+                class="atasan-input"
+                :items="opsiAtasan"
+                item-title="label"
+                item-value="value"
+                :filter-keys="['title', 'value']"
+                placeholder="Cari nama / NIK..."
+                no-data-text="Atasan tidak ditemukan"
+                :disabled="memuat || !formReady || !canSave"
+                :menu-props="{ maxHeight: 260, minWidth: 'min(300px, calc(100vw - 24px))', maxWidth: 'min(380px, calc(100vw - 24px))', contentClass: 'atasan-menu' }"
+                :list-props="{ density: 'compact' }"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autocomplete="off"
+                aria-label="Atasan Langsung"
+              >
+                <template #prepend-inner><MsIcon name="search" :size="15" /></template>
+                <template #item="{ props: itemProps, item }">
+                  <v-list-item v-bind="itemProps" :subtitle="`NIK ${item.value}`" />
+                </template>
+              </v-autocomplete>
+            </div>
             <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" />
             <FDate v-model="values.kar_tgl_keluar" label="Tanggal Keluar" />
             <FText v-model="values.kar_no_NAKER" label="No. NAKER" />
@@ -951,6 +978,24 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 .grid > :deep(.field) {
   min-width: 0;
 }
+.atasan-field { display: flex; align-items: center; gap: 8px; }
+.atasan-field > label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
+.atasan-input { flex: 1; min-width: 0; font-size: 12px; --v-input-control-height: 30px; }
+.atasan-input :deep(.v-field) { background: var(--ds-surface-raised, #fff); color: var(--ds-text, #1b2d4a); font-size: 12px; --v-field-padding-start: 8px; --v-field-padding-end: 6px; --v-field-border-width: 1px; }
+.atasan-input :deep(.v-field__input) { min-height: 30px; padding: 0 4px; gap: 0; }
+/* The autocomplete owns its border; reset the global native input decoration. */
+.atasan-input :deep(input#karyawan-atasan), .atasan-input :deep(input#karyawan-atasan:focus) { border: 0 !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; height: 30px; min-width: 0; font: inherit; }
+.atasan-input :deep(.v-field:focus-within), .atasan-input :deep(.v-field__input:focus-within) { outline: none !important; box-shadow: none !important; }
+.atasan-input :deep(.v-field__outline) { --v-field-border-width: 1px; }
+.atasan-input :deep(.v-field__prepend-inner), .atasan-input :deep(.v-field__append-inner), .atasan-input :deep(.v-field__clearable) { padding-top: 0; align-items: center; }
+.atasan-input :deep(.v-field__prepend-inner) { color: var(--ds-text-secondary, #5a6a7e); }
+.atasan-input :deep(.v-field__append-inner .v-icon), .atasan-input :deep(.v-field__clearable .v-icon) { font-size: 17px; }
+.atasan-input :deep(.v-autocomplete__selection) { max-width: 100%; }
+.atasan-input :deep(.v-autocomplete__selection-text) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.atasan-menu .v-list) { padding: 4px !important; background: var(--ds-surface-raised, #fff) !important; color: var(--ds-text, #1b2d4a); border: 1px solid var(--ds-border-light, #d5dce6); border-radius: 8px !important; }
+:global(.atasan-menu .v-list-item) { min-height: 46px !important; padding: 7px 10px !important; border-radius: 5px !important; }
+:global(.atasan-menu .v-list-item-title) { font-size: 12px !important; font-weight: 600; line-height: 1.45 !important; white-space: normal; overflow-wrap: anywhere; }
+:global(.atasan-menu .v-list-item-subtitle) { margin-top: 2px; font-size: 10px !important; line-height: 1.4 !important; color: var(--ds-text-secondary, #5a6a7e); opacity: 1; }
 .foto-row {
   width: 100%;
   min-width: 0;
