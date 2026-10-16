@@ -14,7 +14,7 @@ export async function sendPinjamanExcel(res, columns, rows, { dates, sisaBudget 
     widths.forEach((width, index) => { sheet.getColumn(index + 1).width = width })
     sheet.getRow(1).height = 42
 
-    const rupiah = '"Rp" #,##0.00;[Red]("Rp" #,##0.00);"Rp" 0.00'
+    const rupiah = '"Rp"* #,##0.00;[Red]"Rp"* (#,##0.00);"Rp"* 0.00;@'
     const moneyColumns = new Set(['PINJAMAN UANG KOPERASI', 'POTONGAN', 'SALDO POTONGAN'])
     rows.forEach((data, index) => {
         const date = dates[index]

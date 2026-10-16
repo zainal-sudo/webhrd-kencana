@@ -28,7 +28,10 @@ test('Export Pinjaman: tanggal kiri, header biru, budget kuning, angka dan ident
     assert.equal(sheet.getCell('H2').value, '001234567890123456')
     assert.equal(sheet.getCell('I2').value, 500000)
     assert.equal(sheet.getCell('L2').value, 250000)
-    assert.match(sheet.getCell('I2').numFmt, /Rp/)
+    for (const address of ['I2', 'K2', 'L2', 'O1']) {
+        assert.equal(sheet.getCell(address).numFmt, '"Rp"* #,##0.00;[Red]"Rp"* (#,##0.00);"Rp"* 0.00;@')
+        assert.equal(sheet.getCell(address).alignment.horizontal, 'right')
+    }
     assert.equal(sheet.getCell('A1').fill.fgColor.argb, 'FF243656')
     assert.equal(sheet.getCell('N1').value, 'SISA BUDGET')
     assert.equal(sheet.getCell('O1').value, 18200000)
@@ -49,4 +52,15 @@ test('Export kosong tetap punya filter/header/budget; budget negatif dan nol tet
     assert.equal(sheet.getCell('A2').value, '')
     assert.equal(sheet.getCell('K2').value, 0)
     assert.equal(sheet.getCell('L2').value, '—')
+})
+
+test('Accounting export lama mempertahankan nominal besar/negatif dan sel kosong tanpa simbol', async () => {
+    const sheet = await exportSheet([
+        { 'PINJAMAN UANG KOPERASI': 1234567890.25, POTONGAN: -250000.75, 'SALDO POTONGAN': null },
+    ], { dates: [null], sisaBudget: -100000 })
+    assert.equal(sheet.getCell('I2').value, 1234567890.25)
+    assert.equal(sheet.getCell('K2').value, -250000.75)
+    assert.equal(sheet.getCell('L2').value ?? '', '')
+    assert.ok(sheet.getCell('L2').numFmt.endsWith(';@'))
+    assert.equal(sheet.getCell('O1').value, -100000)
 })

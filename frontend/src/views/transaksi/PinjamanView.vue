@@ -200,7 +200,10 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
           <button v-if="addFormPath" type="button" class="tool-btn primary" @click="addNew"><MsIcon name="add" :size="15" /><span>{{ addLabel }}</span></button>
         </div>
       </template>
-      <template #cell="{ row, column, text }">{{ display(row, column, text) }}</template>
+      <template #cell="{ row, column, text }">
+        <span v-if="money.has(column.key) && display(row, column, text).startsWith('Rp')" class="loan-money-cell"><span>Rp</span><span>{{ display(row, column, text).slice(2) }}</span></span>
+        <template v-else>{{ display(row, column, text) }}</template>
+      </template>
       <template #expanded-row="{ row }"><PinjamanSchedule :rows="row.Potongan || []" :show-title="false" /></template>
       <template #row-actions="{ row }">
         <button type="button" class="detail-button" @click="openDetail(row)">Detail</button>
@@ -279,6 +282,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 </template>
 
 <style scoped>
+.loan-money-cell { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pinjaman-page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .pinjaman-page > .loan-summary, .pinjaman-page > p { flex-shrink: 0; }
 .pinjaman-page > :deep(.browse-panel) { flex: 1; height: auto; min-height: 0; }

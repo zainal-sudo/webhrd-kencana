@@ -9,7 +9,7 @@ export async function sendPengajuanPinjamanExcel(res, rows, { start, end }) {
         views: [{ state: 'frozen', ySplit: 1 }],
     })
     // Format tampilan tanpa desimal; nilai numerik asli tetap disimpan.
-    const rupiah = '#,##0;[Red](#,##0);0'
+    const rupiah = '"Rp"* #,##0;[Red]"Rp"* (#,##0);"Rp"* 0;@'
     const headers = ['TGL', 'NO', 'NIK', 'NAMA', 'UNIT', 'BANK', 'NO REK', 'PINJAMAN UANG KOPERASI']
     sheet.getRow(1).values = headers
     sheet.getRow(1).height = 30

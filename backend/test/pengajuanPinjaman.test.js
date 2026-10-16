@@ -33,11 +33,11 @@ test('Excel pengajuan langsung header, 8 kolom, tanggal asli, nol awal, TOTAL te
     assert.equal(sheet.getCell('C2').value, '000')
     assert.equal(sheet.getCell('G2').value, '001234567890123456')
     assert.equal(sheet.getCell('H2').value, 500000.25)
-    assert.equal(sheet.getCell('H2').numFmt, '#,##0;[Red](#,##0);0')
+    assert.equal(sheet.getCell('H2').numFmt, '"Rp"* #,##0;[Red]"Rp"* (#,##0);"Rp"* 0;@')
     assert.equal(sheet.getCell('A4').value, 'TOTAL')
     assert.equal(sheet.getCell('A4').alignment.horizontal, 'center')
     assert.equal(sheet.getCell('H4').alignment.horizontal, 'right')
-    assert.equal(sheet.getCell('H4').numFmt, '#,##0;[Red](#,##0);0')
+    assert.equal(sheet.getCell('H4').numFmt, sheet.getCell('H2').numFmt)
     assert.equal(sheet.getCell('H4').value.result, 900000.35)
     assert.equal(sheet.getCell('H4').value.formula, 'SUM(H2:H3)')
     assert.equal(sheet.autoFilter, 'A1:H3')
@@ -49,6 +49,19 @@ test('Excel pengajuan langsung header, 8 kolom, tanggal asli, nol awal, TOTAL te
     assert.equal(sheet.getRow(4).height, 25)
     assert.equal(sheet.views[0].ySplit, 1)
     assert.equal(sheet.columnCount, 8)
+})
+
+test('Accounting pengajuan mempertahankan angka nol, negatif, besar, dan formula TOTAL', async () => {
+    const amounts = [0, -250000.25, 1234567890.75]
+    const sheet = await workbook(amounts.map(Pinjam => ({ Tanggal: '2026-10-01', Pinjam })))
+    for (let i = 0; i < amounts.length; i++) {
+        const cell = sheet.getCell(i + 2, 8)
+        assert.equal(cell.value, amounts[i])
+        assert.equal(cell.alignment.horizontal, 'right')
+        assert.equal(cell.numFmt, '"Rp"* #,##0;[Red]"Rp"* (#,##0);"Rp"* 0;@')
+    }
+    assert.equal(sheet.getCell('H5').value.formula, 'SUM(H2:H4)')
+    assert.equal(sheet.getCell('H5').value.result, 1234317890.5)
 })
 
 test('Periode kosong menghasilkan header dan TOTAL nol; nominal NULL ditolak bukan dihitung nol', async () => {
