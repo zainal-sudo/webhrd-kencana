@@ -182,6 +182,10 @@ const opsiJenjang = computed(() => {
 });
 const opsiBagian = computed(() => bagian.value.map((r) => ({ label: r.Nama, value: r.Nama })));
 const opsiAtasan = computed(() => atasan.value.map((r) => ({ label: r.Nama, value: r.Nik })));
+// Preserve legacy -1 without offering it as a new status for other records.
+const opsiBpjs = computed(() => isEdit.value && String(values.kar_status_BPJS) === "-1"
+  ? [{ label: "Belum Ada", value: -1 }, ...OPSI_BPJS]
+  : OPSI_BPJS);
 const daftarJadwal = computed(() => {
   const q = cariJadwal.value.trim().toLowerCase();
   return opt.jadwal.filter((j) => !q || `${j.Kode} ${j.Nama}`.toLowerCase().includes(q));
@@ -510,7 +514,7 @@ onUnmounted(() => {
             </div>
             <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" />
             <FText v-model="values.kar_no_NAKER" label="BPJS TK" />
-            <FSelect searchable v-model="values.kar_status_bpjs" label="Status BPJS" :options="OPSI_BPJS" />
+            <FSelect searchable v-model="values.kar_status_BPJS" label="Status BPJS" :options="opsiBpjs" />
             <FText v-model="values.kar_no_BPJS" label="BPJS KES" />
             <FDate v-model="values.kar_tglPKWT1" label="Tgl PKWT 1" />
             <FDate v-model="values.kar_tglPKWT2" label="Tgl PKWT 2" />

@@ -226,9 +226,9 @@ export const OPSI_BPJS = [
   { label: "Belum Ada", value: 0 },
   { label: "Perusahaan", value: 1 },
   { label: "Mandiri", value: 2 },
-  { label: "Jamberapa / JHT", value: 3 },
+  { label: "Jamkesmas", value: 3 },
   { label: "Perusahaan Lain", value: 4 },
-  { label: "Nonaktif Perusahaan", value: 5 },
+  { label: "NonAktif Perusahaan", value: 5 },
 ];
 
 export const OPSI_SISTEM_GAJI = ["Bulanan", "Harian"].map((v) => ({ label: v, value: v }));

@@ -121,3 +121,26 @@ test('Browse and status filters retain active/inactive labels', async () => {
         assert.ok(query.params.includes(status))
     }
 })
+
+test('BPJS browse mapping matches Delphi, including Jamkesmas and Belum Ada fallback', async () => {
+    const f = fixture()
+    await f.list({ query: {} }, { status() { return this }, json() {} }, err => { throw err })
+    const sql = f.calls.at(-1).sql
+    for (const [code, label] of [[1, 'Perusahaan'], [2, 'Mandiri'], [3, 'Jamkesmas'], [4, 'Perusahaan Lain'], [5, 'NonAktif Perusahaan']]) {
+        assert.ok(sql.includes(`WHEN ${code} THEN '${label}'`))
+    }
+    assert.ok(sql.includes("ELSE 'Belum Ada' END AS `StatusBPJS`"))
+    assert.doesNotMatch(sql, /Jam_COMM|Jamberapa/)
+})
+
+test('POST/PUT preserve BPJS codes -1 through 5 and the exact BPJS number', async () => {
+    for (const method of ['POST', 'PUT']) for (const code of [-1, 0, 1, 2, 3, 4, 5]) for (const status of [code, String(code)]) {
+        const f = fixture(method === 'PUT' ? 1 : undefined)
+        const res = await f.save('STAFF', 1, { method, body: { kar_status_BPJS: status, kar_no_BPJS: '0001234567890' } })
+        assert.equal(res.statusCode, method === 'POST' ? 201 : 200)
+        const write = f.calls.find(call => /^(INSERT INTO tkaryawan \(|UPDATE tkaryawan SET)/.test(call.sql))
+        const columns = [...write.sql.matchAll(/`([^`]+)`/g)].map(match => match[1])
+        assert.equal(write.params[columns.indexOf('kar_status_BPJS')], code)
+        assert.equal(write.params[columns.indexOf('kar_no_BPJS')], '0001234567890')
+    }
+})

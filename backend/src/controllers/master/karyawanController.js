@@ -26,8 +26,8 @@ const LIST_COLUMNS = {
     Size: 'k.kar_size',
     IbuKandung: 'k.kar_ibukandung',
     Email: 'k.kar_email',
-    StatusBPJS: `CASE k.kar_status_bPJS
-        WHEN 1 THEN 'Perusahaan' WHEN 2 THEN 'Mandiri' WHEN 3 THEN 'Jam_COMM'
+    StatusBPJS: `CASE k.kar_status_BPJS
+        WHEN 1 THEN 'Perusahaan' WHEN 2 THEN 'Mandiri' WHEN 3 THEN 'Jamkesmas'
         WHEN 4 THEN 'Perusahaan Lain' WHEN 5 THEN 'NonAktif Perusahaan' ELSE 'Belum Ada' END`,
     NoBPJS: 'k.kar_no_bpjs',
     NoNaker: 'k.kar_no_NAKER',
