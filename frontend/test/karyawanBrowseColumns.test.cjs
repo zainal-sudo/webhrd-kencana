@@ -54,7 +54,10 @@ test('Actual employee browse renders 30 ordered headers, No 26 on page 2, dates 
   const headers = [...html.matchAll(/<span class="th-label">([^<]+)<\/span>/g)].map(match => match[1]);
   assert.deepEqual(headers, expected);
   for (const text of ['000123', 'Pabrik Empat', '0009876543210', '0001234567890', '0001234567890123456789', 'Jamkesmas', '02/01/1990', '03/02/2020', '04/03/2026']) assert.ok(html.includes(text), text);
-  assert.ok(html.includes('>Detail</button>'));
+  assert.ok(html.includes('>Cetak Barcode</button>'));
+  assert.ok(!html.includes('>Detail</button>'));
+  assert.ok(html.includes('title="Edit"'));
+  assert.ok(html.includes('title="Hapus"'));
   for (const key of ['TglLahir', 'TglMasuk', 'TglKeluar', 'PKWT1', 'PKWT2']) assert.equal(columns.find(column => column.key === key).type, 'date');
   assert.ok(html.includes('min-width:'));
   assert.ok(html.includes('data-native-scrollbar'));
