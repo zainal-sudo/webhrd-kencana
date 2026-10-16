@@ -1,6 +1,7 @@
 /** Keep the native vertical scrollbar full-height, with a synced horizontal
  * scrollbar inside the viewport. Only containers with BOTH native bars change.
  * No data/table DOM is moved; sticky headers, focus and wheel scrolling stay native.
+ * Wide tables can opt out of JS synchronization with data-native-scrollbar on an ancestor.
  */
 export function installScrollbarLayout(root: HTMLElement) {
   // Overlay scrollbars have no corner to fix. Other engines keep their native
@@ -17,6 +18,7 @@ export function installScrollbarLayout(root: HTMLElement) {
   let disposed = false;
   const number = (value: string) => parseFloat(value) || 0;
   const isProxy = (element: Element) => !!element.closest('[data-horizontal-scrollbar]');
+  const usesNativeScroll = (element: Element) => !!element.closest('[data-native-scrollbar]');
   const setStyle = (element: HTMLElement, key: string, value: string) => {
     if (element.style.getPropertyValue(key) !== value) element.style.setProperty(key, value);
   };
@@ -26,7 +28,7 @@ export function installScrollbarLayout(root: HTMLElement) {
   const resize = new ResizeObserver(schedule);
 
   function discover(element: Element) {
-    if (!(element instanceof HTMLElement) || isProxy(element)) return;
+    if (!(element instanceof HTMLElement) || isProxy(element) || usesNativeScroll(element)) return;
     const style = getComputedStyle(element);
     // Replaced controls and tables must never receive synthetic child elements.
     if (!/^(INPUT|TEXTAREA|SELECT|TABLE|TR|TBODY|THEAD|TFOOT|IMG|VIDEO|CANVAS)$/.test(element.tagName)
@@ -37,7 +39,7 @@ export function installScrollbarLayout(root: HTMLElement) {
     }
   }
   function scan(element: Element) {
-    if (isProxy(element)) return;
+    if (isProxy(element) || usesNativeScroll(element)) return;
     discover(element);
     element.querySelectorAll('*').forEach(discover);
   }
@@ -55,7 +57,7 @@ export function installScrollbarLayout(root: HTMLElement) {
   function update() {
     frame = 0;
     for (const element of candidates) {
-      if (!element.isConnected) {
+      if (!element.isConnected || usesNativeScroll(element)) {
         remove(element);
         resize.unobserve(element);
         candidates.delete(element);
@@ -107,9 +109,10 @@ export function installScrollbarLayout(root: HTMLElement) {
     for (const record of records) {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
       if (target && isProxy(target)) continue;
+      if (target && usesNativeScroll(target) && record.attributeName !== 'data-native-scrollbar') continue;
       changed = true;
       if (record.type === 'attributes' && target) {
-        if (record.attributeName === 'class' && !enhanced.has(target as HTMLElement)) scan(target);
+        if (record.attributeName === 'data-native-scrollbar' || (record.attributeName === 'class' && !enhanced.has(target as HTMLElement))) scan(target);
         else discover(target);
       }
       for (const node of record.addedNodes) if (node instanceof Element) scan(node);
@@ -117,7 +120,7 @@ export function installScrollbarLayout(root: HTMLElement) {
     if (changed) schedule();
   });
   scan(root);
-  mutations.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+  mutations.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'data-native-scrollbar'] });
   window.addEventListener('resize', schedule, { passive: true });
   schedule();
   return () => {

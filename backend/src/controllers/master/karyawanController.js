@@ -47,6 +47,15 @@ const LIST_COLUMNS = {
     PKWT2: 'k.kar_tglPKWT2',
 }
 
+// Display labels only: keep SQL aliases/API filter keys compatible.
+const EXPORT_LABELS = {
+    Kd_Abs: 'Kode Absensi', Sistem: 'Sistem Gaji', TglLahir: 'Tgl Lahir',
+    JenisKelamin: 'Jenis Kelamin', TglMasuk: 'Tgl Masuk', TglKeluar: 'Tgl Keluar',
+    IbuKandung: 'Ibu Kandung', StatusBPJS: 'Status BPJS', NoBPJS: 'BPJS KES',
+    NoNaker: 'BPJS TK', MasaKerja: 'Masa Kerja', PendidikanTerakhir: 'Pendidikan Terakhir',
+}
+const EXPORT_TEXT_KEYS = new Set(['Nik', 'Kd_Abs', 'NoBPJS', 'NoNaker', 'Telp', 'Identitas', 'RekeningBank'])
+
 const FROM_SQL = `FROM tkaryawan k
     LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
     LEFT JOIN tdepartemen d ON d.dep_kode = k.kar_dep_kode
@@ -102,7 +111,12 @@ export const getKaryawanList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Karyawan', Object.keys(LIST_COLUMNS), all)
+            const keys = Object.keys(LIST_COLUMNS)
+            const headers = keys.map(key => EXPORT_LABELS[key] || key)
+            const rows = all.map(row => Object.fromEntries(keys.map((key, index) => [headers[index],
+                row[key] != null && EXPORT_TEXT_KEYS.has(key) ? String(row[key]) : row[key],
+            ])))
+            return sendExcel(res, 'Karyawan', headers, rows)
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

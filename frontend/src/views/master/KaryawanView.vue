@@ -52,19 +52,36 @@ watch(() => browseStore.revision, () => {
 onUnmounted(() => browseStore.setStatus("all"));
 
 const columns: BrowseColumn[] = [
-  { key: "Nik", label: "NIK", width: "120px" },
-  { key: "Nama", label: "Nama Lengkap" },
-  { key: "Nama Pabrik", label: "Nama Pabrik", width: "130px" },
-  { key: "Jabatan", label: "Jabatan", width: "150px" },
-  { key: "Departemen", label: "Departemen", width: "150px" },
-  { key: "Bagian", label: "Bagian", width: "120px" },
-  { key: "Sistem", label: "Sistem Gaji", width: "100px" },
-  { key: "Status Karyawan", label: "Status Kerja", width: "110px" },
-  { key: "JenisKelamin", label: "L/P", width: "90px", align: "center" },
+  { key: "Nik", label: "Nik", width: "120px" },
+  { key: "Nama", label: "Nama", width: "220px" },
+  { key: "Kd_Abs", label: "Kode Absensi", width: "120px" },
+  { key: "Pabrik", label: "Pabrik", width: "85px" },
+  { key: "Nama Pabrik", label: "Nama Pabrik", width: "170px" },
+  { key: "Sistem", label: "Sistem Gaji", width: "110px" },
+  { key: "TglLahir", label: "Tgl Lahir", type: "date", width: "105px" },
+  { key: "JenisKelamin", label: "Jenis Kelamin", width: "125px" },
   { key: "TglMasuk", label: "Tgl Masuk", type: "date", width: "105px" },
   { key: "TglKeluar", label: "Tgl Keluar", type: "date", width: "105px" },
-  { key: "MasaKerja", label: "Masa Kerja", width: "95px", align: "center", type: "align-right" },
+  { key: "Size", label: "Size", width: "70px" },
+  { key: "IbuKandung", label: "Ibu Kandung", width: "180px" },
+  { key: "Email", label: "Email", width: "220px" },
+  { key: "StatusBPJS", label: "Status BPJS", width: "165px" },
+  { key: "NoBPJS", label: "BPJS KES", width: "150px" },
+  { key: "NoNaker", label: "BPJS TK", width: "150px" },
+  { key: "MasaKerja", label: "Masa Kerja", width: "105px", align: "center", type: "align-right" },
+  { key: "Jabatan", label: "Jabatan", width: "170px" },
+  { key: "Bagian", label: "Bagian", width: "150px" },
+  { key: "Departemen", label: "Departemen", width: "160px" },
+  { key: "Status Karyawan", label: "Status Karyawan", width: "155px" },
   { key: "Status", label: "Status", width: "90px", align: "center" },
+  { key: "Alamat", label: "Alamat", width: "280px" },
+  { key: "Telp", label: "Telp", width: "145px" },
+  { key: "Identitas", label: "Identitas", width: "170px" },
+  { key: "RekeningBank", label: "RekeningBank", width: "180px" },
+  { key: "PendidikanTerakhir", label: "Pendidikan Terakhir", width: "180px" },
+  { key: "Jurusan", label: "Jurusan", width: "180px" },
+  { key: "PKWT1", label: "PKWT1", type: "date", width: "105px" },
+  { key: "PKWT2", label: "PKWT2", type: "date", width: "105px" },
 ];
 
 interface DetailAnak {
@@ -179,12 +196,15 @@ async function lihatDetail(nik: string) {
 
 <template>
   <BaseBrowse
+    class="karyawan-browse"
+    data-native-scrollbar
     :key="browseStore.revision"
     module-title="Master Karyawan"
     module-subtitle="Data induk karyawan beserta riwayat jabatan, pendidikan, keluarga dan jadwal kerja"
     :endpoint="endpoint"
     :columns="columns"
     primary-key="Nik"
+    row-number-label="No"
     add-label="Tambah Karyawan"
     :add-form-path="formPath"
     :edit-form-path="formPath"
@@ -335,6 +355,7 @@ async function lihatDetail(nik: string) {
 </template>
 
 <style scoped>
+.karyawan-browse :deep(.browse-table th), .karyawan-browse :deep(.th-label) { text-transform: none; }
 .status-reset {
   border: 1px solid var(--ds-primary, #3b5998);
   border-radius: 6px;

@@ -66,6 +66,7 @@ test('Real browser: vertical bar reaches bottom; horizontal bar syncs both ways,
       <div id="both" class="area"><div class="wide">${'<div class="row">Row</div>'.repeat(15)}<div id="last" class="row">Last</div></div></div>
       <div id="x" class="area only-x"><div class="wide row">Horizontal only</div></div>
       <div id="y" class="area only-y"><div class="wide">${'<div class="row">Vertical</div>'.repeat(10)}</div></div>
+      <div data-native-scrollbar><div id="native-table" class="area"><table class="browse-table" style="width:4600px"><thead><tr>${'<th>Column</th>'.repeat(29)}<th class="action-col">Aksi</th></tr></thead><tbody>${('<tr>' + '<td>DATA</td>'.repeat(29) + '<td class="action-col">Edit</td></tr>').repeat(25)}</tbody></table></div></div>
       <div id="table-host" class="area"><table class="browse-table" style="width:800px"><thead><tr><th>Header</th><th class="action-col">Aksi</th></tr></thead><tbody>${'<tr><td>SCROLLING DATA</td><td class="action-col">Edit</td></tr>'.repeat(30)}</tbody></table></div>
       </div><pre id="result"></pre><script>
       ${js}
@@ -78,6 +79,21 @@ test('Real browser: vertical bar reaches bottom; horizontal bar syncs both ways,
           const dispose = installScrollbarLayout(document.body);
           await delay();
           const bar = host.querySelector('[data-horizontal-scrollbar]');
+          const nativeTable = document.getElementById('native-table');
+          check('native-opt-out', !nativeTable.querySelector('[data-horizontal-scrollbar]') && !nativeTable.classList.contains('split-scrollbar'));
+          nativeTable.scrollLeft = nativeTable.scrollWidth - nativeTable.clientWidth;
+          await delay();
+          check('native-reaches-last-column', nativeTable.scrollLeft > 4000);
+          const action = nativeTable.querySelector('tbody .action-col');
+          check('native-actions-stay-visible', action.getBoundingClientRect().right <= nativeTable.getBoundingClientRect().right + 1);
+          nativeTable.scrollLeft = 0; nativeTable.scrollTop = nativeTable.scrollHeight;
+          await delay();
+          check('native-scroll-both-axes', nativeTable.scrollLeft === 0 && nativeTable.scrollTop > 0);
+          const nativeRoot = nativeTable.parentElement;
+          nativeRoot.removeAttribute('data-native-scrollbar'); await delay();
+          check('dynamic-native-opt-in', nativeTable.querySelector('[data-horizontal-scrollbar]'));
+          nativeRoot.setAttribute('data-native-scrollbar', ''); await delay();
+          check('dynamic-native-opt-out', !nativeTable.querySelector('[data-horizontal-scrollbar]'));
           check('enhanced', bar);
           check('vertical-full-height', host.clientHeight === before + 14);
           check('no-native-bottom-corner', host.offsetHeight - host.clientHeight === 2);
