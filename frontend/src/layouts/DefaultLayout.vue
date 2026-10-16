@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
+import AccountAvatar from "@/components/AccountAvatar.vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import TabBar from "@/components/TabBar.vue";
 import { useAuthStore } from "@/stores/authStore";
@@ -104,7 +105,7 @@ function toggleFullscreen() {
 
         <div class="user-menu">
           <button class="user-btn" @click="userMenu = !userMenu">
-            <span class="user-avatar">{{ username.charAt(0).toUpperCase() }}</span>
+            <AccountAvatar :username="username" />
             <span class="user-info">
               <strong>{{ username }}</strong>
               <small>{{ cabang }}</small>
@@ -263,17 +264,6 @@ function toggleFullscreen() {
 }
 .user-btn:hover {
   background: rgba(255, 255, 255, 0.14);
-}
-.user-avatar {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #4c9bd6;
-  color: #fff;
-  font-weight: 800;
-  font-size: 14px;
 }
 .user-info {
   display: flex;
