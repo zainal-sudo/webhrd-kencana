@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, watch, computed, nextTick, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { normalizeIcon } from "@/utils/icon";
 import { useTabNavigation } from "@/composables/useTabNavigation";
+import { useAuthStore } from "@/stores/authStore";
+import { useAgendaNotice } from "@/composables/useAgendaNotice";
+
+const auth = useAuthStore();
+const agenda = useAgendaNotice(() => auth.isAuthenticated ? `${auth.token}:${auth.user?.user_kode}` : "");
+const { open: agendaOpen, count: agendaCount, failure: agendaFailure, refreshKey: agendaRefreshKey } = agenda;
+const AgendaCalendar = defineAsyncComponent(() => import("@/components/AgendaCalendar.vue"));
 
 const route = useRoute();
 const router = useRouter();
@@ -197,12 +204,17 @@ function go(routePath?: string) {
     </nav>
 
     <div class="sidebar-foot">
+      <button v-if="auth.isAuthenticated" type="button" class="foot-item agenda-menu-button" :title="agendaFailure || 'Kalender Agenda'" :aria-label="`Kalender Agenda${agendaCount ? ', ada agenda hari ini' : ''}`" @click="agendaOpen = true; agenda.refresh()">
+        <span class="agenda-menu-icon"><MsIcon name="calendar_month" :size="16" /><i v-if="agendaCount > 0" class="agenda-notice-dot" /></span>
+        <span v-if="!collapsed">Kalender Agenda</span>
+      </button>
       <button class="foot-item" title="Tutup semua tab" @click="closeAllTabs">
         <MsIcon name="tab" :size="16" />
         <span v-if="!collapsed">Tutup Semua Tab</span>
       </button>
     </div>
   </aside>
+  <AgendaCalendar v-if="agendaOpen && auth.isAuthenticated" :key="auth.user?.user_kode" :username="auth.user?.user_kode || ''" :refresh-key="agendaRefreshKey" @close="agendaOpen = false" @changed="agenda.refresh()" />
   <Teleport to="body">
     <nav v-if="flyoutGroup" id="sidebar-flyout" ref="flyout" class="sidebar-flyout" :aria-label="`${flyoutGroup.label} — menu`"
       :style="{ left: `${flyoutPosition.left}px`, top: `${flyoutPosition.top}px`, width: `${flyoutPosition.width}px`, maxHeight: `${flyoutPosition.maxHeight}px` }"
@@ -218,6 +230,8 @@ function go(routePath?: string) {
 </template>
 
 <style scoped>
+.agenda-menu-icon { position: relative; display: inline-flex; }
+.agenda-notice-dot { position: absolute; top: -3px; right: -4px; width: 7px; height: 7px; border-radius: 50%; background: #ff4545; box-shadow: 0 0 0 2px var(--ds-sidebar-bg, #1b2d4a); }
 .sidebar {
   width: 258px;
   min-width: 258px;
@@ -430,6 +444,11 @@ function go(routePath?: string) {
   font-size: 11px;
   font-family: "Plus Jakarta Sans", sans-serif;
   cursor: pointer;
+}
+.sidebar.collapsed .foot-item {
+  justify-content: center;
+  gap: 0;
+  padding: 8px 0;
 }
 .foot-item:hover {
   background: rgba(255, 255, 255, 0.06);

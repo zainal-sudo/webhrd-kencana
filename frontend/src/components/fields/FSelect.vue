@@ -17,6 +17,8 @@ const props = withDefaults(
     placeholder?: string;
     showClear?: boolean;
     searchable?: boolean;
+    menuTransition?: string;
+    menuClass?: string;
   }>(),
   {
     required: false,
@@ -66,7 +68,7 @@ function onChange(e: Event) {
       :aria-required="required"
       :placeholder="placeholder === 'Pilih...' ? 'Cari / pilih...' : placeholder"
       no-data-text="Tidak ditemukan"
-      :menu-props="{ maxHeight: 260, maxWidth: 'min(380px, calc(100vw - 24px))', contentClass: 'employee-select-menu' }"
+      :menu-props="{ maxHeight: 260, maxWidth: 'min(380px, calc(100vw - 24px))', contentClass: ['employee-select-menu', menuClass], ...(menuTransition ? { transition: menuTransition } : {}) }"
       :list-props="{ density: 'compact' }"
       density="compact"
       variant="outlined"

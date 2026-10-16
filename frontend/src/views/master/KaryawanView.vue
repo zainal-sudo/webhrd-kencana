@@ -133,6 +133,18 @@ function showBarcode(row: Record<string, any>) {
 <style scoped>
 .karyawan-browse :deep(.browse-table th), .karyawan-browse :deep(.th-label) { text-transform: none; }
 .karyawan-browse :deep(.action-col) { width: 180px; min-width: 180px; }
+.karyawan-browse :deep(td.action-col) { padding-left: 4px; padding-right: 4px; }
+.karyawan-browse :deep(.row-actions) {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.karyawan-browse :deep(.row-actions > *) { flex-shrink: 0; }
+.karyawan-browse :deep(.row-btn.del) {
+  width: 36px;
+  height: 32px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+}
 .status-reset {
   border: 1px solid var(--ds-primary, #3b5998);
   border-radius: 6px;
@@ -149,12 +161,22 @@ function showBarcode(row: Record<string, any>) {
   justify-content: flex-end;
 }
 .lnk {
-  border: none;
-  background: none;
+  border: 1px solid #a3b1c6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
   color: var(--ds-primary, #3b5998);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.lnk:hover,
+.lnk:focus {
+  text-decoration: none;
+}
+.lnk:hover {
+  background: rgba(59, 89, 152, 0.14);
 }
 </style>

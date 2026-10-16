@@ -8,6 +8,7 @@ import laporanRoutes from './routes/laporanRoutes.js'
 import gajiRoutes from './routes/gajiRoutes.js'
 import otorisasiRoutes from './routes/otorisasiRoutes.js'
 import dashboardRoutes from './routes/dashboardRoutes.js'
+import agendaRoutes from './routes/agendaRoutes.js'
 
 const r = Router()
 
@@ -29,5 +30,6 @@ r.use('/laporan', laporanRoutes)
 r.use('/gaji', gajiRoutes)
 r.use('/otorisasi', otorisasiRoutes)
 r.use('/dashboard', dashboardRoutes)
+r.use('/agenda', agendaRoutes)
 
 export default r

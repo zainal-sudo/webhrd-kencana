@@ -26,6 +26,8 @@ function fixture() {
   };
   function requireModule(name) {
     if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onUnmounted: fn => unmounted.push(fn) };
+    if (name === '@/stores/authStore') return { useAuthStore: () => ({ isAuthenticated: false }) };
+    if (name === '@/composables/useAgendaNotice') return { useAgendaNotice: () => ({ open: vue.ref(false), count: vue.ref(0), failure: vue.ref(''), refreshKey: vue.ref(0), refresh() {} }) };
     if (name === 'vue-router') return { useRoute: () => route, useRouter: () => ({ push: path => calls.push(['route', path]) }) };
     if (name === '@/stores/permissionStore') return { usePermissionStore: () => permissions };
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({ openTab: tab => calls.push(['tab', tab]) }) };
@@ -42,7 +44,7 @@ function fixture() {
   }
   const scope = vue.effectScope();
   const state = scope.run(() => evaluate(source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1] +
-    '\nexport { collapsed, openGroups, flyoutKey, flyoutGroup, flyout, flyoutAnchor, flyoutPosition, showFlyout, scheduleClose, cancelClose, closeFlyout, groupClick, groupKeydown, dismissOutside, focusOut, escapeFlyout, go };'));
+    '\nexport { collapsed, openGroupKey, flyoutKey, flyoutGroup, flyout, flyoutAnchor, flyoutPosition, showFlyout, scheduleClose, cancelClose, closeFlyout, groupClick, groupKeydown, dismissOutside, focusOut, escapeFlyout, go };'));
   const anchor = { focused: false, getBoundingClientRect: () => ({ left: 0, right: 54, top: 550 }),
     contains: target => target === anchor, focus() { this.focused = true; } };
   return { ...state, route, permissions, anchor, global, calls, timers, listeners,
@@ -54,7 +56,7 @@ test('Collapsed hover opens authorized children at viewport-safe position; expan
   const f = fixture();
   try {
     f.showFlyout('master', f.event()); assert.equal(f.flyoutKey.value, '');
-    f.groupClick('master', f.event()); assert.equal(f.openGroups.value.master, false);
+    f.groupClick('master', f.event()); assert.equal(f.openGroupKey.value, '');
     f.collapsed.value = true; await vue.nextTick();
     f.showFlyout('master', f.event());
     assert.equal(f.flyoutGroup.value.label, 'MASTER'); assert.equal(f.flyoutGroup.value.children.length, 2);

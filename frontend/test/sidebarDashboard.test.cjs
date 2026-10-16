@@ -17,6 +17,8 @@ async function render(routePath, collapsed = false) {
   vm.runInNewContext(ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
     { module, exports: module.exports, capture: ref => { ref.value = collapsed; }, require(name) {
       if (name === 'vue') return vue;
+      if (name === '@/stores/authStore') return { useAuthStore: () => ({ isAuthenticated: true, user: { user_kode: 'hrd' }, token: 'test' }) };
+      if (name === '@/composables/useAgendaNotice') return { useAgendaNotice: () => ({ open: vue.ref(false), count: vue.ref(1), failure: vue.ref(''), refreshKey: vue.ref(0), refresh() {} }) };
       if (name === 'vue-router') return { useRoute: () => ({ path: routePath }), useRouter: () => ({ push() {} }) };
       if (name === '@/components/MsIcon.vue') return { default: vue.defineComponent({ props: ['name'], setup: props => () => vue.h('i', { 'data-icon': props.name }) }) };
       if (name === '@/stores/permissionStore') return { usePermissionStore: () => ({ menuTree: menus, loaded: true }) };
@@ -55,4 +57,13 @@ test('Dashboard delegates to existing router and does not add a MASTER child or 
   assert.match(source, /\.dashboard-item:focus-visible/);
   assert.match(source, /\.sidebar.collapsed \.sidebar-head \{ flex-direction: column/);
   assert.match(source, /\.menu-item.active \{[^}]*background:[^}]*border-left-color:/);
+});
+
+test('Agenda sits above close-all-tabs with a notice and accessible collapsed icon', async () => {
+  const html = await render('/dashboard');
+  assert.ok(html.indexOf('agenda-menu-button') < html.indexOf('title="Tutup semua tab"'));
+  assert.ok(html.includes('agenda-notice-dot'));
+  const collapsed = await render('/dashboard', true);
+  assert.ok(collapsed.includes('aria-label="Kalender Agenda, ada agenda hari ini"'));
+  assert.ok(!collapsed.includes('>Kalender Agenda</span>'));
 });
