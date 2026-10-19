@@ -448,14 +448,20 @@ i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; backgrou
 .agenda-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; min-width: 0; }
 /* Jam agenda memakai FTime (mode HH:mm); label di atas seperti field form lain. */
 .agenda-form :deep(.time-field) { flex-direction: column; align-items: stretch; gap: 4px; }
-.agenda-form :deep(.time-label) { flex: 0 0 auto; }
+.agenda-form :deep(.time-label) { flex: 0 0 auto; font: inherit; color: inherit; }
+.date-time-fields .field-label, .date-time-fields :deep(.time-label) { line-height: 18px; }
+.date-time-fields :deep(.time-control) { flex: none; width: 100%; }
+.date-time-fields :deep(input) { box-sizing: border-box; height: 32px; padding: 5px 9px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 6px; background: var(--agenda-surface); font: inherit; color: inherit; }
+.date-time-fields :deep(input:focus) { border-color: var(--ds-primary, #3b5998); }
+.date-time-fields :deep(input[aria-invalid="true"]) { border-color: var(--ds-error, #dc3535); }
+.date-time-fields :deep(input:disabled) { background: var(--ds-surface-inset, #e0e4ea); color: var(--ds-text-secondary, #5a6a7e); }
 .agenda-form :deep(.time-field small) { margin-left: 0; }
 .field-label { display: inline-flex; align-items: baseline; gap: 3px; }
 .required-mark { color: var(--ds-error, #dc3535); }
 .agenda-form input, .agenda-form select, .agenda-form textarea { font: inherit; color: inherit; background: var(--agenda-surface); border: 1px solid var(--ds-border, #b0b8c4); border-radius: 6px; padding: 5px 9px; width: 100%; min-width: 0; }
 .agenda-form input:not([type="checkbox"]):not([type="radio"]) { height: 32px; }
 .agenda-form textarea { resize: none; overflow: hidden; min-height: 56px; }
-.date-time-fields { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.date-time-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
 .agenda-form input, .agenda-form textarea, .recipient-option { scroll-margin-top: 64px; scroll-margin-bottom: 60px; }
 .agenda-form-actions { position: sticky; bottom: 0; z-index: 3; margin-top: auto; justify-content: flex-end; min-height: 48px; padding: 8px 0; border-top: 1px solid var(--ds-border-light, #c4cad3); background: var(--agenda-panel); }
 .danger, .agenda-error { color: var(--ds-error, #dc3535); }

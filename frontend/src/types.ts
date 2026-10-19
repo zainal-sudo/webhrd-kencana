@@ -55,7 +55,8 @@ export interface BrowseColumn {
   key: string;
   label: string;
   width?: string;
-  /** "image" merender thumbnail (nilai kolom = NIK untuk foto karyawan) */
+  /** "image" merender thumbnail (nilai kolom = NIK untuk foto karyawan);
+   *  "number" menampilkan angka dengan satu desimal (mis. 16.0). */
   type?: "text" | "date" | "datetime" | "number" | "align-right" | "image";
   align?: "left" | "center" | "right";
   sortable?: boolean;

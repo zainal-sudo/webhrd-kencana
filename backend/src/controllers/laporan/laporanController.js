@@ -734,7 +734,9 @@ export const getAbsensiRekapList = async (req, res, next) => {
         )
 
         const baseParams = Array(14).fill([start, end]).flat()
-        let sql = rekapAbsensiSql()
+        // Derived table `andi` butuh WHERE eksplisit agar search/filter kolom
+        // bisa ditambahkan dengan AND (tanpa itu SQL menjadi tidak valid).
+        let sql = `${rekapAbsensiSql()} WHERE 1=1`
         let params = [...baseParams]
 
         if (req.query.search) {
@@ -742,10 +744,20 @@ export const getAbsensiRekapList = async (req, res, next) => {
             params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
         }
 
-        const ALIAS = Object.fromEntries(RA_OUTER.map((c) => [c, c]))
-        const f = applyAllColumnFilters('', params, req.query, ALIAS)
+        const ALIAS = Object.fromEntries(RA_OUTER.map((c) => [c, `\`${c.replace(/`/g, '``')}\``]))
+        const except = req.query.distinct && ALIAS[req.query.distinct] ? req.query.distinct : null
+        const f = applyAllColumnFilters('', params, req.query, ALIAS, except)
         if (f.clause) sql += f.clause.replace(/^ WHERE/, ' AND')
         params = f.params
+
+        if (except) {
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${ALIAS[except]} AS value, OCTET_LENGTH(${ALIAS[except]}) AS value_length FROM (${sql}) x ORDER BY value`,
+                params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
         sql += ` ${buildOrderBy(req.query, ALIAS, 'ORDER BY Nama')}`
 
         if (req.query.export === 'xlsx') {

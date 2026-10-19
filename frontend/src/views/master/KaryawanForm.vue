@@ -59,8 +59,7 @@ interface PemakaiIdentitas {
   tgl_masuk: string | null;
   tgl_keluar: string | null;
 }
-const cekIdentitasAktif = ref<PemakaiIdentitas[]>([]);
-const cekIdentitasRiwayat = ref<PemakaiIdentitas[]>([]);
+const cekIdentitasDuplikat = ref<PemakaiIdentitas[]>([]);
 const cekIdentitasJalan = ref(false);
 let cekIdentitasTimer: ReturnType<typeof setTimeout> | null = null;
 let cekIdentitasSeq = 0;
@@ -70,11 +69,12 @@ let cekIdentitasDibatalkan = false;
 const identitasAwal = ref<string>("");
 
 function resetCekIdentitas() {
-  cekIdentitasAktif.value = [];
-  cekIdentitasRiwayat.value = [];
+  cekIdentitasDuplikat.value = [];
 }
 
 async function jalankanCekIdentitas() {
+  const seq = ++cekIdentitasSeq;
+  cekIdentitasJalan.value = false;
   const nilai = String(values.kar_noidentitas ?? "").trim();
   if (!nilai) {
     resetCekIdentitas();
@@ -85,16 +85,14 @@ async function jalankanCekIdentitas() {
     resetCekIdentitas();
     return;
   }
-  const seq = ++cekIdentitasSeq;
   cekIdentitasJalan.value = true;
   try {
     const { data } = await api.get("/master/karyawan/cek-identitas", {
       params: { noidentitas: nilai, nik: isEdit.value ? nik.value : undefined },
     });
-    if (seq !== cekIdentitasSeq || cekIdentitasDibatalkan) return;
+    if (seq !== cekIdentitasSeq || cekIdentitasDibatalkan || nilai !== String(values.kar_noidentitas ?? "").trim()) return;
     const ditemukan: PemakaiIdentitas[] = data.data?.ditemukan ?? [];
-    cekIdentitasAktif.value = ditemukan.filter((p) => p.aktif);
-    cekIdentitasRiwayat.value = ditemukan.filter((p) => !p.aktif);
+    cekIdentitasDuplikat.value = ditemukan;
   } catch {
     if (seq === cekIdentitasSeq) resetCekIdentitas();
   } finally {
@@ -105,7 +103,9 @@ async function jalankanCekIdentitas() {
 watch(
   () => values.kar_noidentitas,
   () => {
-    // Warning/error lama harus hilang segera saat nilai berubah.
+    // Invalidate pending responses immediately, including clearing/reverting input.
+    ++cekIdentitasSeq;
+    cekIdentitasJalan.value = false;
     resetCekIdentitas();
     if (cekIdentitasTimer) clearTimeout(cekIdentitasTimer);
     const nilai = String(values.kar_noidentitas ?? "").trim();
@@ -330,9 +330,12 @@ async function simpan(): Promise<string> {
   const identitasKini = String(values.kar_noidentitas ?? "").trim();
   if (identitasKini && (!isEdit.value || identitasKini !== identitasAwal.value)) {
     await jalankanCekIdentitas();
-    const pemakai = cekIdentitasAktif.value[0];
+    if (identitasKini !== String(values.kar_noidentitas ?? "").trim()) {
+      throw new Error("No. Identitas berubah saat diperiksa. Silakan simpan lagi.");
+    }
+    const pemakai = cekIdentitasDuplikat.value[0];
     if (pemakai) {
-      throw new Error(`No. Identitas ini sudah digunakan oleh karyawan aktif: ${pemakai.nik} - ${pemakai.nama}.`);
+      throw new Error(`No. Identitas ini sudah pernah digunakan oleh: ${pemakai.nik} - ${pemakai.nama}. Gunakan No. Identitas yang berbeda.`);
     }
   }
 
@@ -353,22 +356,11 @@ async function simpan(): Promise<string> {
   if (fotoBase64.value) body.kar_foto_base64 = fotoBase64.value;
 
   if (isEdit.value) {
-    const { data } = await api.put(`/master/karyawan/${encodeURIComponent(nik.value)}`, body);
-    tampilkkanPeringatanIdentitas(data.data?.peringatan_identitas);
+    await api.put(`/master/karyawan/${encodeURIComponent(nik.value)}`, body);
     return `Karyawan ${nik.value} berhasil diperbarui.`;
   }
   const { data } = await api.post("/master/karyawan", body);
-  tampilkkanPeringatanIdentitas(data.data?.peringatan_identitas);
   return `Karyawan baru berhasil disimpan dengan NIK ${data.data?.kar_Nik ?? "-"}.`;
-}
-
-/** Warning non-blokir dari backend bila identitas hanya dipakai karyawan nonaktif (rehire). */
-function tampilkkanPeringatanIdentitas(peringatan?: Array<{ nik: string; nama: string; tgl_keluar: string | null }>) {
-  if (!peringatan?.length) return;
-  const rincian = peringatan
-    .map((p) => `${p.nik} - ${p.nama}${p.tgl_keluar ? ` - keluar ${formatTanggal(p.tgl_keluar)}` : ""}`)
-    .join("; ");
-  toast.warning(`No. Identitas ini pernah terdaftar pada karyawan nonaktif: ${rincian}. Jika ini karyawan yang masuk kembali, data tetap tersimpan sebagai record baru.`);
 }
 
 /**
@@ -629,17 +621,10 @@ onUnmounted(() => {
             <FSelect searchable v-model="values.kar_status_tinggal" label="Status Tinggal" :options="OPSI_STATUS_TINGGAL" show-clear />
             <div class="identitas-field">
               <FText v-model="values.kar_noidentitas" label="No. Identitas ( KTP/SIM )" />
-              <p v-if="cekIdentitasAktif.length" class="identitas-pesan error" role="alert">
-                No. Identitas ini sudah digunakan oleh karyawan aktif:
-                <strong v-for="p in cekIdentitasAktif" :key="p.nik">{{ p.nik }} - {{ p.nama }}</strong>
-                Simpan akan ditolak.
-              </p>
-              <p v-else-if="cekIdentitasRiwayat.length" class="identitas-pesan warning" role="status">
-                Karyawan dengan No. Identitas ini pernah terdaftar:
-                <strong v-for="p in cekIdentitasRiwayat" :key="p.nik">
-                  {{ p.nik }} - {{ p.nama }}<template v-if="p.tgl_keluar"> - keluar {{ formatTanggal(p.tgl_keluar) }}</template>
-                </strong>
-                Jika ini karyawan yang masuk kembali, data tetap dapat disimpan sebagai record baru.
+              <p v-if="cekIdentitasDuplikat.length" class="identitas-pesan error" role="alert">
+                No. Identitas ini sudah pernah digunakan oleh:
+                <strong v-for="p in cekIdentitasDuplikat" :key="p.nik">{{ p.nik }} - {{ p.nama }}</strong>
+                Gunakan No. Identitas yang berbeda. Simpan akan ditolak.
               </p>
               <span v-if="cekIdentitasJalan" class="identitas-pesan cek">Memeriksa No. Identitas...</span>
             </div>

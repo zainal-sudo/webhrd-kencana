@@ -3,125 +3,95 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-
+const ts = require('typescript');
+const vue = require('vue');
 const source = fs.readFileSync(path.join(__dirname, '../src/views/master/KaryawanForm.vue'), 'utf8');
-const ref = v => ({ value: v });
-
-/** Jalankan fungsi async dari form dengan api/values tiruan. */
-async function jalankanFungsi(nama, contextExtra = {}) {
-  const fn = source.match(new RegExp(`async function ${nama}\\(\\) \\{[\\s\\S]*?\\n\\}`))[0]
-    .replace(/: PemakaiIdentitas\[\]/g, '')
-    .replace(/: string\b/g, '');
-  const cekIdentitasAktif = contextExtra.cekIdentitasAktif ?? ref([]);
-  const cekIdentitasRiwayat = contextExtra.cekIdentitasRiwayat ?? ref([]);
-  const context = {
-    String, api: { get: async () => ({ data: { data: { ditemukan: [] } } }) },
-    values: { kar_noidentitas: '' }, isEdit: ref(false), nik: ref(''), identitasAwal: ref(''),
-    cekIdentitasAktif, cekIdentitasRiwayat, cekIdentitasJalan: ref(false),
-    cekIdentitasSeq: 0, cekIdentitasDibatalkan: false,
-    resetCekIdentitas() { cekIdentitasAktif.value = []; cekIdentitasRiwayat.value = []; },
-    ...contextExtra,
+const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
+const payload = ditemukan => ({ data: { data: { ditemukan } } });
+function fixture({ original = '', edit = false, get = async () => payload([]) } = {}) {
+  const values = vue.reactive({ kar_noidentitas: original });
+  const timers = new Map(); let timerId = 0;
+  const scope = vue.effectScope();
+  const context = { ref: vue.ref, watch: vue.watch, onUnmounted() {}, values,
+    isEdit: vue.ref(edit), nik: vue.ref(edit ? '001' : ''), api: { get },
+    setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } };
+  const logic = source.slice(source.indexOf('interface PemakaiIdentitas'), source.indexOf('interface FormSnapshot'));
+  const guard = source.slice(source.indexOf('  const identitasKini ='), source.indexOf('  const body: Record<string, any>'));
+  const code = logic + '\nidentitasAwal.value = ' + JSON.stringify(original.trim()) + ';\n' +
+    'globalThis.state = { cekIdentitasDuplikat, cekIdentitasJalan, jalankanCekIdentitas };\n' +
+    'globalThis.guard = async function() { ' + guard + ' };';
+  vm.createContext(context);
+  scope.run(() => vm.runInContext(ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, context));
+  return { values, ...context.state, guard: context.guard, dispose: () => scope.stop(),
+    async input(value) { values.kar_noidentitas = value; await vue.nextTick(); },
+    async flush() { const callbacks = [...timers.values()]; timers.clear(); await Promise.all(callbacks.map(fn => fn())); },
   };
-  vm.createContext(context);
-  await vm.runInContext(`(async () => { ${fn.replace(`async function ${nama}()`, `globalThis.jalan = async function ${nama}()`)} })(); jalan();`, context);
-  return context;
 }
-
-test('Pre-check memanggil endpoint cek-identitas dan memisahkan aktif vs riwayat', async () => {
-  let paramsDipanggil = null;
-  const ctx = await jalankanFungsi('jalankanCekIdentitas', {
-    values: { kar_noidentitas: '3309' },
-    api: { get: async (url, opts) => { paramsDipanggil = { url, params: opts.params }; return { data: { data: { ditemukan: [
-      { nik: '009', nama: 'Aktif Orang', aktif: true, tgl_masuk: null, tgl_keluar: null },
-      { nik: '008', nama: 'Pernah Kerja', aktif: false, tgl_masuk: '2018-01-01', tgl_keluar: '2021-01-01' },
-    ] } } }; } },
-  });
-  assert.equal(paramsDipanggil.url, '/master/karyawan/cek-identitas');
-  assert.equal(paramsDipanggil.params.noidentitas, '3309');
-  assert.equal(ctx.cekIdentitasAktif.value.length, 1);
-  assert.equal(ctx.cekIdentitasAktif.value[0].nik, '009');
-  assert.equal(ctx.cekIdentitasRiwayat.value.length, 1);
-  assert.equal(ctx.cekIdentitasRiwayat.value[0].nik, '008');
+test('POST pre-check groups active and inactive users into one duplicate error state', async () => {
+  let request;
+  const f = fixture({ get: async (url, options) => { request = { url, ...options }; return payload([{ nik: '009', nama: 'Aktif', aktif: true }, { nik: '008', nama: 'Nonaktif', aktif: false }]); } });
+  try {
+    await f.input(' 123456 '); await f.flush();
+    assert.equal(request.url, '/master/karyawan/cek-identitas');
+    assert.equal(request.params.noidentitas, '123456');
+    assert.equal(request.params.nik, undefined);
+    assert.equal(f.cekIdentitasDuplikat.value.length, 2);
+    await assert.rejects(f.guard, /sudah pernah digunakan oleh: 009 - Aktif/);
+  } finally { f.dispose(); }
 });
-
-test('Edit mengirim nik sendiri agar record yang sedang diedit dikecualikan backend', async () => {
-  let paramsDipanggil = null;
-  await jalankanFungsi('jalankanCekIdentitas', {
-    values: { kar_noidentitas: '3309' }, isEdit: ref(true), nik: ref('001'),
-    api: { get: async (url, opts) => { paramsDipanggil = opts.params; return { data: { data: { ditemukan: [] } } }; } },
-  });
-  assert.equal(paramsDipanggil.nik, '001');
+test('Inactive duplicate blocks save too, with no rehire warning', async () => {
+  const f = fixture({ get: async () => payload([{ nik: '008', nama: 'Nonaktif', aktif: false }]) });
+  try { await f.input('123456'); await assert.rejects(f.guard, /008 - Nonaktif/); }
+  finally { f.dispose(); }
+  assert.doesNotMatch(source, /peringatan_identitas|tampilkkanPeringatanIdentitas|data tetap dapat disimpan sebagai record baru/);
+  assert.match(source, /v-if="cekIdentitasDuplikat.length" class="identitas-pesan error" role="alert"/);
 });
-
-test('Edit tanpa mengubah identitas tidak memicu pre-check (tidak duplicate diri sendiri)', async () => {
-  let dipanggil = false;
-  await jalankanFungsi('jalankanCekIdentitas', {
-    values: { kar_noidentitas: '3309' }, isEdit: ref(true), nik: ref('001'), identitasAwal: ref('3309'),
-    api: { get: async () => { dipanggil = true; return { data: { data: { ditemukan: [] } } }; } },
-  });
-  assert.equal(dipanggil, false);
+test('PUT unchanged legacy identity skips pre-check and allows save', async () => {
+  let calls = 0;
+  const f = fixture({ original: '123456', edit: true, get: async () => { calls++; return payload([{ nik: '009' }]); } });
+  try {
+    await f.input(' 123456 '); await f.flush(); await f.guard();
+    assert.equal(calls, 0); assert.equal(f.cekIdentitasDuplikat.value.length, 0);
+  } finally { f.dispose(); }
 });
-
-test('Identitas kosong → state reset, tidak ada request', async () => {
-  let dipanggil = false;
-  const ctx = await jalankanFungsi('jalankanCekIdentitas', {
-    values: { kar_noidentitas: '  ' },
-    cekIdentitasAktif: ref([{ nik: 'x' }]),
-    api: { get: async () => { dipanggil = true; return { data: { data: { ditemukan: [] } } }; } },
-  });
-  assert.equal(dipanggil, false);
-  assert.equal(ctx.cekIdentitasAktif.value.length, 0);
+test('PUT changed identity sends current NIK and rejects duplicate', async () => {
+  let params;
+  const f = fixture({ original: 'old', edit: true, get: async (_, options) => { params = options.params; return payload([{ nik: '009', nama: 'Existing' }]); } });
+  try {
+    await f.input('123456'); await assert.rejects(f.guard, /009 - Existing/);
+    assert.equal(params.nik, '001'); assert.equal(params.noidentitas, '123456');
+  } finally { f.dispose(); }
 });
-
-/** Ekstrak blok guard pre-check identitas di dalam simpan(). */
-function guardSimpan(contextExtra) {
-  const blok = source.match(/const identitasKini = [^;]+;[\s\S]*?\n  \}/)[0];
-  const context = { String, Error, values: { kar_noidentitas: '3309' }, isEdit: ref(false), identitasAwal: ref(''), cekIdentitasAktif: ref([]), jalankanCekIdentitas: async () => {}, ...contextExtra };
-  vm.createContext(context);
-  vm.runInContext(`globalThis.jalan = async function () { ${blok} };`, context);
-  return context.jalan();
-}
-
-test('Guard simpan: identitas aktif lain → throw dengan pesan blokir', async () => {
-  await assert.rejects(() => guardSimpan({ cekIdentitasAktif: ref([{ nik: '009', nama: 'Aktif Orang' }]) }), {
-    message: 'No. Identitas ini sudah digunakan oleh karyawan aktif: 009 - Aktif Orang.',
-  });
+test('New full value with suffix passes unchanged; blank values do not request duplicates', async () => {
+  const queries = [];
+  const f = fixture({ get: async (_, options) => { queries.push(options.params.noidentitas); return payload([]); } });
+  try {
+    await f.input('123456(2)'); await f.guard();
+    assert.equal(f.values.kar_noidentitas, '123456(2)'); assert.deepEqual(queries, ['123456(2)']);
+    for (const value of [null, '', '   ']) { await f.input(value); await f.flush(); await f.guard(); }
+    assert.equal(queries.length, 1);
+  } finally { f.dispose(); }
 });
-
-test('Guard simpan: case rehire nonaktif TIDAK diblokir (cekIdentitasAktif kosong → lolos)', async () => {
-  await assert.doesNotReject(() => guardSimpan({ cekIdentitasAktif: ref([]) }));
+for (const target of ['', 'original']) test(`Pending response cannot restore duplicate error after changing to ${JSON.stringify(target)}`, async () => {
+  const pending = deferred();
+  const f = fixture({ original: 'original', edit: true, get: () => pending.promise });
+  try {
+    await f.input('duplicate'); const running = f.flush();
+    await f.input(target);
+    pending.resolve(payload([{ nik: '009', nama: 'Stale' }])); await running;
+    assert.equal(f.cekIdentitasDuplikat.value.length, 0);
+    assert.equal(f.cekIdentitasJalan.value, false);
+  } finally { f.dispose(); }
 });
-
-test('Simpan memanggil tampilan warning backend setelah response sukses', () => {
-  assert.match(source, /tampilkkanPeringatanIdentitas\(data\.data\?\.peringatan_identitas\)/);
-  const fn = source.match(/function tampilkkanPeringatanIdentitas\([\s\S]*?\n\}/)[0]
-    .replace(/\(peringatan\?:[^)]*\)/g, '(peringatan)');
-  const toasts = [];
-  const context = { String, Array, toast: { warning: m => toasts.push(m) }, formatTanggal: () => '01-01-2021' };
-  vm.createContext(context);
-  vm.runInContext(`globalThis.jalan = ${fn.replace('function tampilkkanPeringatanIdentitas', 'function')}; jalan([{ nik: '008', nama: 'Pernah Kerja', tgl_keluar: '2021-01-01' }]);`, context);
-  assert.equal(toasts.length, 1, 'warning non-blokir tampil sebagai toast');
-  assert.match(toasts[0], /008 - Pernah Kerja/);
-  assert.match(toasts[0], /keluar 01-01-2021/);
-  assert.match(toasts[0], /masuk kembali/);
-  // Kosong / undefined → tidak ada toast.
-  vm.runInContext('jalan([]); jalan(undefined);', context);
-  assert.equal(toasts.length, 1);
+test('Changed value while Save pre-check is pending aborts that Save', async () => {
+  const pending = deferred(), f = fixture({ get: () => pending.promise });
+  try {
+    await f.input('first'); const saving = f.guard(); await f.input('second');
+    pending.resolve(payload([])); await assert.rejects(() => saving, /berubah saat diperiksa/);
+  } finally { f.dispose(); }
 });
-
-test('Pesan error/warning dirender dekat field (bukan alert browser native)', () => {
-  assert.ok(!/window\.alert|[^.\w]alert\(/.test(source), 'tidak boleh memakai alert native');
-  assert.match(source, /cekIdentitasAktif\.length/);
-  assert.match(source, /cekIdentitasRiwayat\.length/);
-  assert.match(source, /role="alert"/);
-  assert.match(source, /role="status"/);
-  assert.match(source, /No\. Identitas ini sudah digunakan oleh karyawan aktif/);
-  assert.match(source, /pernah terdaftar/);
-});
-
-test('Warning/error ikut hilang saat nilai berubah (watch reset + debounce)', () => {
-  const watchBody = source.match(/watch\(\s*\(\) => values\.kar_noidentitas,[\s\S]*?\n\}\);/)[0];
-  assert.match(watchBody, /resetCekIdentitas\(\)/);
-  assert.match(watchBody, /clearTimeout\(cekIdentitasTimer\)/);
-  assert.match(watchBody, /setTimeout\(jalankanCekIdentitas, 400\)/);
+test('Failed UX pre-check leaves final validation to the save endpoint', async () => {
+  const f = fixture({ get: async () => { throw new Error('network'); } });
+  try { await f.input('123456'); await f.guard(); assert.equal(f.cekIdentitasJalan.value, false); }
+  finally { f.dispose(); }
 });

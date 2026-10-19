@@ -326,14 +326,21 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .loan-summary span { display: block; font-size: 11px; line-height: 1.3; margin-bottom: 3px; }
 .loan-summary strong { display: block; font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
 .detail-button, .loan-dialog button { cursor: pointer; padding: 6px 10px; border: 1px solid var(--ds-border, #dde3ec); border-radius: 5px; background: var(--ds-surface, white); color: inherit; }
-.detail-button { font-size: 11px; padding: 4px 6px; }
+.detail-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; height: 32px; padding: 0 10px; border-radius: 6px; font-size: 11px; line-height: 1; white-space: nowrap; }
+.detail-button, .delete-button { transition: background-color 150ms ease; }
+.detail-button:not(:disabled):is(:hover, :focus-visible) { background: rgba(59, 89, 152, 0.14); }
+.delete-button:not(:disabled):is(:hover, :focus-visible) { background: rgba(220, 38, 38, 0.12); }
+.detail-button:focus-visible, .delete-button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .detail-button, .delete-button { transition: none; }
+}
 .loan-overlay { position: fixed; inset: 0; background: #0008; z-index: 2000; display: grid; place-items: center; padding: 20px; }
 .loan-dialog { background: var(--ds-surface, white); color: var(--ds-text, #263238); border-radius: 10px; padding: 24px; width: min(720px, 100%); max-height: 90vh; overflow: auto; }
 .loan-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .loan-dialog h2 { font-size: 18px; }
 .detail-schedule { margin: 12px 0; }
 .delete-warning, .loan-dialog .delete-button, .delete-button { color: var(--ds-error, #dc2626); }
-.delete-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 32px; cursor: pointer; padding: 0; border: 1px solid currentColor; border-radius: 6px; background: var(--ds-surface, white); }
+.delete-button { box-sizing: border-box; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 32px; cursor: pointer; padding: 0; border: 1px solid currentColor; border-radius: 6px; background: var(--ds-surface, white); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .loan-dialog .close-button { display: inline-flex; align-items: center; justify-content: center; padding: 6px; color: var(--ds-error, #dc2626); border-color: transparent; background: transparent; }
 .loan-dialog .close-button:hover { background: var(--ds-surface-inset, #fee2e2); }

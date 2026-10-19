@@ -489,6 +489,10 @@ function cellText(row: Record<string, any>, col: BrowseColumn): string {
   if (col.type === "datetime") {
     return formatTanggalWaktu(v);
   }
+  if (col.type === "number") {
+    const number = Number(v);
+    return Number.isFinite(number) ? number.toFixed(1) : String(v);
+  }
   return String(v);
 }
 

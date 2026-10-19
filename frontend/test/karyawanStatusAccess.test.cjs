@@ -12,14 +12,13 @@ function fixture(user, edit, original = null) {
   const module = { exports: {} };
   const getter = source.slice(source.indexOf('const canChangeStatus ='), source.indexOf('const values = reactive'));
   const save = source.slice(source.indexOf('async function simpan()'), source.indexOf('/**', source.indexOf('async function simpan()')));
-  const peringatanFn = source.match(/function tampilkkanPeringatanIdentitas\([\s\S]*?\n\}/)[0];
   const values = { kar_status_aktif: original, kar_nama: 'Employee', kar_pab_kode: 'P01', kar_jab_kode: 'STAFF' };
   const globals = { ...vue, module, exports: module.exports, auth: { user: { user_kode: user } }, values,
     canSave: vue.ref(true), isEdit: vue.ref(edit), nik: vue.ref('001'), memuat: vue.ref(false), formReady: vue.ref(true),
     resetSnapshot: vue.ref({ values: { kar_status_aktif: original } }), anak: vue.ref([]), pendidikan: vue.ref([]), pengalaman: vue.ref([]),
     keahlian: vue.ref([]), jadwalTerpilih: vue.ref([]), pkwt: vue.ref([]), fotoBase64: vue.ref(''),
     api: { async put(url, body) { calls.push(body); return { data: { data: {} } }; }, async post(url, body) { calls.push(body); return { data: { data: { kar_Nik: '001' } } }; } } };
-  vm.runInNewContext(ts.transpileModule(getter + save + peringatanFn + '\nexport { canChangeStatus, simpan };', {
+  vm.runInNewContext(ts.transpileModule(getter + save + '\nexport { canChangeStatus, simpan };', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, globals);
   return { ...module.exports, values, calls };
 }

@@ -65,6 +65,10 @@ function displayLabel(key: string): string {
   if (value !== null && value !== "") {
     if (props.columnType === "date") return formatTanggal(value) || filterLabel(key);
     if (props.columnType === "datetime") return formatTanggalWaktu(value) || filterLabel(key);
+    if (props.columnType === "number") {
+      const number = Number(value);
+      if (Number.isFinite(number)) return number.toFixed(1);
+    }
   }
   return filterLabel(key);
 }

@@ -3,7 +3,6 @@ import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { nomorNik, nomorKodeAbsensi } from '../../helpers/nomor.js'
 import { sendExcel } from '../../helpers/excel.js'
-import { kandidatIdentitas, polaIdentitasLegacy } from '../../helpers/identitasKaryawan.js'
 
 /** Nama advisory lock MySQL untuk jalur simpan Karyawan (MyISAM tanpa transaksi). */
 const KUNCI_IDENTITAS = 'hrd_karyawan_simpan_identitas'
@@ -323,33 +322,17 @@ export const generateNik = async (req, res, next) => {
     }
 }
 
-/**
- * Cek pemakaian No. Identitas (KTP/SIM) oleh karyawan lain.
- * Pencocokan exact lebih dulu; fallback REGEXP untuk data legacy kotor
- * (suffix rehire "(2)", kurung pembungkus) sesuai helper identitasKaryawan.
- * @param {object} conn pool/koneksi dengan method query
- * @param {string} noidentitas nilai dari user (boleh kosong → tidak dicek)
- * @param {string} excludeNik NIK yang dikecualikan (record yang sedang diedit)
- */
+/** Exact full-value identity check; suffixes are meaningful and stored data is untouched. */
 async function cariDuplikatIdentitas(conn, noidentitas, excludeNik = '') {
-    const kandidat = kandidatIdentitas(noidentitas)
-    if (!kandidat.length) return []
-    const kolom = 'kar_Nik, kar_nama, kar_status_aktif, kar_tgl_masuk, kar_tgl_keluar'
+    const nilai = String(noidentitas ?? '').trim()
+    if (!nilai) return []
     const kecuali = excludeNik ? ' AND kar_Nik <> ?' : ''
-    const params = [...kandidat, ...(excludeNik ? [excludeNik] : [])]
-    const [ekak] = await conn.query(
-        `SELECT ${kolom} FROM tkaryawan WHERE (${kandidat.map(() => 'kar_noidentitas = ?').join(' OR ')})${kecuali}`,
-        params
+    const [rows] = await conn.query(
+        `SELECT kar_Nik, kar_nama, kar_status_aktif, kar_tgl_masuk, kar_tgl_keluar
+         FROM tkaryawan WHERE BINARY TRIM(kar_noidentitas) = BINARY ?${kecuali}`,
+        [nilai, ...(excludeNik ? [excludeNik] : [])]
     )
-    if (ekak.length) return ekak
-    // Fallback: data legacy sering punya kotoran suffix/kurung pada kolomnya.
-    const pola = polaIdentitasLegacy(noidentitas)
-    if (!pola) return []
-    const [legacy] = await conn.query(
-        `SELECT ${kolom} FROM tkaryawan WHERE kar_noidentitas REGEXP ?${kecuali}`,
-        [pola, ...(excludeNik ? [excludeNik] : [])]
-    )
-    return legacy
+    return rows
 }
 
 /** GET /master/karyawan/cek-identitas?noidentitas=...&nik=... — pre-check frontend. */
@@ -358,6 +341,12 @@ export const cekIdentitas = async (req, res, next) => {
         const noidentitas = String(req.query?.noidentitas ?? '').trim()
         const excludeNik = String(req.query?.nik ?? '').trim()
         if (!noidentitas) return success(res, { ditemukan: [] })
+        if (excludeNik) {
+            const [current] = await pool.query('SELECT kar_noidentitas FROM tkaryawan WHERE kar_Nik = ?', [excludeNik])
+            if (current.length && String(current[0].kar_noidentitas ?? '').trim() === noidentitas) {
+                return success(res, { ditemukan: [] })
+            }
+        }
         const rows = await cariDuplikatIdentitas(pool, noidentitas, excludeNik)
         success(res, {
             ditemukan: rows.map((r) => ({
@@ -465,31 +454,20 @@ export const saveKaryawan = async (req, res, next) => {
         }
 
         // ── Validasi No. Identitas (KTP/SIM) ─────────────────────────────
-        // tkaryawan adalah MyISAM (tanpa transaksi/FK), jadi cek duplikat
-        // dijalankan sedekat mungkin dengan INSERT/UPDATE dan dijaga advisory
-        // lock MySQL agar dua request web bersamaan tidak sama-sama lolos
-        // cek "karyawan aktif". Penulis legacy di luar web yang tidak memakai
-        // GET_LOCK tetap berada di luar perlindungan lock ini.
-        // Edit yang tidak mengubah identitas tidak dianggap duplicate dirinya sendiri.
+        // MyISAM cannot roll back writes. Validate before any write and serialize
+        // cooperating web writers until all employee/child writes finish.
+        // Unchanged identities keep legacy duplicates editable.
         const identitasInput = String(values.kar_noidentitas ?? '').trim()
         const identitasLama = isEdit ? String(dup[0]?.kar_noidentitas ?? '').trim() : ''
         const identitasDiganti = !isEdit || identitasInput !== identitasLama
-        let peringatanIdentitas = []
         if (identitasInput && identitasDiganti) {
             kunciDiambil = (await conn.query('SELECT GET_LOCK(?, 5) AS kunci', [KUNCI_IDENTITAS]))[0]?.[0]?.kunci === 1
+            if (!kunciDiambil) return error(res, 'Pemeriksaan No. Identitas sedang digunakan. Silakan coba simpan lagi.', 503)
             const pemakai = await cariDuplikatIdentitas(conn, identitasInput, isEdit ? nik : '')
-            const aktifLain = pemakai.find((p) => Number(p.kar_status_aktif) === 1)
-            if (aktifLain) {
-                if (kunciDiambil) {
-                    await conn.query('SELECT RELEASE_LOCK(?) AS lepas', [KUNCI_IDENTITAS])
-                    kunciDiambil = false
-                }
-                return error(res, `No. Identitas ini sudah digunakan oleh karyawan aktif: ${aktifLain.kar_Nik} - ${aktifLain.kar_nama}.`, 409)
+            if (pemakai.length) {
+                const rincian = pemakai.map(p => `${p.kar_Nik} - ${p.kar_nama}`).join('; ')
+                return error(res, `No. Identitas sudah pernah digunakan oleh karyawan: ${rincian}. Gunakan No. Identitas yang berbeda.`, 409)
             }
-            peringatanIdentitas = pemakai.map((p) => ({
-                nik: p.kar_Nik, nama: p.kar_nama,
-                tgl_masuk: p.kar_tgl_masuk, tgl_keluar: p.kar_tgl_keluar,
-            }))
         }
 
         await conn.beginTransaction()
@@ -541,7 +519,7 @@ export const saveKaryawan = async (req, res, next) => {
 
         await conn.commit()
         success(res,
-            { kar_Nik: nik, ...(peringatanIdentitas.length ? { peringatan_identitas: peringatanIdentitas } : {}) },
+            { kar_Nik: nik },
             isEdit ? 'Karyawan berhasil diupdate' : 'Karyawan berhasil ditambahkan',
             isEdit ? 200 : 201)
     } catch (err) {
