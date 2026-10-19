@@ -28,7 +28,7 @@ const columns: BrowseColumn[] = [
 </script>
 
 <template>
-  <BaseBrowse
+  <BaseBrowse class="standard-actions"
     module-title="Bank Pelamar"
     module-subtitle="Data pelamar per periode + status seleksi"
     endpoint="/transaksi/bank-pelamar"

@@ -98,10 +98,10 @@ test('Failed navigation after successful save does not close source form', async
   assert.ok(f.events.some(event => event[0] === 'error' && event[1].includes('Jangan simpan ulang')));
 });
 
-test('All eleven transaction entry forms opt into shared Save New and Save Close', () => {
+test('All fourteen transaction entry forms opt into shared Save New and Save Close', () => {
   const directory = path.join(root, 'views/transaksi');
   const files = fs.readdirSync(directory).filter(file => file.endsWith('Form.vue'));
-  assert.equal(files.length, 11);
+  assert.equal(files.length, 14);
   for (const file of files) {
     const source = fs.readFileSync(path.join(directory, file), 'utf8');
     assert.match(source, /new-form-path="\/transaksi\/[^" ]+\/form" transaction-module="frm[^" ]+"/, file);
@@ -125,6 +125,7 @@ test('Ijin duplicate confirmation completes original save action; cancellation r
     const module = { exports: {} };
     const context = {
       module, exports: module.exports, assertClockTime() {}, values: { jam: '08:00:00' }, pakaiJam2: vue.ref(false),
+      tidakMasuk: vue.ref(false),
       dialogDuplikat: vue.ref(false), pesanDuplikat: vue.ref(''), getErrorMessage: err => err.message,
       duplikatResolve: undefined, duplikatReject: undefined,
       async kirim(confirmed) {

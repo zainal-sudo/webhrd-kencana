@@ -153,23 +153,28 @@ async function hapus() {
 </template>
 
 <style scoped>
+/* Match Ijin row height while keeping the larger hover target. */
+:deep(.browse-table td.action-col) {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
 .absensi-actions {
   display: inline-flex;
+  vertical-align: middle;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 2px;
   flex-wrap: nowrap;
 }
 .absensi-actions .row-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 0;
-  background: transparent;
   cursor: pointer;
 }
 .absensi-actions .material-symbols-outlined {
@@ -178,8 +183,6 @@ async function hapus() {
 }
 .absensi-actions .edit { color: #3b5998; }
 .absensi-actions .del { color: #dc2626; }
-.absensi-actions .edit:hover { background: rgba(59, 89, 152, 0.14); }
-.absensi-actions .del:hover { background: rgba(220, 38, 38, 0.12); }
 .absensi-actions .row-btn:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 1px;

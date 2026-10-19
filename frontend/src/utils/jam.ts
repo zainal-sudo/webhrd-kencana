@@ -5,6 +5,24 @@ export function maskClockTime(value: string): string {
   return (value.replace(/\D/g, "").slice(0, 6).match(/.{1,2}/g) || []).join(":");
 }
 
+/** Mask angka jam tanpa detik (HH:mm). */
+export function maskClockMinute(value: string): string {
+  return (value.replace(/\D/g, "").slice(0, 4).match(/.{1,2}/g) || []).join(":");
+}
+
+/** Validasi jam tanpa detik (HH:mm); empty tetap opsional kecuali required. */
+export function clockMinuteTimeError(value: unknown, required = false): string {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return required ? "Jam wajib diisi." : "";
+  }
+  const text = String(value).trim();
+  if (!/^\d{2}:\d{2}$/.test(text)) return "Isi jam dalam format HH:mm.";
+  const [hour, minute] = text.split(":").map(Number);
+  return hour! > 23 || minute! > 59
+    ? "Jam harus 00–23 dan menit 00–59."
+    : "";
+}
+
 export function clockTimeError(value: unknown, required = false): string {
   if (value === null || value === undefined || String(value).trim() === "") {
     return required ? "Jam wajib diisi." : "";

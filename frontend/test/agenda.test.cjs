@@ -40,7 +40,7 @@ test('Month/week calendar uses Monday start, correct leap/year transitions and J
   for (const [start, end] of [['08:00', ''], ['', '09:00'], ['09:00', '09:00'], ['10:00', '09:00']]) assert.ok(utils.agendaTimeError(start, end));
 });
 function noticeFixture() {
-  const mounted = [], unmounted = [], intervals = new Map(), events = new Map(), requests = [];
+  const mounted = [], unmounted = [], intervals = new Map(), timeouts = new Map(), events = new Map(), requests = [];
   let timer = 0;
   const identity = vue.ref('token:hrd');
   const doc = { hidden: false, addEventListener: (key, fn) => events.set(key, fn), removeEventListener: key => events.delete(key) };
@@ -49,12 +49,43 @@ function noticeFixture() {
     vue: { ...vue, onMounted: fn => mounted.push(fn), onUnmounted: fn => unmounted.push(fn) },
     '@/api/axios': { api: { get: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })) }, getErrorMessage: err => err.message },
     '@/utils/agenda': utils,
-  }, { document: doc, window: doc, setInterval: (fn, ms) => { assert.equal(ms, 60000); intervals.set(++timer, fn); return timer; }, clearInterval: id => intervals.delete(id) });
+  }, { document: doc, window: doc, setInterval: (fn, ms) => { assert.equal(ms, 60000); intervals.set(++timer, fn); return timer; }, clearInterval: id => intervals.delete(id), setTimeout: (fn, ms) => { timeouts.set(++timer, { fn, ms }); return timer; }, clearTimeout: id => timeouts.delete(id) });
   const state = scope.run(() => useAgendaNotice(() => identity.value));
   mounted.forEach(fn => fn());
-  return { ...state, identity, doc, intervals, events, requests, dispose() { unmounted.forEach(fn => fn()); scope.stop(); } };
+  return { ...state, identity, doc, intervals, timeouts, events, requests, dispose() { unmounted.forEach(fn => fn()); scope.stop(); } };
 }
 const flush = async () => { await Promise.resolve(); await vue.nextTick(); };
+test('Login reminder shows once for agenda today, closes after 20 seconds, and does not repeat on focus', async () => {
+  const f = noticeFixture();
+  try {
+    f.requests[0].resolve({ data: { data: { count: 3, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 3);
+    const timeout = [...f.timeouts.values()][0]; assert.equal(timeout.ms, 20000);
+    timeout.fn(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
+    f.events.get('focus')();
+    f.requests[1].resolve({ data: { data: { count: 4, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
+  } finally { f.dispose(); }
+});
+test('Login reminder has no empty alert and can be dismissed; logout and unmount clear its timer', async () => {
+  const f = noticeFixture();
+  try {
+    f.requests[0].resolve({ data: { data: { count: 0, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
+    f.identity.value = 'token2:p1'; await flush();
+    f.requests[1].resolve({ data: { data: { count: 1, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 1);
+    f.dismissLoginNotice(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
+    f.identity.value = 'token3:hrd'; await flush();
+    f.requests[2].resolve({ data: { data: { count: 2, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 2);
+    f.identity.value = ''; await flush(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
+    f.identity.value = 'token4:hrd'; await flush();
+    f.requests[3].resolve({ data: { data: { count: 1, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.timeouts.size, 1);
+  } finally { f.dispose(); }
+  assert.equal(f.timeouts.size, 0);
+});
 test('Notice refreshes on focus/60 seconds, keeps dot after open, stops network while hidden and clears on logout', async () => {
   const f = noticeFixture();
   try {
@@ -96,7 +127,7 @@ function calendarFixture() {
     return { data: { data: url === '/agenda/users' ? [{ code: 'p1', name: 'User P1' }] : url === '/agenda' ? [row] : structuredClone(row) } };
   };
   const scope = vue.effectScope();
-  const state = scope.run(() => evaluate(source + '\nexport { draft, rows, daily, editor, owner, document, selected, mode, formError, save, remove, editAgenda, newAgenda, reload, search, users, userLoading, userError, recipientPanelReady, recipientOptions, toggleRecipient, recipientLabel, searchUsers, closeEditor, chooseStatus, statusOpen, toggleStatus, busy, focusRecipients, recipientPanel, recipientSearchInput };', {
+  const state = scope.run(() => evaluate(source + '\nexport { draft, rows, daily, editor, owner, document, selected, mode, formError, save, remove, editAgenda, newAgenda, reload, search, users, userLoading, userError, recipientPanelReady, recipientOptions, toggleRecipient, toggleAllRecipients, allRecipientsSelected, someRecipientsSelected, recipientLabel, searchUsers, closeEditor, chooseStatus, busy, focusRecipients, recipientPanel, recipientSearchInput };', {
     vue: { ...vue, onUnmounted: fn => unmounted.push(fn) }, '@/utils/agenda': utils,
     '@/api/axios': { api: { get: (url, config) => request('get', url, config?.params), post: (url, body) => request('post', url, body), put: (url, body) => request('put', url, body), delete: (url, body) => request('delete', url, body) }, getErrorMessage: err => err.message },
   }, { defineProps: () => props, defineEmits: () => (...args) => emitted.push(args), setTimeout, clearTimeout, window: { confirm: () => true, matchMedia: () => ({ matches: false }) } }));
@@ -181,14 +212,38 @@ test('Several selections survive searches, can be removed separately and are sen
   } finally { f.dispose(); }
 });
 
-test('Status can be changed without owner rights; busy state blocks it; back closes status list', async () => {
+test('Select all chooses visible recipients once, excludes creator, and keeps other search selections on clear', async () => {
+  const f = calendarFixture();
+  try {
+    f.props.username = 'hrd'; f.newAgenda(); f.draft.visibility = 'shared'; await flush();
+    await f.searchUsers();
+    f.users.value = [{ code: 'hrd' }, { code: 'p1' }, { code: 'p2' }];
+    f.draft.recipients = ['p4', 'p1'];
+    assert.equal(f.someRecipientsSelected.value, true);
+    f.toggleAllRecipients();
+    assert.deepEqual(Array.from(f.draft.recipients), ['p4', 'p1', 'p2']);
+    assert.equal(f.allRecipientsSelected.value, true); assert.equal(f.someRecipientsSelected.value, false);
+    f.users.value = [{ code: 'p2' }]; f.toggleAllRecipients();
+    assert.deepEqual(Array.from(f.draft.recipients), ['p4', 'p1']);
+    f.toggleAllRecipients(); assert.deepEqual(Array.from(f.draft.recipients), ['p4', 'p1', 'p2']);
+    f.busy.value = true; f.toggleAllRecipients(); assert.equal(f.draft.recipients.length, 3);
+    f.busy.value = false; f.userLoading.value = true; f.toggleAllRecipients(); assert.equal(f.draft.recipients.length, 3);
+    f.userLoading.value = false; f.userError.value = 'offline'; f.toggleAllRecipients(); assert.equal(f.draft.recipients.length, 3);
+    f.userError.value = ''; f.users.value = []; f.toggleAllRecipients(); assert.equal(f.draft.recipients.length, 3);
+    assert.equal(f.allRecipientsSelected.value, false);
+    f.props.username = 'p1'; await f.editAgenda(1); f.users.value = [{ code: 'p2' }];
+    f.toggleAllRecipients(); assert.deepEqual(Array.from(f.draft.recipients), ['p1']);
+  } finally { f.dispose(); }
+});
+
+test('Status segments preserve recipient edit rights, block changes while busy, and send the same status values', async () => {
   const f = calendarFixture();
   try {
     await f.editAgenda(1); assert.equal(f.owner.value, false);
-    await f.toggleStatus(); assert.equal(f.statusOpen.value, true);
-    f.chooseStatus('BATAL'); assert.equal(f.draft.status, 'BATAL'); assert.equal(f.statusOpen.value, false);
+    f.chooseStatus('BATAL'); assert.equal(f.draft.status, 'BATAL');
     f.busy.value = true; f.chooseStatus('OPEN'); assert.equal(f.draft.status, 'BATAL');
-    f.busy.value = false; await f.toggleStatus(); f.closeEditor(); assert.equal(f.statusOpen.value, false);
+    f.busy.value = false; f.chooseStatus('SELESAI'); await f.save();
+    assert.equal(f.calls.find(call => call.method === 'put').payload.status, 'SELESAI');
   } finally { f.dispose(); }
 });
 test('Sharing focuses recipient search and scrolls its panel; recipients cannot change sharing', async () => {
@@ -222,4 +277,13 @@ test('Daily cards prioritize OPEN/SELESAI/BATAL, all-day/time/id and react to st
     f.rows.value.find(item => item.id === 8).status = 'OPEN';
     assert.deepEqual(Array.from(f.daily.value, item => item.id), [3, 8, 1, 4, 5, 7, 2]);
   } finally { f.dispose(); }
+});
+
+test('Jam mulai/selesai memakai FTime mode HH:mm (tanpa detik) menggantikan input time browser', () => {
+  const source = read('components/AgendaCalendar.vue');
+  assert.match(source, /import FTime from "@\/components\/fields\/FTime.vue";/);
+  assert.match(source, /<FTime v-model="draft.start_time" label="Jam mulai" placeholder="00:00" :seconds="false"/);
+  assert.match(source, /<FTime v-model="draft.end_time" label="Jam selesai" placeholder="00:00" :seconds="false"/);
+  assert.ok(!source.includes('type="time"'));
+  assert.match(source, /\.agenda-form :deep\(\.time-field\) \{ flex-direction: column;/);
 });

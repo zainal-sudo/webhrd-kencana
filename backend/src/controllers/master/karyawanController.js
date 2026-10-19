@@ -3,6 +3,10 @@ import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { nomorNik, nomorKodeAbsensi } from '../../helpers/nomor.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { kandidatIdentitas, polaIdentitasLegacy } from '../../helpers/identitasKaryawan.js'
+
+/** Nama advisory lock MySQL untuk jalur simpan Karyawan (MyISAM tanpa transaksi). */
+const KUNCI_IDENTITAS = 'hrd_karyawan_simpan_identitas'
 
 /**
  * Master Karyawan — cerminan unit Delphi `ufrmKaryawan` + `ufrmBrowseKaryawan`.
@@ -45,6 +49,12 @@ const LIST_COLUMNS = {
     Jurusan: 'k.kar_jurusan',
     PKWT1: 'k.kar_tglPKWT1',
     PKWT2: 'k.kar_tglPKWT2',
+}
+
+// Semantic types of the SELECT projection, shared by every Karyawan filter path.
+const NON_STRING_FILTER_COLUMNS = new Set(['MasaKerja', 'TglLahir', 'TglMasuk', 'TglKeluar', 'PKWT1', 'PKWT2'])
+const FILTER_OPTIONS = {
+    stringColumns: new Set(Object.keys(LIST_COLUMNS).filter(alias => !NON_STRING_FILTER_COLUMNS.has(alias))),
 }
 
 // Display labels only: keep SQL aliases/API filter keys compatible.
@@ -95,16 +105,18 @@ export const getKaryawanList = async (req, res, next) => {
 
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const dcol = LIST_COLUMNS[req.query.distinct]
-            const scoped = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
+            // PAD SPACE collations can collapse '' and ' '; keep their lengths distinct.
+            const lengthColumn = FILTER_OPTIONS.stringColumns.has(req.query.distinct)
+                ? `, OCTET_LENGTH(${dcol}) AS value_length` : ''
+            const scoped = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct, FILTER_OPTIONS)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${FROM_SQL} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value${lengthColumn} ${FROM_SQL}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
         }
 
-        const f = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS)
+        const f = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, null, FILTER_OPTIONS)
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY k.kar_Nik')
@@ -312,8 +324,59 @@ export const generateNik = async (req, res, next) => {
     }
 }
 
+/**
+ * Cek pemakaian No. Identitas (KTP/SIM) oleh karyawan lain.
+ * Pencocokan exact lebih dulu; fallback REGEXP untuk data legacy kotor
+ * (suffix rehire "(2)", kurung pembungkus) sesuai helper identitasKaryawan.
+ * @param {object} conn pool/koneksi dengan method query
+ * @param {string} noidentitas nilai dari user (boleh kosong → tidak dicek)
+ * @param {string} excludeNik NIK yang dikecualikan (record yang sedang diedit)
+ */
+async function cariDuplikatIdentitas(conn, noidentitas, excludeNik = '') {
+    const kandidat = kandidatIdentitas(noidentitas)
+    if (!kandidat.length) return []
+    const kolom = 'kar_Nik, kar_nama, kar_status_aktif, kar_tgl_masuk, kar_tgl_keluar'
+    const kecuali = excludeNik ? ' AND kar_Nik <> ?' : ''
+    const params = [...kandidat, ...(excludeNik ? [excludeNik] : [])]
+    const [ekak] = await conn.query(
+        `SELECT ${kolom} FROM tkaryawan WHERE (${kandidat.map(() => 'kar_noidentitas = ?').join(' OR ')})${kecuali}`,
+        params
+    )
+    if (ekak.length) return ekak
+    // Fallback: data legacy sering punya kotoran suffix/kurung pada kolomnya.
+    const pola = polaIdentitasLegacy(noidentitas)
+    if (!pola) return []
+    const [legacy] = await conn.query(
+        `SELECT ${kolom} FROM tkaryawan WHERE kar_noidentitas REGEXP ?${kecuali}`,
+        [pola, ...(excludeNik ? [excludeNik] : [])]
+    )
+    return legacy
+}
+
+/** GET /master/karyawan/cek-identitas?noidentitas=...&nik=... — pre-check frontend. */
+export const cekIdentitas = async (req, res, next) => {
+    try {
+        const noidentitas = String(req.query?.noidentitas ?? '').trim()
+        const excludeNik = String(req.query?.nik ?? '').trim()
+        if (!noidentitas) return success(res, { ditemukan: [] })
+        const rows = await cariDuplikatIdentitas(pool, noidentitas, excludeNik)
+        success(res, {
+            ditemukan: rows.map((r) => ({
+                nik: r.kar_Nik,
+                nama: r.kar_nama,
+                aktif: Number(r.kar_status_aktif) === 1,
+                tgl_masuk: r.kar_tgl_masuk,
+                tgl_keluar: r.kar_tgl_keluar,
+            })),
+        })
+    } catch (err) {
+        next(err)
+    }
+}
+
 export const saveKaryawan = async (req, res, next) => {
     const conn = await pool.getConnection()
+    let kunciDiambil = false
     try {
         const b = kanonik(req.body || {})
         // NIK pada PUT berasal dari URL; body dipakai untuk insert (dibuat dari nomor otomatis)
@@ -328,7 +391,7 @@ export const saveKaryawan = async (req, res, next) => {
         if (!isEdit && !nik) return error(res, 'NIK kosong, tidak bisa membuat nomor', 400)
 
         // validasi unik
-        const [dup] = await conn.query('SELECT kar_Nik, kar_status_aktif FROM tkaryawan WHERE kar_Nik = ?', [nik])
+        const [dup] = await conn.query('SELECT kar_Nik, kar_status_aktif, kar_noidentitas FROM tkaryawan WHERE kar_Nik = ?', [nik])
         if (dup.length > 0 && !isEdit) {
             return error(res, `NIK ${nik} sudah dipakai`, 409)
         }
@@ -402,6 +465,34 @@ export const saveKaryawan = async (req, res, next) => {
             return error(res, `Kolom form belum dipetakan di backend: ${kurang.join(', ')}`, 500)
         }
 
+        // ── Validasi No. Identitas (KTP/SIM) ─────────────────────────────
+        // tkaryawan adalah MyISAM (tanpa transaksi/FK), jadi cek duplikat
+        // dijalankan sedekat mungkin dengan INSERT/UPDATE dan dijaga advisory
+        // lock MySQL agar dua request web bersamaan tidak sama-sama lolos
+        // cek "karyawan aktif". Penulis legacy di luar web yang tidak memakai
+        // GET_LOCK tetap berada di luar perlindungan lock ini.
+        // Edit yang tidak mengubah identitas tidak dianggap duplicate dirinya sendiri.
+        const identitasInput = String(values.kar_noidentitas ?? '').trim()
+        const identitasLama = isEdit ? String(dup[0]?.kar_noidentitas ?? '').trim() : ''
+        const identitasDiganti = !isEdit || identitasInput !== identitasLama
+        let peringatanIdentitas = []
+        if (identitasInput && identitasDiganti) {
+            kunciDiambil = (await conn.query('SELECT GET_LOCK(?, 5) AS kunci', [KUNCI_IDENTITAS]))[0]?.[0]?.kunci === 1
+            const pemakai = await cariDuplikatIdentitas(conn, identitasInput, isEdit ? nik : '')
+            const aktifLain = pemakai.find((p) => Number(p.kar_status_aktif) === 1)
+            if (aktifLain) {
+                if (kunciDiambil) {
+                    await conn.query('SELECT RELEASE_LOCK(?) AS lepas', [KUNCI_IDENTITAS])
+                    kunciDiambil = false
+                }
+                return error(res, `No. Identitas ini sudah digunakan oleh karyawan aktif: ${aktifLain.kar_Nik} - ${aktifLain.kar_nama}.`, 409)
+            }
+            peringatanIdentitas = pemakai.map((p) => ({
+                nik: p.kar_Nik, nama: p.kar_nama,
+                tgl_masuk: p.kar_tgl_masuk, tgl_keluar: p.kar_tgl_keluar,
+            }))
+        }
+
         await conn.beginTransaction()
 
         if (isEdit) {
@@ -450,11 +541,19 @@ export const saveKaryawan = async (req, res, next) => {
         }
 
         await conn.commit()
-        success(res, { kar_Nik: nik }, isEdit ? 'Karyawan berhasil diupdate' : 'Karyawan berhasil ditambahkan', isEdit ? 200 : 201)
+        success(res,
+            { kar_Nik: nik, ...(peringatanIdentitas.length ? { peringatan_identitas: peringatanIdentitas } : {}) },
+            isEdit ? 'Karyawan berhasil diupdate' : 'Karyawan berhasil ditambahkan',
+            isEdit ? 200 : 201)
     } catch (err) {
         await conn.rollback()
         next(err)
     } finally {
+        if (kunciDiambil) {
+            // Best-effort: kunci sudah otomatis lepas saat koneksi ditutup,
+            // tetapi lepas eksplisit menjaga pool tetap bersih.
+            await conn.query('SELECT RELEASE_LOCK(?) AS lepas', [KUNCI_IDENTITAS]).catch(() => {})
+        }
         conn.release()
     }
 }

@@ -50,6 +50,8 @@ const props = withDefaults(
     initialFilters?: Record<string, string[]>;
     /** Pilihan tetap untuk kolom enumerasi, tidak menyempit mengikuti hasil tabel. */
     filterValues?: Record<string, (string | number | null)[]>;
+    /** Opt-in Excel-style Blank choice; other browse pages keep distinct NULL/empty values. */
+    combineBlankValues?: boolean;
     /** Muat ulang saat kembali ke browse keep-alive; aktif secara default. */
     refreshOnActivate?: boolean;
     /** Opt-in dense columns; all existing browse layouts retain their defaults. */
@@ -82,6 +84,7 @@ const props = withDefaults(
     exportName: "",
     extraQuery: () => ({}),
     refreshOnActivate: true,
+    combineBlankValues: false,
     compact: false,
     actionWidth: 144,
     expandable: false,
@@ -549,7 +552,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="browse-panel" :class="{ compact, 'scrollable-header': scrollableHeader }" :style="scrollableHeader ? { '--browse-toolbar-height': `${toolbarHeight}px` } : undefined">
+  <div class="browse-panel" :class="{ compact, 'scrollable-header': scrollableHeader, 'compact-rows': endpoint === '/absensi' || endpoint.startsWith('/transaksi/') }" :style="scrollableHeader ? { '--browse-toolbar-height': `${toolbarHeight}px` } : undefined">
     <div ref="scrollRegion" class="browse-scroll-region">
     <div v-if="scrollableHeader" class="scroll-header"><slot name="scroll-header" /></div>
     <!-- Toolbar -->
@@ -671,6 +674,8 @@ onActivated(() => {
                 :anchor="filterAnchor"
                 :col-label="col.label"
                 :column-type="col.type"
+                :combine-blank-values="combineBlankValues"
+                :filter-value-type="col.filterValueType"
                 :selected="filterSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
                 @apply="(vals) => applyFilterSet(col, vals)"
@@ -1130,6 +1135,16 @@ th.sorted .th-sort {
   white-space: nowrap;
 }
 .browse-table tr > :first-child { border-left-width: 1px; }
+/* Preserve the original 35px transaction/attendance rows with larger hover buttons. */
+.compact-rows .browse-table > tbody > tr:not(.expanded-row) > td:not([colspan]) {
+  box-sizing: border-box;
+  height: 35px;
+  vertical-align: middle;
+}
+.compact-rows .browse-table > tbody > tr:not(.expanded-row) > td.action-col {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
 /* ── Kolom foto ──
    Thumbnail sengaja kecil (40x30) dan padding sel diperketat supaya baris
    hanya tumbuh ~10px dari baris biasa. Kolom ini diletakkan paling depan di
@@ -1229,20 +1244,11 @@ tbody tr:hover td.action-col {
 .row-btn.edit {
   color: var(--ds-primary, #3b5998);
 }
-.row-btn.edit:hover {
-  background: rgba(59, 89, 152, 0.14);
-}
 .row-btn.print {
   color: #0f766e;
 }
-.row-btn.print:hover {
-  background: rgba(15, 118, 110, 0.12);
-}
 .row-btn.del {
   color: #dc2626;
-}
-.row-btn.del:hover {
-  background: rgba(220, 38, 38, 0.12);
 }
 .state-cell {
   text-align: center;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { clockTimeError, maskClockTime } from "@/utils/jam";
+import { clockMinuteTimeError, clockTimeError, maskClockMinute, maskClockTime } from "@/utils/jam";
 
 const props = withDefaults(defineProps<{
   modelValue?: string | number | null;
@@ -11,10 +11,17 @@ const props = withDefaults(defineProps<{
   compact?: boolean;
   /** Grid dengan navigasi sendiri menangani Enter melalui event bubbling. */
   navigateOnEnter?: boolean;
-}>(), { label: "", required: false, disabled: false, placeholder: "HH:mm:ss", compact: false });
+  /** false = tampilan HH:mm tanpa detik (mis. jam agenda); default HH:mm:ss. */
+  seconds?: boolean;
+}>(), { label: "", required: false, disabled: false, placeholder: "HH:mm:ss", compact: false, seconds: true });
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 const touched = ref(false);
-const error = computed(() => clockTimeError(props.modelValue, props.required));
+const formatLabel = computed(() => (props.seconds ? "HH:mm:ss" : "HH:mm"));
+const focusPlaceholder = computed(() => (props.seconds ? "00:00:00" : "00:00"));
+function timeError(value: unknown): string {
+  return props.seconds ? clockTimeError(value, props.required) : clockMinuteTimeError(value, props.required);
+}
+const error = computed(() => timeError(props.modelValue));
 const editing = ref(false);
 const dirty = ref(false);
 const draft = ref("");
@@ -26,9 +33,11 @@ const suffix = computed(() => editing.value && draft.value.replace(/\D/g, '').le
   ? complete(draft.value).slice(draft.value.length) : "");
 
 function complete(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 6);
+  const length = props.seconds ? 6 : 4;
+  const digits = value.replace(/\D/g, '').slice(0, length);
   if (!digits) return '';
-  return maskClockTime(digits.length === 1 ? digits.padStart(2, '0').padEnd(6, '0') : digits.padEnd(6, '0'));
+  const padded = digits.length === 1 ? digits.padStart(2, '0').padEnd(length, '0') : digits.padEnd(length, '0');
+  return props.seconds ? maskClockTime(padded) : maskClockMinute(padded);
 }
 function update(value: string) {
   lastEmitted = value;
@@ -64,7 +73,7 @@ function input(event: Event) {
   const target = event.target as HTMLInputElement;
   const before = target.value;
   const digitsBeforeCaret = before.slice(0, target.selectionStart ?? before.length).replace(/\D/g, "").length;
-  const value = maskClockTime(before);
+  const value = props.seconds ? maskClockTime(before) : maskClockMinute(before);
   target.value = value;
   const caret = Math.min(value.length, digitsBeforeCaret + Math.floor(Math.max(0, digitsBeforeCaret - 1) / 2));
   target.setSelectionRange(caret, caret);
@@ -83,7 +92,7 @@ async function keydown(event: KeyboardEvent) {
   const target = event.target as HTMLInputElement;
   if (event.key === "Enter") {
     const enteredValue = editing.value && dirty.value ? complete(draft.value) : String(props.modelValue ?? '');
-    const validationError = clockTimeError(enteredValue, props.required);
+    const validationError = timeError(enteredValue);
     if (validationError) {
       event.preventDefault();
       event.stopPropagation();
@@ -99,7 +108,7 @@ async function keydown(event: KeyboardEvent) {
     const value = changed ? complete(draft.value) : String(props.modelValue ?? '');
     touched.value = true;
     if (changed) update(value);
-    if (clockTimeError(value, props.required)) return;
+    if (timeError(value)) return;
     dirty.value = false;
     editing.value = false;
     target.value = value;
@@ -131,9 +140,9 @@ async function keydown(event: KeyboardEvent) {
     <span class="time-control">
     <input
       type="text" inputmode="numeric" autocomplete="off" spellcheck="false"
-      :value="display" :disabled="disabled" :placeholder="editing ? '00:00:00' : placeholder" :required="required"
-      :aria-label="label || 'Jam (HH:mm:ss)'" :aria-invalid="!!error"
-      :title="error || 'Format 24 jam: HH:mm:ss'"
+      :value="display" :disabled="disabled" :placeholder="editing ? focusPlaceholder : placeholder" :required="required"
+      :aria-label="label || 'Jam (' + formatLabel + ')'" :aria-invalid="!!error"
+      :title="error || 'Format 24 jam: ' + formatLabel"
       @focus="focus" @beforeinput="beforeInput" @input="input" @paste="paste" @keydown="keydown" @blur="blur"
     />
     <span v-if="suffix" class="time-guide" aria-hidden="true"><span class="typed-guide">{{ draft }}</span>{{ suffix }}</span>
@@ -153,6 +162,8 @@ input { width: 100%; box-sizing: border-box; min-width: 0; height: 30px; padding
 input::placeholder { color: var(--ds-text-muted, var(--ds-text-secondary)); opacity: .65; }
 input:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 1px; }
 input:focus { border-color: var(--ds-primary); }
+/* Hover: bayangan lembut (blur) sebagai indikator fokus kursor. */
+input:hover:not(:disabled):not([aria-invalid="true"]) { box-shadow: 0 0 8px color-mix(in srgb, var(--ds-primary, #3b5998) 55%, transparent); }
 input:disabled { background: var(--ds-surface-inset); color: var(--ds-text-secondary); }
 input[aria-invalid="true"] { border-color: var(--ds-error); }
 .compact input { height: 28px; padding: 0 4px; font-size: 11px; }

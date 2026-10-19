@@ -17,7 +17,7 @@ const columns: BrowseColumn[] = [
 </script>
 
 <template>
-  <BaseBrowse
+  <BaseBrowse class="standard-actions"
     module-title="Rekruitmen"
     module-subtitle="Panggilan tes pelamar per periode"
     endpoint="/transaksi/rekrutmen"

@@ -61,6 +61,6 @@ test('Holiday overtime actions separate icons without widening the original colu
   assert.match(source, /:deep\(\.row-actions\)[^}]*gap: 8px[^}]*flex-wrap: nowrap/);
   assert.match(source, /\.report-page \.row-btn\s*\{[^}]*flex: 0 0 16px[^}]*width: 16px[^}]*height: 24px/);
   for (const action of ['verify', 'unverify', 'edit']) assert.ok(source.includes(`class="row-btn ${action}"`));
-  assert.match(source, /\.row-btn::before\s*\{[^}]*inset: -3px -7px[^}]*border-radius: 999px[^}]*pointer-events: none/);
-  assert.match(source, /\.row-btn:is\(:hover, :focus-visible\)::before/);
+  assert.match(source, /\.row-btn::before\s*\{[^}]*inset: 0 -4px[^}]*border-radius: 6px[^}]*pointer-events: none/);
+  assert.match(source, /\.row-btn:not\(:disabled\):is\(:hover, :focus-visible\)::before/);
 });

@@ -73,6 +73,26 @@ function bukaKolektif() {
 </template>
 
 <style scoped>
+:deep(.action-col .row-actions) {
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+:deep(.action-col .row-btn) {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+}
+
+/* Match Absensi action icons; MsIcon sets its size inline. */
+:deep(.action-col .row-btn .ms-icon) {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
 .tool-btn {
   height: 28px;
   display: inline-flex;

@@ -209,7 +209,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
         <button type="button" class="detail-button" @click="openDetail(row)">Detail</button>
       </template>
       <template #row-actions-end="{ row }">
-        <button v-if="auth.can('frmPinjam', 'delete')" type="button" class="delete-button" :title="row.potong1_diproses_pada != null || row.potong2_diproses_pada != null ? 'Pinjaman sudah memiliki pelunasan yang diproses' : 'Hapus permanen'" aria-label="Hapus permanen pinjaman" :disabled="deleting || row.potong1_diproses_pada != null || row.potong2_diproses_pada != null" @click="requestDelete(row)"><MsIcon name="delete" :size="18" /></button>
+        <button v-if="auth.can('frmPinjam', 'delete')" type="button" class="delete-button" :title="row.potong1_diproses_pada != null || row.potong2_diproses_pada != null ? 'Pinjaman sudah memiliki pelunasan yang diproses' : 'Hapus permanen'" aria-label="Hapus permanen pinjaman" :disabled="deleting || row.potong1_diproses_pada != null || row.potong2_diproses_pada != null" @click="requestDelete(row)"><MsIcon name="delete" :size="14" /></button>
       </template>
     </BaseBrowse>
     <Teleport to="body">
@@ -333,7 +333,7 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
 .loan-dialog h2 { font-size: 18px; }
 .detail-schedule { margin: 12px 0; }
 .delete-warning, .loan-dialog .delete-button, .delete-button { color: var(--ds-error, #dc2626); }
-.delete-button { cursor: pointer; padding: 6px 10px; border: 1px solid currentColor; border-radius: 5px; background: var(--ds-surface, white); }
+.delete-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 32px; cursor: pointer; padding: 0; border: 1px solid currentColor; border-radius: 6px; background: var(--ds-surface, white); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .loan-dialog .close-button { display: inline-flex; align-items: center; justify-content: center; padding: 6px; color: var(--ds-error, #dc2626); border-color: transparent; background: transparent; }
 .loan-dialog .close-button:hover { background: var(--ds-surface-inset, #fee2e2); }

@@ -17,7 +17,7 @@ function fixture() {
         INSERT INTO tkaryawan VALUES ('001','Riri',1,'2010-01-01'), ('002','Budi',1,'2010-01-01');`)
     const add = (nomor = 'PJ.2610.0001', change = {}) => {
         const row = { nomor_pinjam: nomor, nik: '001', tanggal: '2026-10-09', pinjam: 400000, bayar: 0,
-            angsuran: 2, bank: 'BSI', norek: '001234', periode_potong1: 'November 2026', nilai_potong1: 200000,
+            angsuran: 2, bank: 'BSI', norek: '0012345678', periode_potong1: 'November 2026', nilai_potong1: 200000,
             periode_potong2: 'Desember 2026', nilai_potong2: 200000, potong1_diproses_pada: null, potong2_diproses_pada: null, ...change }
         db.prepare(`INSERT INTO tpinjaman (${Object.keys(row).join(',')}) VALUES (${Object.keys(row).map(() => '?').join(',')})`).run(...Object.values(row))
     }
@@ -144,7 +144,7 @@ test('Processed loans reject financial edit/delete, allow bank/account edit with
         }
         await assert.rejects(hapusPinjaman(f.pool, 'PJ.2610.0001', { revision: f.editBody().revision, konfirmasi: 'PJ.2610.0001' }), /tidak dapat dihapus/)
         const marker = f.row().potong1_diproses_pada
-        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.editBody(), bank: 'CIMB', norek: '000987' })
+        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.editBody(), bank: 'CIMB', norek: '000000000987' })
         assert.equal(f.row().potong1_diproses_pada, marker)
         assert.equal(f.row().bayar, 200000)
     } finally { f.close() }
@@ -153,7 +153,7 @@ test('Payment frees ceiling for new loan under unchanged global validation', asy
     const f = fixture()
     try {
         f.add('OLD', { nik: 'old', pinjam: 29600000, bayar: 0, periode_potong1: null, periode_potong2: null })
-        const loan = { nik: '002', tanggal: '2026-10-09', pinjam: 200000, angsuran: 1, bank: 'BSI', norek: '001' }
+        const loan = { nik: '002', tanggal: '2026-10-09', pinjam: 200000, angsuran: 1, bank: 'BSI', norek: '0000000001' }
         await assert.rejects(tambahPinjaman(f.pool, loan), /plafon/)
         await prosesPelunasan(f.pool, payload())
         await tambahPinjaman(f.pool, loan)

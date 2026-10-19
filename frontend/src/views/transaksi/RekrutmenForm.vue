@@ -362,9 +362,7 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 table.mini td.aksi { width: 34px; text-align: center; }
 .grid-actions { display: flex; align-items: center; gap: 10px; }
 .row-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--ds-primary, #3b5998); cursor: pointer; }
-.row-btn:hover { background: rgba(59, 89, 152, 0.14); }
 .row-btn.del { color: #dc2626; }
-.row-btn.del:hover { background: rgba(220, 38, 38, 0.12); }
 .btn-mini { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
 .btn-mini.primary { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary-dark, #2c4472); color: #fff; }
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }

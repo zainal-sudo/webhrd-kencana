@@ -48,6 +48,11 @@ watch(() => browseStore.revision, () => {
 // Tutup tab menghapus filter; perpindahan tab keep-alive tetap mempertahankannya.
 onUnmounted(() => browseStore.setStatus("all"));
 
+const filterValueTypes: Record<string, "number" | "date"> = {
+  MasaKerja: "number", TglLahir: "date", TglMasuk: "date", TglKeluar: "date",
+  PKWT1: "date", PKWT2: "date",
+};
+
 const columns: BrowseColumn[] = [
   { key: "Nik", label: "Nik", width: "120px" },
   { key: "Nama", label: "Nama", width: "220px" },
@@ -80,6 +85,7 @@ const columns: BrowseColumn[] = [
   { key: "PKWT1", label: "PKWT1", type: "date", width: "105px" },
   { key: "PKWT2", label: "PKWT2", type: "date", width: "105px" },
 ];
+for (const column of columns) column.filterValueType = filterValueTypes[column.key] ?? "string";
 
 const barcodeTarget = ref<{ nik: string; nama: string } | null>(null);
 const BarcodeDialog = defineAsyncComponent({
@@ -104,6 +110,7 @@ function showBarcode(row: Record<string, any>) {
     module-subtitle="Data induk karyawan beserta riwayat jabatan, pendidikan, keluarga dan jadwal kerja"
     :endpoint="endpoint"
     :columns="columns"
+    combine-blank-values
     primary-key="Nik"
     row-number-label="No"
     add-label="Tambah Karyawan"

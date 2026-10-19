@@ -61,6 +61,7 @@ function fixture(kind, settings = {}) {
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
     if (name === '@/utils/format') return { ...dateFormat, todaySql: () => '2026-10-09', firstDayOfMonth: () => '2026-10-01' };
     if (name === '@/utils/pinjaman') return utility;
+    if (name === '@/utils/pinjamanRefresh') return { notifyPinjamanSaved() {} };
     if (name === '@/utils/columnFilter') return columnFilter;
     if (name === '@/composables/useTransactionReset') return resetModule;
     if (name === '@/composables/useKaryawanLookup') return lookupModule;
@@ -283,7 +284,7 @@ test('After Save grid reflects authoritative backend fields, request sends no sc
     periode_potong2: null, nilai_potong2: null } });
   try {
     await f.mount();
-    Object.assign(f.values, { nik: '001', pinjam: 400000, angsuran: 1, bank: 'BSI', norek: '001234' });
+    Object.assign(f.values, { nik: '001', pinjam: 400000, angsuran: 1, bank: 'BSI', norek: '0012345678' });
     await f.simpan();
     assert.equal(f.potongan.value.length, 1);
     assert.equal(f.potongan.value[0].periode, 'Mei 2027');
@@ -372,10 +373,10 @@ test('POST payload excludes number/balance/calculations, keeps leading zero; fin
   const f = fixture('form');
   try {
     await f.mount(); await f.selectEmployee({ Nik: '001', BisaDipilih: true });
-    Object.assign(f.values, { pinjam: '400000', angsuran: '2', bank: 'BSI', norek: '001234' });
+    Object.assign(f.values, { pinjam: '400000', angsuran: '2', bank: 'BSI', norek: '0012345678' });
     await f.simpan();
     const call = f.calls.find(c => c.method === 'post');
-    assert.deepEqual(JSON.parse(JSON.stringify(call.body)), { nik: '001', tanggal: '2026-10-09', pinjam: 400000, angsuran: 2, bank: 'BSI', norek: '001234' });
+    assert.deepEqual(JSON.parse(JSON.stringify(call.body)), { nik: '001', tanggal: '2026-10-09', pinjam: 400000, angsuran: 2, bank: 'BSI', norek: '0012345678' });
     assert.equal(f.values.nomor, 'PJ.2610.0002');
     assert.equal(f.saved.value, true);
     await assert.rejects(f.simpan());
@@ -440,7 +441,7 @@ test('Edit loads existing/legacy snapshot, preserves document number and balance
     f.values.tanggal = '2026-11-02';
     await settle();
     assert.equal(f.values.nomor, id);
-    f.values.norek = '001234'; f.values.bank = 'BSI';
+    f.values.norek = '0012345678'; f.values.bank = 'BSI';
     await f.simpan();
     const put = f.calls.find(c => c.method === 'put');
     assert.equal(put.body.angsuran, 10);

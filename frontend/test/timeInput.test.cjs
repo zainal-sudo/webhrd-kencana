@@ -49,6 +49,22 @@ test('letters, partial times and invalid ranges are blocked before save', () => 
   }
 });
 
+test('Minute mode masks only HH:mm (tanpa detik), validates ranges, and defaults stay HH:mm:ss', () => {
+  assert.equal(jam.maskClockMinute(''), ''); assert.equal(jam.maskClockMinute('093055'), '09:30');
+  assert.equal(jam.maskClockMinute('09'), '09'); assert.equal(jam.maskClockMinute('9'), '9');
+  for (const value of ['00:00', '09:30', '23:59', '', null, undefined]) assert.equal(jam.clockMinuteTimeError(value), '');
+  assert.equal(jam.clockMinuteTimeError('', true), 'Jam wajib diisi.');
+  for (const value of ['9:30', '09:3', '0930', '24:00', '12:60', '09:30:00', 'teks']) assert(jam.clockMinuteTimeError(value), value);
+  const field = component({ seconds: false, modelValue: '' });
+  field.focus({ target: target('') });
+  field.input({ target: target('0930') });
+  assert.equal(field.updates.at(-1), '09:30');
+  field.input({ target: target('093055') });
+  assert.equal(field.updates.at(-1), '09:30');
+  field.blur(); assert.equal(field.display.value, '09:30'); assert.equal(field.error.value, '');
+  assert.ok(component({ modelValue: '09:30' }).error.value);
+});
+
 test('typing and pasting letters is rejected; clock paste and numeric edits work', () => {
   const field = component();
   let prevented = false;
@@ -159,7 +175,7 @@ test('Disabled time field cannot clear old data or emit updates', () => {
 
 test('Ghost guide is subtle and noninteractive, focusable input remains text/numeric in compact and normal fields', () => {
   const source = fs.readFileSync(path.join(__dirname, '../src/components/fields/FTime.vue'), 'utf8');
-  assert.match(source, /:placeholder="editing \? '00:00:00' : placeholder"/);
+  assert.match(source, /:placeholder="editing \? focusPlaceholder : placeholder"/);
   assert.match(source, /class="time-guide" aria-hidden="true"/);
   assert.match(source, /pointer-events: none/); assert.match(source, /\.typed-guide \{ visibility: hidden/);
   assert.match(source, /\.compact \.time-guide/); assert.match(source, /input:focus-visible/);

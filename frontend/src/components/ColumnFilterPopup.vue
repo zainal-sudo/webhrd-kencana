@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, onDeactivated } from "vue";
 import MsIcon from "@/components/MsIcon.vue";
-import { filterKey, filterLabel } from "@/utils/columnFilter";
+import { filterKey, filterLabel, combineBlankKeys, expandBlankKeys } from "@/utils/columnFilter";
 import { formatTanggal, formatTanggalWaktu } from "@/utils/format";
 
 const props = defineProps<{
   anchor: HTMLElement;
   colLabel: string;
   columnType?: string;
+  combineBlankValues?: boolean;
+  filterValueType?: "string" | "number" | "date";
   selected: string[];
   fetchValues: () => Promise<(string | number | null)[]>;
 }>();
@@ -59,6 +61,7 @@ const searchText = ref("");
 
 function displayLabel(key: string): string {
   const value = JSON.parse(key);
+  if (props.combineBlankValues && value === null) return "(Blank)";
   if (value !== null && value !== "") {
     if (props.columnType === "date") return formatTanggal(value) || filterLabel(key);
     if (props.columnType === "datetime") return formatTanggalWaktu(value) || filterLabel(key);
@@ -73,7 +76,7 @@ const filteredValues = computed(() => {
 });
 
 const isAllSelected = computed(
-  () => allValues.value.length > 0 && checked.value.length >= allValues.value.length
+  () => allValues.value.length > 0 && allValues.value.every((key) => checked.value.includes(key))
 );
 
 function toggleOne(v: string) {
@@ -93,7 +96,8 @@ function clearAll() {
 }
 
 function onOk() {
-  emit("apply", isAllSelected.value ? [] : [...checked.value]);
+  const values = isAllSelected.value ? [] : [...checked.value];
+  emit("apply", props.combineBlankValues ? expandBlankKeys(values, props.filterValueType) : values);
 }
 
 function onDocClick(e: MouseEvent) {
@@ -118,9 +122,11 @@ onMounted(async () => {
   }
   try {
     const list = await props.fetchValues();
-    allValues.value = [...new Set((list || []).map(filterKey))];
-    checked.value =
-      props.selected.length > 0 ? props.selected.map(String) : [...allValues.value];
+    const normalize = (keys: string[]) => props.combineBlankValues
+      ? combineBlankKeys(keys, props.filterValueType) : [...new Set(keys)];
+    allValues.value = normalize((list || []).map(filterKey));
+    checked.value = props.selected.length > 0
+      ? normalize(props.selected.map(String)) : [...allValues.value];
   } catch {
     loadError.value = "Gagal memuat daftar nilai";
   } finally {

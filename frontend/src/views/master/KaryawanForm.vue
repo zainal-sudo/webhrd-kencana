@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, shallowRef, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -49,6 +49,75 @@ const fotoBase64 = ref("");
 const fotoInput = ref<HTMLInputElement | null>(null);
 const fotoPending = ref(false);
 let fotoReader: FileReader | null = null;
+
+// ── Cek No. Identitas (KTP/SIM) ──────────────────────────────────
+// Pre-check ke backend; Save tetap divalidasi ulang oleh backend.
+interface PemakaiIdentitas {
+  nik: string;
+  nama: string;
+  aktif: boolean;
+  tgl_masuk: string | null;
+  tgl_keluar: string | null;
+}
+const cekIdentitasAktif = ref<PemakaiIdentitas[]>([]);
+const cekIdentitasRiwayat = ref<PemakaiIdentitas[]>([]);
+const cekIdentitasJalan = ref(false);
+let cekIdentitasTimer: ReturnType<typeof setTimeout> | null = null;
+let cekIdentitasSeq = 0;
+let cekIdentitasDibatalkan = false;
+
+/** Identitas lama saat Edit — dicek agar tidak menghasilkan warning untuk dirinya sendiri. */
+const identitasAwal = ref<string>("");
+
+function resetCekIdentitas() {
+  cekIdentitasAktif.value = [];
+  cekIdentitasRiwayat.value = [];
+}
+
+async function jalankanCekIdentitas() {
+  const nilai = String(values.kar_noidentitas ?? "").trim();
+  if (!nilai) {
+    resetCekIdentitas();
+    return;
+  }
+  // Edit tanpa perubahan identitas: jangan anggap duplicate terhadap dirinya sendiri.
+  if (isEdit.value && nilai === identitasAwal.value) {
+    resetCekIdentitas();
+    return;
+  }
+  const seq = ++cekIdentitasSeq;
+  cekIdentitasJalan.value = true;
+  try {
+    const { data } = await api.get("/master/karyawan/cek-identitas", {
+      params: { noidentitas: nilai, nik: isEdit.value ? nik.value : undefined },
+    });
+    if (seq !== cekIdentitasSeq || cekIdentitasDibatalkan) return;
+    const ditemukan: PemakaiIdentitas[] = data.data?.ditemukan ?? [];
+    cekIdentitasAktif.value = ditemukan.filter((p) => p.aktif);
+    cekIdentitasRiwayat.value = ditemukan.filter((p) => !p.aktif);
+  } catch {
+    if (seq === cekIdentitasSeq) resetCekIdentitas();
+  } finally {
+    if (seq === cekIdentitasSeq) cekIdentitasJalan.value = false;
+  }
+}
+
+watch(
+  () => values.kar_noidentitas,
+  () => {
+    // Warning/error lama harus hilang segera saat nilai berubah.
+    resetCekIdentitas();
+    if (cekIdentitasTimer) clearTimeout(cekIdentitasTimer);
+    const nilai = String(values.kar_noidentitas ?? "").trim();
+    if (!nilai || (isEdit.value && nilai === identitasAwal.value)) return;
+    cekIdentitasTimer = setTimeout(jalankanCekIdentitas, 400);
+  }
+);
+
+onUnmounted(() => {
+  cekIdentitasDibatalkan = true;
+  if (cekIdentitasTimer) clearTimeout(cekIdentitasTimer);
+});
 
 interface FormSnapshot {
   values: Record<string, any>;
@@ -204,6 +273,7 @@ onMounted(async () => {
       const { data } = await api.get(`/master/karyawan/${encodeURIComponent(nik.value)}`);
       const d = data.data;
       for (const [k, v] of Object.entries(d.karyawan)) values[k] = v;
+      identitasAwal.value = String(values.kar_noidentitas ?? "").trim();
       anak.value = d.anak || [];
       pendidikan.value = d.pendidikan || [];
       pengalaman.value = d.pengalaman || [];
@@ -256,6 +326,16 @@ async function simpan(): Promise<string> {
   if (!values.kar_pab_kode) throw new Error("Pabrik wajib diisi");
   if (!values.kar_jab_kode) throw new Error("Jabatan wajib diisi");
 
+  // Validasi No. Identitas: backend mengecek ulang, ini pre-check UX.
+  const identitasKini = String(values.kar_noidentitas ?? "").trim();
+  if (identitasKini && (!isEdit.value || identitasKini !== identitasAwal.value)) {
+    await jalankanCekIdentitas();
+    const pemakai = cekIdentitasAktif.value[0];
+    if (pemakai) {
+      throw new Error(`No. Identitas ini sudah digunakan oleh karyawan aktif: ${pemakai.nik} - ${pemakai.nama}.`);
+    }
+  }
+
   const body: Record<string, any> = { ...values };
   // Tanggal keluar dikelola transaksi Karyawan Keluar, bukan form master.
   delete body.kar_tgl_keluar;
@@ -273,11 +353,22 @@ async function simpan(): Promise<string> {
   if (fotoBase64.value) body.kar_foto_base64 = fotoBase64.value;
 
   if (isEdit.value) {
-    await api.put(`/master/karyawan/${encodeURIComponent(nik.value)}`, body);
+    const { data } = await api.put(`/master/karyawan/${encodeURIComponent(nik.value)}`, body);
+    tampilkkanPeringatanIdentitas(data.data?.peringatan_identitas);
     return `Karyawan ${nik.value} berhasil diperbarui.`;
   }
   const { data } = await api.post("/master/karyawan", body);
+  tampilkkanPeringatanIdentitas(data.data?.peringatan_identitas);
   return `Karyawan baru berhasil disimpan dengan NIK ${data.data?.kar_Nik ?? "-"}.`;
+}
+
+/** Warning non-blokir dari backend bila identitas hanya dipakai karyawan nonaktif (rehire). */
+function tampilkkanPeringatanIdentitas(peringatan?: Array<{ nik: string; nama: string; tgl_keluar: string | null }>) {
+  if (!peringatan?.length) return;
+  const rincian = peringatan
+    .map((p) => `${p.nik} - ${p.nama}${p.tgl_keluar ? ` - keluar ${formatTanggal(p.tgl_keluar)}` : ""}`)
+    .join("; ");
+  toast.warning(`No. Identitas ini pernah terdaftar pada karyawan nonaktif: ${rincian}. Jika ini karyawan yang masuk kembali, data tetap tersimpan sebagai record baru.`);
 }
 
 /**
@@ -536,7 +627,22 @@ onUnmounted(() => {
             <FSelect searchable v-model="values.kar_status_kawin" label="Status Kawin" :options="OPSI_STATUS_KL" show-clear />
             <FSelect searchable v-model="values.kar_warganegara" label="Warga Negara" :options="OPSI_WARGA_NEGARA" show-clear />
             <FSelect searchable v-model="values.kar_status_tinggal" label="Status Tinggal" :options="OPSI_STATUS_TINGGAL" show-clear />
-            <FText v-model="values.kar_noidentitas" label="No. Identitas ( KTP/SIM )" />
+            <div class="identitas-field">
+              <FText v-model="values.kar_noidentitas" label="No. Identitas ( KTP/SIM )" />
+              <p v-if="cekIdentitasAktif.length" class="identitas-pesan error" role="alert">
+                No. Identitas ini sudah digunakan oleh karyawan aktif:
+                <strong v-for="p in cekIdentitasAktif" :key="p.nik">{{ p.nik }} - {{ p.nama }}</strong>
+                Simpan akan ditolak.
+              </p>
+              <p v-else-if="cekIdentitasRiwayat.length" class="identitas-pesan warning" role="status">
+                Karyawan dengan No. Identitas ini pernah terdaftar:
+                <strong v-for="p in cekIdentitasRiwayat" :key="p.nik">
+                  {{ p.nik }} - {{ p.nama }}<template v-if="p.tgl_keluar"> - keluar {{ formatTanggal(p.tgl_keluar) }}</template>
+                </strong>
+                Jika ini karyawan yang masuk kembali, data tetap dapat disimpan sebagai record baru.
+              </p>
+              <span v-if="cekIdentitasJalan" class="identitas-pesan cek">Memeriksa No. Identitas...</span>
+            </div>
             <FText v-model="values.kar_size" label="Ukuran Kaos" />
           </div>
         </fieldset>
@@ -545,7 +651,7 @@ onUnmounted(() => {
         <fieldset class="fs">
           <legend>Kontak &amp; Alamat</legend>
           <div class="grid">
-            <FTextarea v-model="values.kar_alamat" label="Alamat Domisili" :rows="2" :span="2" />
+            <FTextarea v-model="values.kar_alamat" class="domicile-address" label="Alamat Domisili" :rows="2" :span="2" />
             <FText v-model="values.kar_notelp" label="No. Telp" />
             <FText v-model="values.kar_email" label="Email" />
             <FText v-model="values.kar_rekeningbank" label="Rekening Bank" />
@@ -984,6 +1090,30 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 .grid > :deep(.field) {
   min-width: 0;
 }
+/* Wrapper cek No. Identitas: menampung field + pesan error/warning di bawahnya. */
+.identitas-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.identitas-field > :deep(.field > label) { flex: 0 0 120px; }
+.identitas-pesan {
+  margin: 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.identitas-pesan strong { display: block; font-weight: 700; }
+.identitas-pesan.error {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+}
+.identitas-pesan.warning {
+  color: #92400e;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+.identitas-pesan.cek { color: #6b7a90; padding: 0 8px; }
+.grid > :deep(.domicile-address) { align-items: center; }
+.grid > :deep(.domicile-address > label) { padding-top: 0; }
 /* Give inputs more room while keeping labels aligned across each section. */
 .grid:not(.identity-grid) > :deep(.field > label),
 .family-grid > :deep(.field > label) { flex: 0 0 120px; }

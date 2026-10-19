@@ -83,7 +83,7 @@ async function remove() {
       <template v-else>{{ text }}</template>
     </template>
     <template #row-actions-end="{ row }">
-      <button v-if="canDelete" type="button" class="delete-btn" title="Hapus" aria-label="Hapus akun" @click.stop="confirmDelete(row)">
+      <button v-if="canDelete" type="button" class="row-btn del delete-btn" title="Hapus" aria-label="Hapus akun" @click.stop="confirmDelete(row)">
         <MsIcon name="delete" :size="16" />
       </button>
     </template>
@@ -109,10 +109,8 @@ async function remove() {
 .sandi-bpjs-browse.compact :deep(th:not(.sorted) .th-sort) { display: inline-flex; }
 .sandi-bpjs-browse.compact :deep(.row-actions) { justify-content: center; align-items: center; gap: 12px; }
 .sandi-bpjs-browse :deep(.row-btn.edit),
-.delete-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: none; border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 0.15s ease; }
+.delete-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: none; border-radius: 6px; cursor: pointer; }
 .sandi-bpjs-browse :deep(.row-btn.edit .ms-icon) { font-size: 16px !important; width: 16px !important; height: 16px !important; }
-.sandi-bpjs-browse :deep(.row-btn.edit:hover) { background: rgba(59, 89, 152, 0.14); }
-.delete-btn:hover { background: rgba(220, 38, 38, 0.12); }
 .credential-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .username-text { min-width: 0; overflow-wrap: anywhere; }
 .password-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; user-select: text; }

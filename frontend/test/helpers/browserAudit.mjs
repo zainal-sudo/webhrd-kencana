@@ -12,7 +12,7 @@ export async function browserAudit(name, fixture, audit) {
     assert.ok(browser, 'Chrome or Edge required')
     const artifacts = mkdtempSync(path.join(tmpdir(), `${name}-`))
     const entry = `/__${name}.js`, page = `/__${name}`
-    const server = await createServer({ root, logLevel: 'error', server: { host: '127.0.0.1', port: 0 }, plugins: [{
+    const server = await createServer({ root, cacheDir: path.join(artifacts, 'vite-cache'), logLevel: 'error', server: { host: '127.0.0.1', port: 0 }, plugins: [{
         name,
         resolveId(id) { if (id === entry) return `\0${name}` },
         load(id) { if (id === `\0${name}`) return fixture },

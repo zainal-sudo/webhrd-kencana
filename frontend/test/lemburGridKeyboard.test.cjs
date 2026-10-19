@@ -171,7 +171,7 @@ test('SPL time inputs delegate Enter to the grid instead of swallowing it in FTi
     { module: jamModule, exports: jamModule.exports });
   vm.runInNewContext(ts.transpileModule(script + '\nexport { keydown };', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
     { module, exports: module.exports, require: name => name === 'vue' ? vue : jamModule.exports,
-      defineProps: () => props, withDefaults: value => value, defineEmits: () => () => {} });
+      defineProps: () => props, withDefaults: (value, defaults) => { for (const [key, val] of Object.entries(defaults || {})) if (value[key] === undefined) value[key] = val; return value; }, defineEmits: () => () => {} });
   let prevented = false, stopped = false;
   await module.exports.keydown({ key: 'Enter', target: {}, preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
   assert.equal(prevented, false);

@@ -147,17 +147,15 @@ function editAbsensi(row: Record<string, any>) {
 .report-page :deep(.row-actions) { align-items: center; gap: 8px; flex-wrap: nowrap; }
 .report-page .row-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 24px; padding: 0; border: 1px solid transparent; background: transparent; cursor: pointer; }
 .report-page .row-btn { position: relative; isolation: isolate; }
-/* Expand only the hover paint, keeping the column and icon spacing unchanged. */
-.report-page .row-btn::before { content: ""; position: absolute; inset: -3px -7px; border-radius: 999px; background: transparent; pointer-events: none; z-index: -1; transition: background-color 120ms ease; }
-.report-page .row-btn:hover { background: transparent; }
-.report-page .row-btn:is(:hover, :focus-visible)::before { background: var(--action-hover); }
+/* Paint the shared 24px rounded highlight without moving the compact action icons. */
+.report-page .row-btn::before { content: ""; position: absolute; inset: 0 -4px; border-radius: 6px; background: transparent; pointer-events: none; z-index: -1; transition: inherit; }
+.report-page .row-btn:not(:disabled):is(:hover, :focus-visible) { background: transparent; }
+.report-page .row-btn:not(:disabled):is(:hover, :focus-visible)::before { background: var(--row-action-hover); }
 .row-btn.verify { color: #15803d; }
-.row-btn.verify { --action-hover: rgba(21, 128, 61, 0.12); }
 .row-btn.verify:disabled { opacity: 0.35; cursor: not-allowed; }
 .row-btn.unverify { color: #b45309; }
-.row-btn.unverify { --action-hover: rgba(180, 83, 9, 0.12); }
 .row-btn.unverify:disabled { opacity: 0.35; cursor: not-allowed; }
-.row-btn.edit { color: var(--ds-primary, #3b5998); --action-hover: rgba(59, 89, 152, 0.14); }
+.row-btn.edit { color: var(--ds-primary, #3b5998); }
 .verif-badge { display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 700; border: 1px solid transparent; }
 .verif-badge.ya { color: #86198f; background: #fae8ff; border-color: #e9a8f2; }
 .verif-badge.belum { color: #9aa7b8; }

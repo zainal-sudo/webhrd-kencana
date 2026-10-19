@@ -37,7 +37,7 @@ export function applyColumnFilters(whereClause, params, query, allowedMap, excep
     return { clause, params: out }
 }
 
-export function applyColumnFilterSets(whereClause, params, query, allowedMap, except = null) {
+export function applyColumnFilterSets(whereClause, params, query, allowedMap, except = null, options = {}) {
     let clause = whereClause
     const out = [...params]
     if (!query) return { clause, params: out }
@@ -46,27 +46,31 @@ export function applyColumnFilterSets(whereClause, params, query, allowedMap, ex
         let raw = query[`filterSet_${alias}`]
         if (raw === undefined) raw = query[`filterSet_${alias}[]`]
         const includeNull = query[`filterNull_${alias}`] === '1'
+        const stringColumn = options.stringColumns?.has(alias);
         const includeEmpty = query[`filterEmpty_${alias}`] === '1'
+            && (!options.stringColumns || stringColumn)
         if ((raw === undefined || raw === null) && !includeNull && !includeEmpty) continue
         const arr = (raw === undefined || raw === null ? [] : Array.isArray(raw) ? raw : [raw])
-            .map((v) => String(v).trim())
+            .map((v) => stringColumn ? String(v) : String(v).trim())
             .filter((v) => v !== '')
         const alternatives = []
         if (arr.length) alternatives.push(`${col} IN (${arr.map(() => '?').join(',')})`)
         if (includeNull) alternatives.push(`${col} IS NULL`)
-        if (includeEmpty) alternatives.push(`${col} = ?`)
+        // Exact byte length excludes whitespace even under MySQL PAD SPACE collations.
+        // Typed callers only enable this predicate for actual string columns.
+        if (includeEmpty) alternatives.push(options.stringColumns ? `OCTET_LENGTH(${col}) = 0` : `${col} = ?`)
         if (!alternatives.length) continue
         // Preserve exact old SQL for normal-only filters; group mixed choices with OR.
         clause += ` AND ${alternatives.length === 1 ? alternatives[0] : `(${alternatives.join(' OR ')})`}`
         out.push(...arr)
-        if (includeEmpty) out.push('')
+        if (includeEmpty && !options.stringColumns) out.push('')
     }
     return { clause, params: out }
 }
 
-export function applyAllColumnFilters(whereClause, params, query, allowedMap, except = null) {
+export function applyAllColumnFilters(whereClause, params, query, allowedMap, except = null, options = {}) {
     const f1 = applyColumnFilters(whereClause, params, query, allowedMap, except)
-    return applyColumnFilterSets(f1.clause, f1.params, query, allowedMap, except)
+    return applyColumnFilterSets(f1.clause, f1.params, query, allowedMap, except, options)
 }
 
 /**

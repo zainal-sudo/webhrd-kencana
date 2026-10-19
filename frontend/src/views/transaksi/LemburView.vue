@@ -37,7 +37,7 @@ function bukaPerNik() {
 </script>
 
 <template>
-  <BaseBrowse
+  <BaseBrowse class="standard-actions"
     module-title="Lembur"
     module-subtitle="Surat perintah lembur (SPL)"
     endpoint="/transaksi/lembur"

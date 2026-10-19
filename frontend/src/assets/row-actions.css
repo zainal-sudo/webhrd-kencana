@@ -1,0 +1,41 @@
+/* Shared icon-only row actions. Keep page-specific dimensions and bordered buttons. */
+.row-btn {
+  --row-action-hover: rgba(59, 89, 152, 0.14);
+  background: transparent;
+  border-radius: 6px;
+  transition: background-color 150ms ease;
+}
+.row-btn.print { --row-action-hover: rgba(15, 118, 110, 0.12); }
+.row-btn.del { --row-action-hover: rgba(220, 38, 38, 0.12); }
+.row-btn.verify { --row-action-hover: rgba(21, 128, 61, 0.12); }
+.row-btn.unverify { --row-action-hover: rgba(180, 83, 9, 0.12); }
+.row-btn:not(:disabled):is(:hover, :focus-visible) {
+  background: var(--row-action-hover);
+}
+.row-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-btn { transition: none; }
+}
+
+/* Opt-in action sizes matching Absensi and Ijin. */
+.browse-panel.standard-actions .action-col .row-actions {
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+.browse-panel.standard-actions .action-col .row-btn {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+}
+/* MsIcon sets its dimensions inline. */
+.browse-panel.standard-actions .action-col .row-btn .ms-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}

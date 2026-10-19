@@ -214,7 +214,7 @@ onMounted(async () => {
                   <td><DateInput v-model="p.tglmasuk" aria-label="Tanggal masuk" /></td>
                   <td><DateInput v-model="p.tglkeluar" aria-label="Tanggal keluar" /></td>
                   <td><input v-model="p.jabatanterakhir" aria-label="Jabatan terakhir" /></td>
-                  <td class="aksi"><button class="row-btn" type="button" title="Hapus baris" @click="hapusPengalaman(i)"><MsIcon name="delete" :size="14" /></button></td>
+                  <td class="aksi"><button class="row-btn del" type="button" title="Hapus baris" @click="hapusPengalaman(i)"><MsIcon name="delete" :size="14" /></button></td>
                 </tr>
               </tbody>
             </table>
@@ -257,7 +257,6 @@ table.mini td input:focus { background: #eef4fc; }
 table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 table.mini td.aksi { width: 34px; text-align: center; }
 .row-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: #dc2626; cursor: pointer; }
-.row-btn:hover { background: rgba(220, 38, 38, 0.12); }
 .btn-mini { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
 .btn-mini:hover { background: var(--ds-surface, #f0f3f8); }
 @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }

@@ -88,7 +88,7 @@ for (const [field, value, message] of [
 ]) test(`Validation rejects ${field}=${value}`, () => assert.throws(() => validasiPinjaman({ ...body, [field]: value }), message))
 test('Allowed values and leading zero preserved; body cannot override balance or number', async () => {
     for (const pinjam of PINJAMAN_OPTIONS.nominal) for (const angsuran of PINJAMAN_OPTIONS.angsuran) for (const bank of PINJAMAN_OPTIONS.bank)
-        assert.equal(validasiPinjaman({ ...body, pinjam, angsuran, bank }).pinjam, pinjam)
+        assert.equal(validasiPinjaman({ ...body, pinjam, angsuran, bank, norek: bank === 'CIMB' ? '001234567890' : '0012345678' }).pinjam, pinjam)
     const db = database()
     const result = await tambahPinjaman(db, { ...body, bayar: 0, nomor_pinjam: 'FAKE' })
     assert.equal(result.bayar, 0)

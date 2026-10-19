@@ -60,6 +60,8 @@ export interface BrowseColumn {
   align?: "left" | "center" | "right";
   sortable?: boolean;
   filterable?: boolean;
+  /** Semantic filter type, independent of cell alignment/display format. */
+  filterValueType?: "string" | "number" | "date";
 }
 
 export interface LookupRow {

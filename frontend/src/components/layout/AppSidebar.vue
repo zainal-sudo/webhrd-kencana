@@ -11,7 +11,7 @@ import { useAgendaNotice } from "@/composables/useAgendaNotice";
 
 const auth = useAuthStore();
 const agenda = useAgendaNotice(() => auth.isAuthenticated ? `${auth.token}:${auth.user?.user_kode}` : "");
-const { open: agendaOpen, count: agendaCount, failure: agendaFailure, refreshKey: agendaRefreshKey } = agenda;
+const { open: agendaOpen, count: agendaCount, failure: agendaFailure, refreshKey: agendaRefreshKey, loginNoticeCount, dismissLoginNotice } = agenda;
 const AgendaCalendar = defineAsyncComponent(() => import("@/components/AgendaCalendar.vue"));
 
 const route = useRoute();
@@ -21,6 +21,36 @@ const tabsStore = useTabsStore();
 const { closeAllTabs } = useTabNavigation();
 
 const collapsed = ref(false);
+const agendaIcon = ref<HTMLElement | null>(null), loginNotice = ref<HTMLElement | null>(null);
+const noticePosition = ref({ left: 8, bottom: 80, tail: 20 });
+const noticeSize = ref({ width: 340, height: 124 });
+const noticeOutline = computed(() => {
+  const { width: w, height: h } = noticeSize.value;
+  const t = noticePosition.value.tail;
+  return `M 14 0 H ${w - 14} Q ${w} 0 ${w} 14 V ${h - 14} Q ${w} ${h} ${w - 14} ${h}
+    H ${t + 20} C ${t + 10} ${h} ${t + 6} ${h + 8} ${t} ${h + 12}
+    C ${t + 2} ${h + 8} ${t + 1} ${h + 3} ${Math.max(4, t - 6)} ${h}
+    Q 0 ${h} 0 ${h - 14} V 14 Q 0 0 14 0 Z`;
+});
+watch([agendaIcon, loginNotice], ([icon, notice], _previous, cleanup) => {
+  if (!icon || !notice) return;
+  let frame = 0;
+  const place = () => {
+    const anchor = icon.getBoundingClientRect();
+    const center = anchor.left + anchor.width / 2;
+    const left = Math.max(8, Math.min(center - 24, window.innerWidth - notice.offsetWidth - 8));
+    noticeSize.value = { width: notice.offsetWidth, height: notice.offsetHeight };
+    noticePosition.value = { left, bottom: window.innerHeight - anchor.top + 12, tail: center - left };
+  };
+  const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(place); };
+  const observer = new ResizeObserver(schedule);
+  observer.observe(icon); observer.observe(notice);
+  const sidebar = icon.closest('.sidebar');
+  if (sidebar) observer.observe(sidebar);
+  window.addEventListener('resize', schedule);
+  place();
+  cleanup(() => { observer.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', schedule); });
+}, { flush: 'post' });
 const openGroupKey = ref("");
 const flyoutKey = ref("");
 const flyout = ref<HTMLElement | null>(null);
@@ -205,7 +235,7 @@ function go(routePath?: string) {
 
     <div class="sidebar-foot">
       <button v-if="auth.isAuthenticated" type="button" class="foot-item agenda-menu-button" :title="agendaFailure || 'Kalender Agenda'" :aria-label="`Kalender Agenda${agendaCount ? ', ada agenda hari ini' : ''}`" @click="agendaOpen = true; agenda.refresh()">
-        <span class="agenda-menu-icon"><MsIcon name="calendar_month" :size="16" /><i v-if="agendaCount > 0" class="agenda-notice-dot" /></span>
+        <span ref="agendaIcon" class="agenda-menu-icon"><MsIcon name="calendar_month" :size="16" /><i v-if="agendaCount > 0" class="agenda-notice-dot" /></span>
         <span v-if="!collapsed">Kalender Agenda</span>
       </button>
       <button class="foot-item" title="Tutup semua tab" @click="closeAllTabs">
@@ -216,6 +246,14 @@ function go(routePath?: string) {
   </aside>
   <AgendaCalendar v-if="agendaOpen && auth.isAuthenticated" :key="auth.user?.user_kode" :username="auth.user?.user_kode || ''" :refresh-key="agendaRefreshKey" @close="agendaOpen = false" @changed="agenda.refresh()" />
   <Teleport to="body">
+    <Transition name="agenda-login-notice">
+      <section v-if="auth.isAuthenticated && loginNoticeCount > 0" ref="loginNotice" class="agenda-login-notice" :style="{ left: `${noticePosition.left}px`, bottom: `${noticePosition.bottom}px`, '--agenda-tail-x': `${noticePosition.tail}px` }" role="status" aria-live="polite" aria-atomic="true">
+        <svg class="agenda-login-shape" :viewBox="`0 0 ${noticeSize.width} ${noticeSize.height + 12}`" preserveAspectRatio="none" aria-hidden="true"><path :d="noticeOutline" /></svg>
+        <MsIcon name="calendar_month" :size="24" />
+        <div class="agenda-login-message"><strong>Agenda hari ini</strong><p>Ada {{ loginNoticeCount }} agenda untuk Anda hari ini.</p><button type="button" class="agenda-login-open" @click="agendaOpen = true; dismissLoginNotice(); agenda.refresh()">Lihat agenda</button></div>
+        <button type="button" class="agenda-login-close" aria-label="Tutup notifikasi agenda" @click="dismissLoginNotice"><MsIcon name="close" :size="18" /></button>
+      </section>
+    </Transition>
     <nav v-if="flyoutGroup" id="sidebar-flyout" ref="flyout" class="sidebar-flyout" :aria-label="`${flyoutGroup.label} — menu`"
       :style="{ left: `${flyoutPosition.left}px`, top: `${flyoutPosition.top}px`, width: `${flyoutPosition.width}px`, maxHeight: `${flyoutPosition.maxHeight}px` }"
       @mouseenter="cancelClose" @mouseleave="scheduleClose" @focusin="cancelClose" @focusout="focusOut">
@@ -230,6 +268,19 @@ function go(routePath?: string) {
 </template>
 
 <style scoped>
+.agenda-login-notice { --agenda-notice-bg: color-mix(in srgb, var(--ds-surface-raised, #fff) 88%, transparent); position: fixed; z-index: 1800; isolation: isolate; display: flex; align-items: flex-start; gap: 12px; width: min(340px, calc(100vw - 32px)); box-sizing: border-box; padding: 16px; color: var(--ds-text, #1b2d4a); filter: drop-shadow(0 8px 14px rgb(0 0 0 / 18%)); font-size: 12px; }
+.agenda-login-shape { position: absolute; left: 0; top: 0; z-index: -1; width: 100%; height: calc(100% + 12px); overflow: visible; fill: var(--agenda-notice-bg); stroke: var(--ds-border-light, #d5dce6); stroke-width: 1px; pointer-events: none; }
+.agenda-login-notice > .ms-icon { color: var(--ds-primary, #3b5998); }
+.agenda-login-message { flex: 1; min-width: 0; }
+.agenda-login-message strong { font-size: 13px; }
+.agenda-login-message p { margin: 6px 0 10px; line-height: 1.5; }
+.agenda-login-open { border: 0; border-radius: 6px; padding: 6px 10px; background: var(--ds-action, #3b5998); color: #fff; font: inherit; cursor: pointer; }
+.agenda-login-close { display: flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+.agenda-login-close:hover { background: var(--ds-surface-inset, #e0e4ea); }
+.agenda-login-open:focus-visible, .agenda-login-close:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+.agenda-login-notice-enter-active, .agenda-login-notice-leave-active { transition: opacity 300ms ease, transform 300ms ease; }
+.agenda-login-notice-enter-from, .agenda-login-notice-leave-to { opacity: 0; transform: translateY(6px); }
+@media (prefers-reduced-motion: reduce) { .agenda-login-notice-enter-active, .agenda-login-notice-leave-active { transition: none; } }
 .agenda-menu-icon { position: relative; display: inline-flex; }
 .agenda-notice-dot { position: absolute; top: -3px; right: -4px; width: 7px; height: 7px; border-radius: 50%; background: #ff4545; box-shadow: 0 0 0 2px var(--ds-sidebar-bg, #1b2d4a); }
 .sidebar {

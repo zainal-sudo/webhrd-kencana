@@ -132,8 +132,9 @@ test('Font mengikuti Master lain dan kolom Aksi ringkas, hanya pada Sandi', () =
   assert.match(source, /:deep\(\.row-actions\) \{ justify-content: center; align-items: center; gap: 12px;/);
   assert.match(source, /:action-width="80"/);
   assert.match(source, /\.sandi-bpjs-browse\.compact :deep\(th:not\(\.sorted\) \.th-sort\) \{ display: inline-flex; \}/);
-  assert.match(source, /border-radius: 50%/);
-  assert.match(source, /\.delete-btn:hover \{ background: rgba\(220, 38, 38, 0.12\)/);
+  assert.match(source, /\.delete-btn\s*\{[^}]*border-radius: 6px/);
+  assert.match(source, /class="row-btn del delete-btn"/);
+  assert.doesNotMatch(source, /\.delete-btn:hover/);
   assert.match(source, /name="delete" :size="16"/);
   assert.match(source, /label: "Username", width: "auto"/);
   assert.match(source, /\.password-text \{[^}]*font: inherit;/);

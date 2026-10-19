@@ -15,3 +15,19 @@ export function columnFilterParams(column: string, keys: string[]): Record<strin
     ...(values.includes("") ? { [`filterEmpty_${column}`]: "1" } : {}),
   };
 }
+
+/** One popup choice for NULL/empty strings; numeric/date empties are not valid choices. */
+export function combineBlankKeys(keys: string[], valueType: "string" | "number" | "date" = "string"): string[] {
+  return [...new Set(keys.flatMap((key) => {
+    const value = JSON.parse(key);
+    if (value === "" && valueType !== "string") return [];
+    return [value === "" ? filterKey(null) : key];
+  }))];
+}
+
+/** Expand the single Blank choice back onto the existing typed wire protocol. */
+export function expandBlankKeys(keys: string[], valueType: "string" | "number" | "date" = "string"): string[] {
+  return [...new Set(keys.flatMap((key) =>
+    key === filterKey(null) && valueType === "string" ? [key, filterKey("")] : [key],
+  ))];
+}

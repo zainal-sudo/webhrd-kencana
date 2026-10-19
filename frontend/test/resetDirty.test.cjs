@@ -61,8 +61,8 @@ test('Capture/invalidate refresh dirty state and pending/load/save blockers stil
 });
 function employeeFixture() {
   const source = read('views/master/KaryawanForm.vue');
-  const block = source.slice(source.indexOf('const values = reactive'), source.indexOf('const memuat = ref(false)'));
-  const upload = source.slice(source.indexOf('function onPilihFoto'), source.indexOf('onUnmounted(() =>'));
+  const block = source.slice(source.indexOf('const canChangeStatus ='), source.indexOf('const memuat = ref(false)'));
+  const upload = source.slice(source.indexOf('function onPilihFoto'), source.indexOf('onUnmounted(() =>', source.indexOf('function onPilihFoto')));
   const readers = [];
   class Reader {
     constructor() { readers.push(this); this.aborted = false; }
@@ -71,7 +71,8 @@ function employeeFixture() {
   }
   return { readers, ...compile(block + upload + '\nexport { values, anak, pendidikan, pengalaman, keahlian, jadwalTerpilih, pkwt, fotoBase64, fotoInput, fotoPending, resetDirty, resetSnapshot, captureForm, resetForm, onPilihFoto };', {},
     { ...vue, ...snapshot, isEdit: vue.ref(false), memuat: vue.ref(false), todaySql: () => '2026-10-14',
-      jadwalMenu: vue.ref(false), cariJadwal: vue.ref(''), window: { confirm: () => true }, FileReader: Reader, toast: { error() {} } }) };
+      jadwalMenu: vue.ref(false), cariJadwal: vue.ref(''), window: { confirm: () => true }, FileReader: Reader, toast: { error() {} },
+      auth: { user: { user_kode: 'hrd' } } }) };
 }
 test('Employee Reset tracks identity/details/schedule changes and becomes clean after restoring or resetting', () => {
   const f = employeeFixture(); assert.equal(f.resetDirty.value, false); assert.equal(f.resetForm(), false);

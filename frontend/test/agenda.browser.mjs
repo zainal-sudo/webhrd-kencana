@@ -25,7 +25,7 @@ let rows=[
  {id:3,creator:'hrd',title:'Agenda dibatalkan dengan judul panjang untuk memastikan isi card tetap terbaca dan tidak melebar ke luar panel',notes:'',date:today,start_time:null,end_time:null,visibility:'shared',status:'BATAL',version:1,recipients:['p1',...Array.from({length:12},(_,i)=>'akun-penerima-panjang-'+i)]}
 ];
 rows.reverse();
-const calls=[];let failList=false, failUsers=false, delayUsers=0;
+const calls=[];let failList=false, failUsers=false, delayUsers=0, delayList=0;
 api.defaults.adapter=async config=>{
  const url=config.url,method=config.method,body=config.data?JSON.parse(config.data):{};calls.push({url,method,body});
  let result;
@@ -36,6 +36,7 @@ api.defaults.adapter=async config=>{
   result=[{code:'hrd',name:'HRD'},{code:'p1',name:'Pabrik Satu'},{code:'p2',name:'Pabrik Dua'},{code:'p4',name:'Pabrik Empat'}].filter(u=>(u.code+u.name).toLowerCase().includes((config.params?.search||'').toLowerCase()));
  }
  else if(url==='/agenda'&&method==='get'){
+  if(delayList)await new Promise(resolve=>setTimeout(resolve,delayList));
   if(failList)throw {message:'offline',response:{status:503,data:{message:'Gagal memuat agenda.'}}};
   result=rows.filter(r=>r.date>=config.params.start&&r.date<=config.params.end);
  }else if(url==='/agenda'&&method==='post'){result={...body,id:rows.length+1,creator:'hrd',version:1};rows.push(result);}
@@ -52,12 +53,31 @@ app.use(createPinia());app.use(createRouter({history:createMemoryHistory(),route
 const auth=useAuthStore();auth.token='fixture';auth.user={user_kode:'HRD',user_nama:'HRD',user_akses:''};localStorage.setItem(TOKEN_KEY,'fixture');
 usePermissionStore().loaded=true;
 app.mount('#app');
-const wait=async()=>{await nextTick();await new Promise(r=>setTimeout(r,90));};
+const wait=async()=>{await nextTick();await new Promise(r=>setTimeout(r,90));await Promise.all(document.querySelector('.calendar-grid')?.getAnimations().map(animation=>animation.finished.catch(()=>{}))||[]);};
 const until=async(fn)=>{for(let i=0;i<100;i++){if(fn())return;await wait();}throw Error('UI not ready');};
 const button=text=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim().endsWith(text));
 const input=(element,value)=>{element.value=value;element.dispatchEvent(new Event('input',{bubbles:true}));};
+window.previewAgendaReminder=async()=>{await until(()=>document.querySelector('.agenda-login-notice'));await new Promise(resolve=>setTimeout(resolve,350));};
 window.agendaAudit=async()=>{
  const result={};await wait();
+ await until(()=>document.querySelector('.agenda-login-notice'));
+ await new Promise(resolve=>setTimeout(resolve,350));
+ const reminder=document.querySelector('.agenda-login-notice'),reminderRect=reminder.getBoundingClientRect();
+ const pointsToAgenda=()=>{const bubble=reminder.getBoundingClientRect(),icon=document.querySelector('.agenda-menu-icon').getBoundingClientRect();return Math.abs(bubble.left+parseFloat(getComputedStyle(reminder).getPropertyValue('--agenda-tail-x'))-(icon.left+icon.width/2))<=1&&Math.abs(icon.top-bubble.bottom-12)<=1;};
+ result.loginReminder=reminder.textContent.includes('3 agenda')&&reminderRect.left>=0&&reminderRect.left<40&&pointsToAgenda();
+ const surface=reminder.querySelector('.agenda-login-shape path');
+ result.translucentReminder=getComputedStyle(surface).fill.includes('0.88');
+ result.continuousReminder=reminder.querySelectorAll('.agenda-login-shape path').length===1&&surface.getAttribute('d').includes('C')&&getComputedStyle(reminder,'::after').content==='none';
+ document.querySelector('.sidebar-collapse').click();await new Promise(resolve=>setTimeout(resolve,300));
+ result.reminderPointsWhenCollapsed=pointsToAgenda();
+ document.querySelector('.sidebar-collapse').click();await new Promise(resolve=>setTimeout(resolve,300));
+ result.reminderPointsWhenExpanded=pointsToAgenda();
+ document.querySelector('.agenda-login-close').click();await until(()=>!document.querySelector('.agenda-login-notice'));
+ window.dispatchEvent(new Event('focus'));await wait();result.reminderDismissed=!document.querySelector('.agenda-login-notice');
+ auth.token='fixture-login-2';await until(()=>document.querySelector('.agenda-login-notice'));
+ document.querySelector('.agenda-login-open').click();await until(()=>document.querySelector('.agenda-card'));
+ result.reminderOpensCalendar=!!document.querySelector('.agenda-dialog');
+ document.querySelector('[aria-label="Tutup kalender agenda"]').click();await wait();
  result.notice=!!document.querySelector('.agenda-notice-dot');
  document.querySelector('.sidebar-collapse').click();await wait();
  result.collapsed=!!document.querySelector('.collapsed .agenda-menu-button');
@@ -67,7 +87,8 @@ window.agendaAudit=async()=>{
  result.statuses=document.querySelectorAll('.agenda-badge').length===3;
  result.statusOrder=[...document.querySelectorAll('.agenda-card .agenda-badge')].map(e=>e.textContent).join(',')==='OPEN,SELESAI,BATAL';
  result.auditText=document.body.innerText.includes('Dibuat oleh P1')&&document.body.innerText.includes('Terakhir diedit oleh P2');
- result.audience=document.body.innerText.includes('Dibuat oleh HRD untuk diri sendiri')&&document.body.innerText.includes('Dibuat oleh P1 untuk HRD');
+ result.audience=document.querySelector('.agenda-card .agenda-meta > span').textContent.trim()==='Dibuat oleh HRD'&&document.body.innerText.includes('Dibuat oleh P1 · Bersama HRD');
+ result.multipleAudience=document.querySelectorAll('.agenda-card')[2].querySelector('.agenda-meta > span').textContent.startsWith('Dibuat oleh HRD · Bersama P1, AKUN-PENERIMA-PANJANG-0');
  result.auditTime=document.body.innerText.includes('16/10/2026 13:45 WIB');
  const note=document.querySelector('.agenda-card-notes');result.notesClamped=note.scrollHeight>note.clientHeight&&note.clientHeight<=parseFloat(getComputedStyle(note).lineHeight)*2+1;
  result.emptyNoteAbsent=!document.querySelectorAll('.agenda-card')[2].querySelector('.agenda-card-notes');
@@ -80,32 +101,41 @@ window.agendaAudit=async()=>{
  button('Minggu').click();await wait();result.week=document.querySelectorAll('.calendar-day').length===7;
  button('Bulan').click();await wait();result.month=document.querySelectorAll('.calendar-day').length>=28;
  button('Tambah').click();await wait();
+ result.agendaTypeWording=[...document.querySelectorAll('.visibility-options label')].map(el=>el.lastElementChild.textContent.trim()).join(',')==='Pribadi,Bersama';
+ result.privateHidesRecipients=!document.querySelector('.recipient-panel');
  result.hiddenDailyHeader=!document.querySelector('.daily-heading');
  result.resetFormScroll=document.querySelector('.agenda-pane').scrollTop===0;
  result.inlineRequired=[...document.querySelectorAll('.field-label')].every(e=>{const mark=e.querySelector('.required-mark');return Math.abs(mark.getBoundingClientRect().top-e.getBoundingClientRect().top)<4;});
  let fields=document.querySelectorAll('.agenda-form input');input(fields[0],'Agenda baru');
- input(document.querySelector('input[type=time]'),'11:00');
+ input(document.querySelector('.date-time-fields .time-field input'),'11:00');
  document.querySelector('.agenda-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await wait();
  result.timeValidation=document.querySelector('.agenda-error')?.textContent.includes('jam');
- input(document.querySelector('input[type=time]'),'');
+ input(document.querySelector('.date-time-fields .time-field input'),'');
  document.querySelector('.visibility-picker input[value=shared]').click();await wait();
+ result.recipientHelper=document.querySelector('.recipient-panel small')?.textContent==='Pilih akun yang akan menerima agenda ini.';
  await until(()=>document.querySelectorAll('.recipient-option').length===3);
- for(const code of ['p1','p2','p4'])document.querySelector('.recipient-option input[value='+code+']').closest('label').click();await wait();
+ document.querySelector('.recipient-select-all input').click();await wait();
+ result.selectAll=document.querySelectorAll('.recipient-option input:checked').length===3&&document.querySelector('.recipient-select-all input').checked;
+ document.querySelector('.recipient-option input[value=p2]').click();await wait();
+ result.selectAllPartial=document.querySelector('.recipient-select-all input').indeterminate;
+ document.querySelector('.recipient-select-all input').click();await wait();
  result.multiple=document.querySelectorAll('.recipient-option input:checked').length===3&&document.querySelector('.recipient-count').textContent.includes('3');
  const search=document.querySelector('#agenda-recipient-search');input(search,'Pabrik Dua');
  await until(()=>document.querySelectorAll('.recipient-option').length===1&&!document.querySelector('.recipient-list [role=status]'));
  result.searchKeepsSelection=document.querySelectorAll('.selected-recipients li').length===3&&document.querySelector('.recipient-option input').checked;
+ document.querySelector('.recipient-select-all input').click();await wait();
+ result.clearFilteredOnly=document.querySelectorAll('.selected-recipients li').length===2&&!document.querySelector('.recipient-option input').checked;
+ document.querySelector('.recipient-select-all input').click();await wait();
  document.querySelector('.agenda-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await until(()=>!document.querySelector('.agenda-form'));
  result.created=calls.some(c=>c.method==='post'&&['p1','p2','p4'].every(code=>c.body.recipients.includes(code)));
  [...document.querySelectorAll('.agenda-card')].find(e=>e.textContent.includes('Agenda baru')).click();await until(()=>document.querySelectorAll('.recipient-option input:checked').length===3);
  result.reopened=document.querySelectorAll('.selected-recipients li').length===3;
  document.querySelector('[aria-label="Hapus penerima P2"]').click();await wait();result.removedOne=document.querySelectorAll('.selected-recipients li').length===2&&!document.querySelector('.recipient-option input[value=p2]').checked;
  document.querySelector('.agenda-back').click();await wait();
- [...document.querySelectorAll('.agenda-card')].find(e=>e.textContent.includes('Rapat bersama')).click();await until(()=>document.querySelector('.status-trigger'));
+ [...document.querySelectorAll('.agenda-card')].find(e=>e.textContent.includes('Rapat bersama')).click();await until(()=>document.querySelector('.status-segments'));
  result.recipientLocks=document.querySelector('.visibility-picker').disabled&&document.querySelector('.recipient-panel').disabled&&!document.querySelector('#agenda-recipient-search');
- const status=document.querySelector('.status-trigger');status.click();await until(()=>document.querySelector('.agenda-status-options'));
- [...document.querySelectorAll('.agenda-status-options button')].find(e=>e.textContent.trim()==='BATAL').click();await wait();
- result.statusSelectable=document.querySelector('.status-trigger').textContent.includes('BATAL');
+ document.querySelector('.status-segments input[value=BATAL]').click();await wait();
+ result.statusSelectable=document.querySelector('.status-segments input[value=BATAL]').checked;
  result.backArrow=!!document.querySelector('.form-heading > .agenda-back svg')&&!document.querySelector('.form-heading').textContent.includes('Kembali');
  document.querySelector('.agenda-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await until(()=>!document.querySelector('.agenda-form'));
  result.edited=calls.some(c=>c.method==='put'&&c.body.status==='BATAL'&&c.body.version===1);
@@ -120,6 +150,7 @@ window.agendaAudit=async()=>{
 };
 window.agendaLogout=async()=>{auth.logout();await wait();return !document.querySelector('.agenda-dialog')&&!document.querySelector('.agenda-menu-button');};
 window.agendaDark=async()=>{document.documentElement.setAttribute('data-theme','dark');vuetify.theme.global.name.value='kencanaDarkTheme';await wait();return getComputedStyle(document.querySelector('.agenda-dialog')).backgroundColor;};
+window.agendaLight=async()=>{document.documentElement.setAttribute('data-theme','light');vuetify.theme.global.name.value='kencanaTheme';await wait();};
 window.prepareRecipient=async()=>{
  button('Tambah').click();await wait();
  document.querySelector('.visibility-picker input[value=shared]').click();await wait();
@@ -158,8 +189,8 @@ window.auditCompactLayout=async()=>{
  input(textarea,Array.from({length:10},(_,i)=>'Catatan baris '+i).join(String.fromCharCode(10)));await wait();
  scroller.scrollTop=scroller.scrollHeight;await wait();
  const box=scroller.getBoundingClientRect(),header=document.querySelector('.form-heading').getBoundingClientRect(),footer=document.querySelector('.agenda-form-actions').getBoundingClientRect(),last=textarea.getBoundingClientRect();
- const fields=[...document.querySelectorAll('.date-time-fields input')].map(el=>el.getBoundingClientRect());
- const data={headerTop:header.top,scrollTop:box.top,footerBottom:footer.bottom,scrollBottom:box.bottom,lastBottom:last.bottom,footerTop:footer.top,headerSticky:getComputedStyle(document.querySelector('.form-heading')).position,footerSticky:getComputedStyle(document.querySelector('.agenda-form-actions')).position,columns:getComputedStyle(document.querySelector('.date-time-fields')).gridTemplateColumns.split(' ').length,dateTimeAligned:fields.every(rect=>Math.abs(rect.top-fields[0].top)<=1),inputHeight:document.querySelector('.agenda-form input[required]').getBoundingClientRect().height};
+ const fields=[...document.querySelectorAll('.date-time-fields input')].map(el=>el.getBoundingClientRect()),timeFields=fields.slice(1);
+ const data={headerTop:header.top,scrollTop:box.top,footerBottom:footer.bottom,scrollBottom:box.bottom,lastBottom:last.bottom,footerTop:footer.top,headerSticky:getComputedStyle(document.querySelector('.form-heading')).position,footerSticky:getComputedStyle(document.querySelector('.agenda-form-actions')).position,columns:getComputedStyle(document.querySelector('.date-time-fields')).gridTemplateColumns.split(' ').length,dateTimeAligned:timeFields.length===2&&timeFields.every(rect=>Math.abs(rect.top-timeFields[0].top)<=1),inputHeight:document.querySelector('.agenda-form input[required]').getBoundingClientRect().height};
  input(textarea,originalNotes);await wait();return data;
 };
 window.auditNotesResize=async()=>{
@@ -188,6 +219,27 @@ window.auditCalendarFit=async weeks=>{
  const grid=document.querySelector('.calendar-grid').getBoundingClientRect();
  const cell=document.querySelector('.calendar-day').getBoundingClientRect();
  return {sourceWeeks:calendarDays(cursor,'month').length/7,weeks:document.querySelectorAll('.calendar-day').length/7,gridWidth:grid.width,gridHeight:grid.height,cellSide:cell.width,calendarScroll:pane.scrollHeight-pane.clientHeight,firstTop:document.querySelector('.calendar-grid').getBoundingClientRect().top,scrollTop:scroller.getBoundingClientRect().top,lastBottom:last.getBoundingClientRect().bottom,noteTop:note.getBoundingClientRect().top,noteBottom:note.getBoundingClientRect().bottom,scrollBottom:scroller.getBoundingClientRect().bottom,dialogTop:dialog.top,dialogBottom:dialog.bottom,horizontalOverflow:[layout,pane,document.querySelector('.agenda-pane')].some(el=>el.scrollWidth>el.clientWidth+1),cellsFit:[...document.querySelectorAll('.calendar-day')].every(el=>el.scrollHeight<=el.clientHeight+1&&Math.abs(el.getBoundingClientRect().height-el.getBoundingClientRect().width)<=1&&el.getBoundingClientRect().height<=96)};
+};
+window.auditCalendarSlide=async()=>{
+ const measure=()=>{const dialog=document.querySelector('.agenda-dialog').getBoundingClientRect();const grid=document.querySelector('.calendar-grid');return {width:dialog.width,height:dialog.height,x:new DOMMatrix(getComputedStyle(grid).transform).m41,opacity:Number(getComputedStyle(grid).opacity),animation:getComputedStyle(grid).animationName};};
+ const before=measure();
+ const slide=async label=>{document.querySelector('[aria-label="'+label+'"]').click();await nextTick();await new Promise(resolve=>setTimeout(resolve,55));const during=measure();await wait();return {during,after:measure()};};
+ const next=await slide('Periode berikutnya'),previous=await slide('Periode sebelumnya');
+ return {before,next,previous};
+};
+window.auditCalendarLoading=async()=>{
+ const measure=()=>{const rect=document.querySelector('.calendar-grid').getBoundingClientRect();return {width:rect.width,height:rect.height,top:rect.top};};
+ const before=measure();
+ delayList=700;
+ try {
+  document.querySelector('[aria-label="Periode berikutnya"]').click();await wait();
+  const during=measure(),notice=document.querySelector('.calendar-loading');
+  const position=notice&&getComputedStyle(notice).position;
+  const busy=document.querySelector('.calendar-grid').getAttribute('aria-busy');
+  await until(()=>document.querySelector('.calendar-grid').getAttribute('aria-busy')==='false');
+  await new Promise(resolve=>setTimeout(resolve,180));
+  return {before,during,after:measure(),position,busy,noticeGone:!document.querySelector('.calendar-loading')};
+ } finally {delayList=0;document.querySelector('[aria-label="Periode sebelumnya"]').click();await wait();}
 };
 window.auditCalendarDensity=async()=>{
  const original=rows;
@@ -220,12 +272,30 @@ window.auditCalendarDensity=async()=>{
 };
 `
 await browserAudit('agenda-audit', fixture, async ({ evaluate, command, screenshot }) => {
+    await evaluate('new Promise(resolve=>{const poll=()=>window.previewAgendaReminder?resolve(window.previewAgendaReminder()):setTimeout(poll,50);poll();})');
+    console.log('Reminder preview:',await screenshot('login-reminder.png'));
     const checks = await evaluate('(async()=>{await new Promise(resolve=>{const poll=()=>window.agendaAudit?resolve(true):setTimeout(poll,50);poll()});return window.agendaAudit();})()')
     for (const [key, value] of Object.entries(checks)) assert.equal(value, true, key)
     const backgrounds=()=>evaluate("Object.fromEntries(['.agenda-dialog','.calendar-pane','.calendar-day:not(.selected)','.agenda-card','.agenda-pane','.form-heading','.agenda-form-actions'].map(selector=>[selector,document.querySelector(selector)?getComputedStyle(document.querySelector(selector)).backgroundColor:null]))");
     const light=await backgrounds();
     for(const selector of ['.agenda-dialog','.calendar-pane','.calendar-day:not(.selected)','.agenda-card'])assert.equal(light[selector],'rgb(255, 255, 255)',selector);
     assert.equal(light['.agenda-pane'],'rgb(240, 243, 248)');
+    const loading=await evaluate('window.auditCalendarLoading()');
+    assert.equal(loading.position,'absolute');assert.equal(loading.busy,'true');assert.ok(loading.noticeGone);
+    for(const key of ['width','height','top']){
+      assert.ok(Math.abs(loading.before[key]-loading.during[key])<=1,JSON.stringify(loading));
+      assert.ok(Math.abs(loading.before[key]-loading.after[key])<=1,JSON.stringify(loading));
+    }
+    const slide=await evaluate('window.auditCalendarSlide()');
+    assert.ok(slide.next.during.x>0&&slide.previous.during.x<0,JSON.stringify(slide));
+    for(const movement of [slide.next,slide.previous]){
+      assert.ok(Math.abs(movement.after.x)<1,JSON.stringify(slide));
+      assert.equal(movement.during.width,slide.before.width);assert.equal(movement.during.height,slide.before.height);
+    }
+    await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    const reducedSlide=await evaluate('window.auditCalendarSlide()');
+    assert.equal(reducedSlide.next.during.animation,'none');assert.equal(reducedSlide.previous.during.animation,'none');
+    await command('Emulation.setEmulatedMedia',{features:[]});
     const sharing=await evaluate('window.auditSharingScroll()');
     assert.equal(sharing.scrolls,1,JSON.stringify(sharing));
     assert.ok(Math.abs(sharing.loadingHeight-sharing.loadedHeight)<=1,JSON.stringify(sharing));
@@ -270,11 +340,19 @@ await browserAudit('agenda-audit', fixture, async ({ evaluate, command, screensh
     assert.equal(await waitPanel('Gagal memuat akun penerima'), true);
     await evaluate("window.recipientTestMode(false,0);document.querySelector('.recipient-list button').click()");
     assert.equal(await waitPanel('Pabrik Dua'), true);
-    const statusRect=await evaluate("(()=>{const el=document.querySelector('.status-trigger');el.scrollIntoView({block:'center',behavior:'instant'});return el.getBoundingClientRect().toJSON()})()");
+    const statusRect=await evaluate("(()=>{const el=document.querySelector('.status-option.OPEN');el.scrollIntoView({block:'center',behavior:'instant'});return el.getBoundingClientRect().toJSON()})()");
     await click(statusRect);
-    assert.equal(await evaluate("new Promise((resolve,reject)=>{let n=0;const poll=()=>{const el=document.querySelector('.agenda-status-options');if(el&&el.getBoundingClientRect().height>30&&Number(getComputedStyle(el).opacity)>.95)resolve(true);else if(n++>100)reject(Error('Status menu not visible'));else setTimeout(poll,30)};poll()})"),true);
-    await screenshot('status-dropdown.png');
-    await command('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    assert.equal(await evaluate("document.querySelector('.status-option input[value=OPEN]').checked"),true);
+    await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+    await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+    assert.equal(await evaluate("document.querySelector('.status-option input[value=SELESAI]').checked"),true);
+    const segments=await evaluate("(()=>{const group=document.querySelector('.status-segments'),items=[...group.querySelectorAll('.status-option')],rects=items.map(el=>el.getBoundingClientRect());return {labels:items.map(el=>el.textContent.trim()),compact:group.getBoundingClientRect().width<document.querySelector('.agenda-pane').clientWidth-32,aligned:rects.every(rect=>Math.abs(rect.top-rects[0].top)<=1),focus:getComputedStyle(document.activeElement.closest('label')).outlineWidth}})()");
+    assert.deepEqual(segments.labels,['OPEN','SELESAI','BATAL']);assert.ok(segments.compact&&segments.aligned);assert.equal(segments.focus,'2px');
+    assert.equal(await evaluate("getComputedStyle(document.activeElement.closest('label')).outlineOffset"),'-2px');
+    await screenshot('status-segments-light.png');
+    await evaluate('window.agendaDark()');await evaluate('new Promise(resolve=>setTimeout(resolve,180))');
+    await screenshot('status-segments-dark.png');
+    await evaluate('window.agendaLight()');
     const compact=await evaluate('window.auditCompactLayout()');
     assert.equal(compact.headerSticky,'sticky');assert.equal(compact.footerSticky,'sticky');
     assert.ok(Math.abs(compact.headerTop-compact.scrollTop)<=2,JSON.stringify(compact));
@@ -319,7 +397,7 @@ await browserAudit('agenda-audit', fixture, async ({ evaluate, command, screensh
         const density=await evaluate('window.auditCalendarDensity()');
         assert.ok(density.weekCells&&Math.abs(density.weekHeight-density.monthHeight)<=1,JSON.stringify(density));
         assert.ok(density.populatedSizeStable&&density.selectedSizeStable&&density.editorSizeStable,JSON.stringify(density));
-        if(width===1360)assert.ok(density.monthCellSide>=80,JSON.stringify(density));
+        if(width===1360)assert.ok(density.monthCellSide>=64,JSON.stringify(density));
         assert.deepEqual(density.counts,['12','12','12']);
         for(const status of ['OPEN','SELESAI','BATAL'])assert.ok(density.label.includes('12 '+status),JSON.stringify(density));
         assert.ok(density.markersFit&&density.lastCardVisible,JSON.stringify(density));

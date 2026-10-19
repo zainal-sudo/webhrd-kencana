@@ -23,7 +23,7 @@ const columns: BrowseColumn[] = [
 </script>
 
 <template>
-  <BaseBrowse
+  <BaseBrowse class="standard-actions"
     module-title="Realisasi Permintaan"
     module-subtitle="Realisasi permintaan tenaga kerja per periode"
     endpoint="/transaksi/realisasi-permintaan"

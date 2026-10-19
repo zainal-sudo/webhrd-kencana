@@ -11,7 +11,7 @@ function fixture(balance = 150000, installments = 2) {
         periode_potong1 TEXT, nilai_potong1 REAL, periode_potong2 TEXT, nilai_potong2 REAL,
         potong1_diproses_pada TEXT, potong2_diproses_pada TEXT);
         CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_status_aktif INTEGER, kar_tgl_masuk TEXT);`)
-    db.prepare('INSERT INTO tpinjaman VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL)').run('PJ.2610.0001', '001', '2026-10-09', 400000, balance, installments, 'BSI', '001234')
+    db.prepare('INSERT INTO tpinjaman VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL)').run('PJ.2610.0001', '001', '2026-10-09', 400000, balance, installments, 'BSI', '0012345678')
     db.exec("INSERT INTO tkaryawan VALUES ('001', 1, '2010-01-01'), ('002', 1, '2010-01-01'), ('003', 0, '2010-01-01')")
     const calls = []
     let tail = Promise.resolve()
@@ -52,14 +52,14 @@ test('Edit all requested fields preserves document number and amount already pai
     const f = fixture()
     try {
         await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), nik: '002', tanggal: '2026-11-25',
-            pinjam: 500000, angsuran: 1, bank: 'CIMB', norek: '000987', bayar: 0, nomor_pinjam: 'FAKE' })
+            pinjam: 500000, angsuran: 1, bank: 'CIMB', norek: '000000000987', bayar: 0, nomor_pinjam: 'FAKE' })
         const row = f.read()
         assert.equal(row.Nomor, 'PJ.2610.0001')
         assert.equal(row.Bayar, 150000)
         assert.equal(row.Nik, '002')
         assert.equal(row.Pinjam, 500000)
         assert.equal(row.Cicilan, 1)
-        assert.equal(row.Norek, '000987')
+        assert.equal(row.Norek, '000000000987')
         assert.ok(f.calls.some(c => c.sql.includes('FOR UPDATE')))
     } finally { f.close() }
 })
@@ -116,8 +116,8 @@ test('Concurrent edits using same snapshot: first succeeds, second must reload',
     try {
         const body = f.payload()
         const results = await Promise.allSettled([
-            editPinjaman(f.pool, 'PJ.2610.0001', { ...body, bank: 'CIMB' }),
-            editPinjaman(f.pool, 'PJ.2610.0001', { ...body, norek: '000456' }),
+            editPinjaman(f.pool, 'PJ.2610.0001', { ...body, bank: 'CIMB', norek: '000000000000' }),
+            editPinjaman(f.pool, 'PJ.2610.0001', { ...body, norek: '0000000456' }),
         ])
         assert.equal(results.filter(r => r.status === 'fulfilled').length, 1)
         assert.equal(results.filter(r => r.status === 'rejected').length, 1)
@@ -176,10 +176,10 @@ test('Edit date/nominal recomputes stored schedule and 2x to 1x clears second pa
 test('Non-schedule edit preserves stored values and legacy NULL, revision covers schedule changes', async () => {
     const f = fixture()
     try {
-        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), bank: 'CIMB' })
+        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), bank: 'CIMB', norek: '000000000000' })
         assert.equal(f.read().periode_potong1, null)
         f.db.exec("UPDATE tpinjaman SET periode_potong1 = 'Mei 2027', nilai_potong1 = 123000")
-        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), norek: '009876' })
+        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), norek: '000000009876' })
         assert.equal(f.read().periode_potong1, 'Mei 2027')
         assert.equal(f.read().nilai_potong1, 123000)
         const stale = f.payload()
@@ -197,7 +197,7 @@ test('Edit employee/date rechecks six months; existing bank correction remains a
         assert.equal(f.read().Nik, '001')
         assert.equal(f.read().Tanggal, '2026-10-09')
         f.db.exec('UPDATE tkaryawan SET kar_tgl_masuk = NULL')
-        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), bank: 'CIMB' })
+        await editPinjaman(f.pool, 'PJ.2610.0001', { ...f.payload(), bank: 'CIMB', norek: '000000000000' })
         assert.equal(f.read().Bank, 'CIMB')
     } finally { f.close() }
 })
