@@ -60,6 +60,8 @@ const props = withDefaults(
     actionWidth?: number;
     /** Opt-in inline detail slot. Disabled for all existing modules. */
     expandable?: boolean;
+    expandLabel?: string;
+    animateExpansion?: boolean;
     rowNumberLabel?: string;
     /** Letakkan nomor urut setelah kolom pertama (mis. TGL di Pinjaman). */
     rowNumberAfterFirstColumn?: boolean;
@@ -88,6 +90,8 @@ const props = withDefaults(
     compact: false,
     actionWidth: 144,
     expandable: false,
+    expandLabel: 'Rencana Potongan',
+    animateExpansion: false,
     rowNumberLabel: 'No',
     rowNumberAfterFirstColumn: false,
     scrollableHeader: false,
@@ -473,6 +477,43 @@ function toggleExpand(row: Record<string, any>) {
   expandedKeys.value = next;
 }
 
+// Animate only opt-in detail panels; leave the other browse modules unchanged.
+const expansionAnimations = new WeakMap<Element, Animation[]>();
+function cancelExpansion(row: Element) {
+  expansionAnimations.get(row)?.forEach(animation => animation.cancel());
+  expansionAnimations.delete(row);
+}
+function animateDetail(row: Element, done: () => void, opening: boolean) {
+  cancelExpansion(row);
+  const content = row.querySelector<HTMLElement>('.expanded-content');
+  const cell = row.querySelector<HTMLElement>('td');
+  if (!props.animateExpansion || !content || !cell || !content.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    done();
+    return;
+  }
+  const height = `${content.getBoundingClientRect().height}px`;
+  const padding = getComputedStyle(cell);
+  const frames = [
+    { height: '0px', opacity: 0, transform: 'translateY(-6px)', overflow: 'hidden' },
+    { height, opacity: 1, transform: 'translateY(0)', overflow: 'hidden' },
+  ];
+  const cellFrames = [
+    { paddingTop: '0px', paddingBottom: '0px' },
+    { paddingTop: padding.paddingTop, paddingBottom: padding.paddingBottom },
+  ];
+  if (!opening) { frames.reverse(); cellFrames.reverse(); }
+  const options: KeyframeAnimationOptions = { duration: opening ? 260 : 200, easing: 'cubic-bezier(.22, 1, .36, 1)' };
+  const animations = [content.animate(frames, options), cell.animate(cellFrames, options)];
+  expansionAnimations.set(row, animations);
+  Promise.all(animations.map(animation => animation.finished)).then(() => {
+    if (expansionAnimations.get(row) !== animations) return;
+    expansionAnimations.delete(row);
+    done();
+  }).catch(() => { /* Vue cancelled this transition after a quick toggle. */ });
+}
+function enterDetail(row: Element, done: () => void) { animateDetail(row, done, true); }
+function leaveDetail(row: Element, done: () => void) { animateDetail(row, done, false); }
+
 /** Kelas baris: belang ganjil + kustom per modul (mis. karyawan keluar). */
 function rowCls(row: Record<string, any>, idx: number) {
   const custom = props.rowClass ? props.rowClass(row, idx) : "";
@@ -643,7 +684,7 @@ onActivated(() => {
         </colgroup>
         <thead>
           <tr>
-            <th v-if="expandable" class="expand-col"><span class="sr-only">Rencana Potongan</span></th>
+            <th v-if="expandable" class="expand-col"><span class="sr-only">{{ expandLabel }}</span></th>
             <th v-if="!rowNumberAfterFirstColumn || !cols.length" class="num-col">{{ rowNumberLabel }}</th>
             <template v-for="(col, colIndex) in cols" :key="col.key">
             <th
@@ -709,7 +750,7 @@ onActivated(() => {
             :class="rowCls(row, idx)"
           >
             <td v-if="expandable" class="expand-col">
-              <button type="button" class="expand-btn" :disabled="loading" :aria-expanded="expandedKeys.has(row[primaryKey])" :aria-label="`${expandedKeys.has(row[primaryKey]) ? 'Tutup' : 'Buka'} Rencana Potongan ${row[primaryKey]}`" @click="toggleExpand(row)">
+              <button type="button" class="expand-btn" :disabled="loading" :aria-expanded="expandedKeys.has(row[primaryKey])" :aria-label="`${expandedKeys.has(row[primaryKey]) ? 'Tutup' : 'Buka'} ${expandLabel} ${row[primaryKey]}`" @click="toggleExpand(row)">
                 <MsIcon :name="expandedKeys.has(row[primaryKey]) ? 'expand_less' : 'expand_more'" :size="18" />
               </button>
             </td>
@@ -777,9 +818,11 @@ onActivated(() => {
               </div>
             </td>
           </tr>
-          <tr v-if="expandable && expandedKeys.has(row[primaryKey])" class="expanded-row">
-            <td :colspan="columnCount"><div class="expanded-content"><slot name="expanded-row" :row="row" /></div></td>
-          </tr>
+          <Transition :css="false" @enter="enterDetail" @leave="leaveDetail" @enter-cancelled="cancelExpansion" @leave-cancelled="cancelExpansion">
+            <tr v-if="expandable && expandedKeys.has(row[primaryKey])" class="expanded-row">
+              <td :colspan="columnCount"><div class="expanded-content"><slot name="expanded-row" :row="row" /></div></td>
+            </tr>
+          </Transition>
           </template>
         </tbody>
       </table>

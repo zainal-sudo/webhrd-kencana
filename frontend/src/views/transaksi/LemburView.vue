@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import LemburDetail from "@/components/LemburDetail.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
 import type { BrowseColumn } from "@/types";
@@ -8,7 +9,7 @@ import { firstDayOfMonth } from "@/utils/format";
 
 /**
  * Browse Lembur — padanan `ufrmBrowseLembur` (master SPL per periode).
- * Detail per SPL dibuka lewat form edit (GET /transaksi/lembur/form).
+ * Detail per SPL tersedia di panel baca saja di bawah baris browse.
  *
  * Tombol "Per NIK (V2)" di toolbar = cxButton5 Delphi yang membuka
  * `ufrmLembur2` (satu NIK untuk banyak tanggal). Hak form V2: `frmLembur2`.
@@ -37,12 +38,16 @@ function bukaPerNik() {
 </script>
 
 <template>
-  <BaseBrowse class="standard-actions"
+  <BaseBrowse class="standard-actions lembur-browse"
     module-title="Lembur"
     module-subtitle="Surat perintah lembur (SPL)"
     endpoint="/transaksi/lembur"
+    :extra-query="{ include_detail: '1' }"
     :columns="columns"
     primary-key="Nomor"
+    expandable
+    animate-expansion
+    expand-label="Detail SPL"
     has-period
     :default-start="firstDayOfMonth()"
     add-form-path="/transaksi/lembur/form"
@@ -50,6 +55,9 @@ function bukaPerNik() {
     search-placeholder="Cari nomor SPL / bagian / jenis kerja..."
     :per-page="50"
   >
+    <template #expanded-row="{ row }">
+      <LemburDetail :nomor="row.Nomor" :preloaded="row.Detail" />
+    </template>
     <template #toolbar-extra>
       <button class="tool-btn pernik" title="Lembur satu karyawan untuk banyak tanggal (Lembur V2)" @click="bukaPerNik">
         <MsIcon name="person_add" :size="15" />
@@ -60,6 +68,15 @@ function bukaPerNik() {
 </template>
 
 <style scoped>
+.lembur-browse :deep(.expanded-content) { max-width: none; min-width: 0; }
+.lembur-browse { --spl-expanded-bg: #eef7fd; }
+:root[data-theme="dark"] .lembur-browse { --spl-expanded-bg: color-mix(in srgb, var(--ds-primary-50) 45%, var(--ds-surface-raised)); }
+:root .lembur-browse :deep(.browse-table > tbody > tr.expanded-row > td) { background: var(--spl-expanded-bg) !important; }
+/* Stripe by the data index (.odd), not the number of inserted detail rows. */
+.lembur-browse :deep(.browse-table > tbody > tr) { --spl-row-background: var(--ds-surface-raised, #fff); }
+.lembur-browse :deep(.browse-table > tbody > tr.odd) { --spl-row-background: var(--ds-row-alt, #eef1f6); }
+:root .lembur-browse :deep(.browse-table > tbody > tr:not(.expanded-row) > td) { background: var(--spl-row-background) !important; }
+:root .lembur-browse :deep(.browse-table > tbody > tr:not(.expanded-row):hover > td) { background: var(--ds-row-hover, #dbe4f3) !important; }
 .tool-btn {
   height: 28px;
   display: inline-flex;

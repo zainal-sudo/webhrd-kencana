@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { authApi } from "@/api";
-import { TOKEN_KEY, USER_KEY, MENUS_KEY } from "@/api/axios";
+import { TOKEN_KEY, USER_KEY, MENUS_KEY, resetAuthRequests, getAuthSessionVersion, cancelledAuthRequest } from "@/api/axios";
 import type { AuthUser, MenuIjin } from "@/types";
 
 function readJson<T>(key: string, fallback: T): T {
@@ -28,7 +28,10 @@ export const useAuthStore = defineStore("auth", {
 
   actions: {
     async login(user_kode: string, user_password: string) {
+      const version = resetAuthRequests();
       const res = await authApi.login(user_kode, user_password);
+      if (version !== getAuthSessionVersion()) throw cancelledAuthRequest();
+      resetAuthRequests();
       this.token = res.token;
       this.user = res.user;
       this.menus = res.menus || [];
@@ -40,7 +43,11 @@ export const useAuthStore = defineStore("auth", {
 
     /** Dipanggil saat halaman di-refresh:ambil profil + menu terbaru dari server. */
     async refreshProfile() {
+      const token = this.token;
+      const version = getAuthSessionVersion();
+      if (!token) return false;
       const d = await authApi.me();
+      if (version !== getAuthSessionVersion() || token !== this.token) return false;
       this.user = {
         user_kode: d.user_kode,
         user_nama: d.user_nama,
@@ -50,6 +57,7 @@ export const useAuthStore = defineStore("auth", {
       this.menus = d.menus || [];
       localStorage.setItem(USER_KEY, JSON.stringify(this.user));
       localStorage.setItem(MENUS_KEY, JSON.stringify(this.menus));
+      return true;
     },
 
     /** True bila user punya hak (view/insert/edit/delete) pada form tertentu. */
@@ -61,11 +69,13 @@ export const useAuthStore = defineStore("auth", {
     },
 
     setToken(token: string) {
+      resetAuthRequests();
       this.token = token;
       localStorage.setItem(TOKEN_KEY, token);
     },
 
     logout() {
+      resetAuthRequests();
       this.token = "";
       this.user = null;
       this.menus = [];

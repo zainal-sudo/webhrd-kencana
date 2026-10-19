@@ -141,6 +141,23 @@ export const getLemburList = async (req, res, next) => {
             perPage,
             offset,
         ])
+        // Prepare only the displayed page, in one query, so expanding needs no request.
+        if (req.query.include_detail === '1' && rows.length) {
+            const byNomor = new Map(rows.map(row => [row.Nomor, []]))
+            const [details] = await pool.query(
+                `SELECT d.lemd_lem_nomor AS \`Nomor\`, d.lemd_kar_nik AS \`Nik\`, k.kar_nama AS \`Nama\`,
+                        d.lemd_jammulai AS \`Mulai\`, d.lemd_jamakhir AS \`Akhir\`,
+                        d.lemd_keterangan AS \`Keterangan\`, d.lemd_panggilan AS \`Panggilan\`
+                 FROM tlembur_dtl d LEFT JOIN tkaryawan k ON k.kar_Nik = d.lemd_kar_nik
+                 WHERE d.lemd_lem_nomor IN (${rows.map(() => '?').join(', ')})
+                 ORDER BY d.lemd_lem_nomor, d.lemd_kar_nik`,
+                rows.map(row => row.Nomor)
+            )
+            for (const detail of details) {
+                byNomor.get(detail.Nomor)?.push({ ...detail, Mulai: toTime(detail.Mulai), Akhir: toTime(detail.Akhir) })
+            }
+            for (const row of rows) row.Detail = byNomor.get(row.Nomor)
+        }
         paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
     } catch (err) {
         next(err)

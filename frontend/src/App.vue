@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import BlankLayout from "@/layouts/BlankLayout.vue";
@@ -21,7 +21,10 @@ const layout = computed(() => (route.meta?.layout === "BlankLayout" ? BlankLayou
 
 const showExpiredDialog = ref(false);
 
+watch(() => authStore.token, () => { showExpiredDialog.value = false; }, { flush: "sync" });
+
 function onAuthExpired() {
+  if (!authStore.isAuthenticated || route.path === "/login") return;
   showExpiredDialog.value = true;
 }
 
@@ -38,10 +41,10 @@ onUnmounted(() => {
 
 const goToLogin = () => {
   showExpiredDialog.value = false;
+  authStore.logout();
   tabsStore.resetTabs();
   permissionStore.reset();
-  authStore.logout();
-  router.push("/login");
+  router.replace("/login");
 };
 </script>
 

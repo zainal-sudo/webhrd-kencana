@@ -25,7 +25,7 @@ const now = ref(new Date());
 let clockTimer: number | undefined;
 
 onMounted(() => {
-  if (!permissionStore.loaded) permissionStore.fetchAll().catch(() => undefined);
+  if (authStore.isAuthenticated && !permissionStore.loaded) permissionStore.fetchAll().catch(() => undefined);
   tabsStore.initDefaultTabs();
   clockTimer = window.setInterval(() => {
     now.value = new Date();
@@ -49,10 +49,10 @@ const userMenu = ref(false);
 
 async function logout() {
   userMenu.value = false;
+  authStore.logout();
   tabsStore.resetTabs();
   permissionStore.reset();
-  authStore.logout();
-  router.push("/login");
+  await router.replace("/login");
 }
 
 function goHome() {

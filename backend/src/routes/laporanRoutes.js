@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { wajibHak } from '../middleware/permission.js'
+import { getAkhirTahun } from '../controllers/laporan/akhirTahunController.js'
 import { getLemburHariLiburList, setVerifikasiLemburHariLibur } from '../controllers/laporan/lemburHariLiburController.js'
 import {
     getTidakMasukList,
@@ -18,6 +19,8 @@ import {
 } from '../controllers/laporan/laporanController.js'
 
 const r = Router()
+
+r.get('/akhir-tahun', wajibHak('frmLapAkhirTahun'), getAkhirTahun)
 
 /* ── Laporan Tidak Masuk (ufrmLapTidakMasuk, `frmLapTidakMasuk`) ── */
 r.get('/tidak-masuk', wajibHak('frmLapTidakMasuk'), getTidakMasukList)

@@ -111,6 +111,12 @@ export const usePermissionStore = defineStore("permission", {
           const historyPosition = laporan.findIndex((m) => m.key === "frmHistoryKaryawan");
           laporan.splice(historyPosition, 0, lemburLibur);
         }
+        // Laporan Akhir Tahun selalu menjadi menu laporan paling akhir.
+        const akhirTahunIndex = laporan.findIndex((m) => m.key === "frmLapAkhirTahun");
+        if (akhirTahunIndex !== -1) {
+          const [akhirTahun] = laporan.splice(akhirTahunIndex, 1);
+          laporan.push(akhirTahun);
+        }
       }
 
       // Hak Akses tidak punya baris tmenu sendiri (satu form `frmUser` dengan
@@ -143,7 +149,9 @@ export const usePermissionStore = defineStore("permission", {
       try {
         const auth = useAuthStore();
         if (!auth.user) return;
-        await auth.refreshProfile();
+        const token = auth.token;
+        const refreshed = await auth.refreshProfile();
+        if (refreshed === false || token !== auth.token || !auth.user) return;
         this.build();
       } finally {
         this.loading = false;

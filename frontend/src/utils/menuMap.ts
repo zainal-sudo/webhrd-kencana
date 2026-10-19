@@ -91,7 +91,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmLapKedisiplinan: { grup: "laporan", path: "/laporan/kedisiplinan", label: "Laporan Kedisiplinan", icon: "gavel", ready: false },
   frmLapHasilpekerjaan: { grup: "laporan", path: "/laporan/hasil-pekerjaan", label: "Hasil Pekerjaan", icon: "workspace_premium", ready: false },
   frmLapProduktivitas: { grup: "laporan", path: "/laporan/produktivitas", label: "Produktivitas", icon: "trending_up", ready: false },
-  frmLapAkhirTahun: { grup: "laporan", path: "/laporan/akhir-tahun", label: "Laporan Akhir Tahun", icon: "celebration", ready: false },
+  frmLapAkhirTahun: { grup: "laporan", path: "/laporan/akhir-tahun", label: "Laporan Akhir Tahun", icon: "celebration", ready: true },
 
   /* ── Penggajian ── */
   frmSettingGaji: { grup: "gaji", path: "/gaji/setting", label: "Setting Gaji", icon: "monetization_on", ready: true },

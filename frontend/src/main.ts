@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import Toast, { POSITION } from "vue-toastification";
+import Toast, { POSITION, type PluginOptions } from "vue-toastification";
 import "vue-toastification/dist/index.css";
 
 import App from "./App.vue";
@@ -20,7 +20,7 @@ const pinia = createPinia();
 app.use(pinia);
 app.use(router);
 app.use(vuetify);
-app.use(Toast, {
+const toastOptions: PluginOptions = {
   position: POSITION.TOP_RIGHT,
   timeout: 3500,
   closeOnClick: true,
@@ -28,7 +28,9 @@ app.use(Toast, {
   draggable: true,
   hideProgressBar: false,
   toastClassName: "kencana-toast",
-});
+  filterBeforeCreate: (toast) => toast.content === "" ? false : toast,
+};
+app.use(Toast, toastOptions);
 
 app.mount("#app");
 // Include dialogs/popups teleported outside #app as well as ordinary pages.

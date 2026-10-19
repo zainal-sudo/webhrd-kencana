@@ -103,6 +103,7 @@ const routes = [
   { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
 
   /* ── Laporan kehadiran (duplikat Delphi) ── */
+  { path: "/laporan/akhir-tahun", component: () => import("@/views/laporan/AkhirTahunView.vue"), meta: { requiresAuth: true, title: "Laporan Akhir Tahun", form: "frmLapAkhirTahun" } },
   { path: "/laporan/tidak-masuk", component: () => import("@/views/laporan/TidakMasukView.vue"), meta: { requiresAuth: true, title: "Laporan Tidak Masuk", form: "frmLapTidakMasuk" } },
   { path: "/laporan/keterlambatan", component: () => import("@/views/laporan/KeterlambatanView.vue"), meta: { requiresAuth: true, title: "Laporan Keterlambatan", form: "frmLapKeterlambatan" } },
   { path: "/laporan/pulang-dulu", component: () => import("@/views/laporan/PulangDuluView.vue"), meta: { requiresAuth: true, title: "Laporan Pulang Mendahului", form: "frmLapPulangdulu" } },

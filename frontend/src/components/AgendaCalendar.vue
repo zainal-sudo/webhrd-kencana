@@ -395,15 +395,20 @@ i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; backgrou
 .visibility-picker legend { font-weight: 600; margin-bottom: 6px; }
 .agenda-status-field { border: 0; padding: 0; margin: 0; min-width: 0; }
 .status-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-.status-segments { display: inline-flex; align-items: center; gap: 4px; padding: 4px; max-width: 100%; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: 12px; background: var(--ds-surface-inset, #e0e4ea); }
-.agenda-form .status-option { position: relative; display: inline-flex; flex-direction: row; align-items: center; justify-content: center; min-height: 28px; padding: 4px 10px; border: 1px solid transparent; border-radius: 9px; background: color-mix(in srgb, currentColor 5%, var(--agenda-surface)); font-size: 11px; font-weight: 600; line-height: 18px; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
-.status-option.BATAL { color: var(--ds-text-secondary, #5a6a7e); }
-.agenda-status-field:not(:disabled) .status-option:hover { border-color: color-mix(in srgb, currentColor 65%, transparent); background: color-mix(in srgb, currentColor 18%, var(--agenda-surface)); }
-.agenda-form .status-option.selected { border-color: currentColor; background: color-mix(in srgb, currentColor 28%, var(--agenda-surface)); font-weight: 700; box-shadow: inset 0 0 0 1px currentColor; }
-.agenda-status-field:not(:disabled) .status-option.selected:hover { background: color-mix(in srgb, currentColor 34%, var(--agenda-surface)); }
-.agenda-status-field:not(:disabled) .status-option:active { border-color: currentColor; background: color-mix(in srgb, currentColor 40%, var(--agenda-surface)); }
+.status-segments { display: flex; align-items: stretch; width: 70%; max-width: 100%; height: 42px; box-sizing: border-box; gap: 4px; padding: 4px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: 13px; background: var(--ds-surface-inset, #e0e4ea); }
+.agenda-form .status-option { position: relative; display: inline-flex; flex: 1 1 0; min-width: 0; flex-direction: row; align-items: center; justify-content: center; min-height: 0; padding: 0 6px; border: 1px solid transparent; border-radius: 9px; background: var(--agenda-surface); color: var(--ds-text-secondary, #5a6a7e); font-size: 11px; font-weight: 600; line-height: 18px; white-space: nowrap; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+.status-option.OPEN { --status-accent: #b42332; --status-fill: #fff1f2; --status-border: #e99aa4; }
+.status-option.SELESAI { --status-accent: #166534; --status-fill: #e6f4ea; --status-border: #82bf97; }
+.status-option.BATAL { --status-accent: #374151; --status-fill: #e2e8f0; --status-border: #94a3b8; }
+:global(:root[data-theme="dark"] .agenda-dialog .status-option.OPEN) { --status-accent: #fda4af; --status-fill: #4a242c; --status-border: #b85e70; }
+:global(:root[data-theme="dark"] .agenda-dialog .status-option.SELESAI) { --status-accent: #86efac; --status-fill: #183c2b; --status-border: #448f62; }
+:global(:root[data-theme="dark"] .agenda-dialog .status-option.BATAL) { --status-accent: #e2e8f0; --status-fill: #3a4658; --status-border: #8290a5; }
+.agenda-status-field:not(:disabled) .status-option:hover { border-color: var(--status-border); background: color-mix(in srgb, var(--status-accent) 12%, var(--agenda-surface)); color: var(--status-accent); }
+.agenda-form .status-option.selected { border-color: var(--status-border); background: var(--status-fill); color: var(--status-accent); font-weight: 700; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); }
+.agenda-status-field:not(:disabled) .status-option.selected:hover { background: color-mix(in srgb, var(--status-accent) 8%, var(--status-fill)); }
+.agenda-status-field:not(:disabled) .status-option:active { border-color: var(--status-accent); }
 .agenda-form .status-option input { position: absolute; width: 1px; height: 1px; opacity: 0; padding: 0; border: 0; }
-.status-option:focus-within { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: -2px; }
+.status-option:focus-within { outline: 2px solid var(--status-accent); outline-offset: -2px; }
 .agenda-status-field:disabled .status-option { opacity: .55; cursor: default; }
 .visibility-options { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-radius: 9px; padding: 4px; background: var(--ds-surface-inset, #e0e4ea); isolation: isolate; }
 .visibility-indicator { position: absolute; left: 4px; top: 4px; bottom: 4px; width: calc((100% - 14px) / 2); border: 1px solid var(--ds-border, #b0b8c4); border-radius: 7px; background: var(--ds-surface-raised, #fff); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); pointer-events: none; transition: transform 240ms cubic-bezier(.22, 1, .36, 1); }
@@ -468,6 +473,7 @@ i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; backgrou
 .agenda-error { padding: 8px; background: var(--ds-surface-inset, #f0f3f8); border-radius: 5px; overflow-wrap: anywhere; }
 .agenda-error button { margin-left: 5px; }
 @media (max-width: 760px) {
+  .status-segments { width: 100%; }
   .agenda-layout { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; scroll-padding-top: 56px; scroll-padding-bottom: 60px; }
   .calendar-pane, .agenda-pane { overflow: visible; padding: 12px; }
   .calendar-pane { flex: 0 0 auto; }
