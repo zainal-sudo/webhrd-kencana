@@ -4,17 +4,19 @@ import { DatabaseSync } from 'node:sqlite'
 import { applyAllColumnFilters, applyColumnFilterSets } from '../src/helpers/browse.js'
 
 // Execute helper-generated SQL against an in-memory SQL fixture, never HRD/MySQL.
-// Only SQL-standard NULL/IN/OR/equality are used in these tests.
-const columns = { Bank: 'p.bank', Norek: 'p.norek' }
+// The MySQL OCTET_LENGTH function is registered on the in-memory fixture.
+const columns = { Bank: 'p.bank', Norek: 'p.norek', Amount: 'p.amount', Due: 'p.due' }
 const fixture = () => {
     const db = new DatabaseSync(':memory:')
-    db.exec('CREATE TABLE loans (id INTEGER PRIMARY KEY, bank TEXT, norek TEXT)')
-    const insert = db.prepare('INSERT INTO loans VALUES (?, ?, ?)')
-    insert.run(1, null, null)
-    insert.run(2, '', '')
-    insert.run(3, 'BSI', '001234')
-    insert.run(4, 'CIMB', '008765')
-    insert.run(5, 'null', 'null')
+    db.function('OCTET_LENGTH', value => value == null ? null : Buffer.byteLength(String(value)))
+    db.exec('CREATE TABLE loans (id INTEGER PRIMARY KEY, bank TEXT, norek TEXT, amount NUMERIC, due TEXT)')
+    const insert = db.prepare('INSERT INTO loans VALUES (?, ?, ?, ?, ?)')
+    insert.run(1, null, null, null, null)
+    insert.run(2, '', '', null, '')
+    insert.run(3, 'BSI', '001234', 0, '2026-10-19')
+    insert.run(4, 'CIMB', '008765', 12, '2026-10-20')
+    insert.run(5, 'null', 'null', 5, '0000-00-00')
+    insert.run(6, ' ', ' ', 7, ' ')
     return db
 }
 for (const [label, query, expected] of [
@@ -28,6 +30,13 @@ for (const [label, query, expected] of [
     ['empty account', { filterEmpty_Norek: '1' }, [2]],
     ['leading-zero account', { filterSet_Norek: ['001234'] }, [3]],
     ['literal null + SQL NULL', { filterNull_Bank: '1', filterSet_Bank: ['null'] }, [1, 5]],
+    ['whitespace is not blank', { filterSet_Bank: [' '] }, [6]],
+    ['numeric blank keeps zero', { filterNull_Amount: '1', filterEmpty_Amount: '1' }, [1, 2]],
+    ['numeric zero remains selectable', { filterSet_Amount: ['0'] }, [3]],
+    ['date blank excludes dates, zero date and whitespace', { filterNull_Due: '1', filterEmpty_Due: '1' }, [1, 2]],
+    ['valid date remains selectable', { filterSet_Due: ['2026-10-19'] }, [3]],
+    ['zero date remains selectable', { filterSet_Due: ['0000-00-00'] }, [5]],
+    ['mixed blank, literal null and normal value', { filterNull_Bank: '1', filterEmpty_Bank: '1', filterSet_Bank: ['null', 'BSI'] }, [1, 2, 3, 5]],
 ]) test(`Shared filter returns correct SQL rows: ${label}`, () => {
     const db = fixture()
     try {
@@ -36,9 +45,9 @@ for (const [label, query, expected] of [
         assert.deepEqual(rows.map(row => row.id), expected)
     } finally { db.close() }
 })
-test('Old normal-only filters keep exact SQL/params, whitespace rules, bracket array and except behavior', () => {
+test('Normal filters preserve exact values, bracket array and except behavior', () => {
     const result = applyColumnFilterSets(' WHERE p.id > ?', [0], { 'filterSet_Bank[]': [' BSI ', '', 'CIMB'] }, columns)
-    assert.deepEqual(result, { clause: ' WHERE p.id > ? AND p.bank IN (?,?)', params: [0, 'BSI', 'CIMB'] })
+    assert.deepEqual(result, { clause: ' WHERE p.id > ? AND p.bank IN (?,?)', params: [0, ' BSI ', 'CIMB'] })
     assert.deepEqual(applyColumnFilterSets(' WHERE 1=1', [], { filterSet_Bank: ['BSI'], filterNull_Bank: '1', filterEmpty_Bank: '1' }, columns, 'Bank'),
         { clause: ' WHERE 1=1', params: [] })
     assert.deepEqual(applyColumnFilterSets(' WHERE 1=1', [], { filterSet_Bank: [''] }, columns), { clause: ' WHERE 1=1', params: [] })

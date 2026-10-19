@@ -2,6 +2,7 @@ import pool from '../../config/database.js'
 import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { applyAllColumnFilters } from '../../helpers/browse.js'
 
 /**
  * Modul Permintaan Karyawan — cerminan unit Delphi:
@@ -95,37 +96,18 @@ export const getPermintaanList = async (req, res, next) => {
                 [...params, ...extraParams]
             )
 
-        // Filter kolom (Closed ikut difilter di lapis luar).
-        let extraWhere = ''
-        let extraParams = []
-        if (req.query) {
-            const ands = []
-            const pushSet = (alias, col) => {
-                let raw = req.query[`filterSet_${alias}`] ?? req.query[`filterSet_${alias}[]`]
-                if (raw === undefined) return
-                const arr = (Array.isArray(raw) ? raw : [raw]).map((v) => String(v).trim()).filter(Boolean)
-                if (!arr.length) return
-                ands.push(`${col} IN (${arr.map(() => '?').join(',')})`)
-                extraParams.push(...arr)
-            }
-            const pushLike = (alias, col) => {
-                const raw = req.query[`filter_${alias}`]
-                if (raw === undefined || raw === null || !String(raw).trim()) return
-                ands.push(`${col} LIKE ?`)
-                extraParams.push(`%${String(raw).trim()}%`)
-            }
-            for (const [alias, col] of Object.entries(LIST_COLUMNS)) {
-                pushLike(alias, col)
-                pushSet(alias, col)
-            }
-            if (ands.length) extraWhere = ` WHERE ${ands.join(' AND ')}`
-        }
+        // Filter kolom memakai kontrak bersama (filterSet/filterNull/filterEmpty)
+        // agar opsi Blank konsisten dengan browse lain. Closed difilter di lapis luar.
+        const filtered = applyAllColumnFilters('', [], req.query, LIST_COLUMNS)
+        const extraWhere = filtered.clause
+        const extraParams = filtered.params
 
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const col = LIST_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters('', [], req.query, LIST_COLUMNS, req.query.distinct)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value FROM (${INNER_SQL}${inner}) AS Final WHERE ${col} IS NOT NULL AND ${col} <> '' ORDER BY value`,
-                params
+                `SELECT DISTINCT ${col} AS value, OCTET_LENGTH(${col}) AS value_length FROM (${INNER_SQL}${inner}) AS Final${scoped.clause} ORDER BY value`,
+                [...params, ...scoped.params]
             )
             return success(res, drows.map((r) => r.value))
         }

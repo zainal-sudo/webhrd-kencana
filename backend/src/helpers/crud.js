@@ -55,9 +55,8 @@ export function makeMasterController(cfg) {
             if (req.query.distinct && alias[req.query.distinct]) {
                 const dcol = alias[req.query.distinct]
                 const scoped = applyAllColumnFilters(where, params, req.query, alias, req.query.distinct)
-                const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
                 const [drows] = await pool.query(
-                    `SELECT DISTINCT ${dcol} AS value FROM \`${table}\` ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                    `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length FROM \`${table}\`${scoped.clause} ORDER BY value`,
                     scoped.params
                 )
                 return success(res, drows.map((r) => r.value))

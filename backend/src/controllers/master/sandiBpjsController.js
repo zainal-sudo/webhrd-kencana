@@ -65,7 +65,7 @@ export async function getSandiBpjsList(req, res) {
             if (!Object.hasOwn(BROWSE_COLUMNS, req.query.distinct)) return error(res, 'Kolom filter tidak tersedia.', 400)
             const scoped = applyAllColumnFilters(where, params, req.query, BROWSE_COLUMNS, req.query.distinct)
             const [rows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value FROM tsandi_bpjs${scoped.clause} ORDER BY ${col}`, scoped.params)
+                `SELECT DISTINCT ${col} AS value, OCTET_LENGTH(${col}) AS value_length FROM tsandi_bpjs${scoped.clause} ORDER BY ${col}`, scoped.params)
             return success(res, rows.map(row => row.value))
         }
         const filtered = applyAllColumnFilters(where, params, req.query, BROWSE_COLUMNS)

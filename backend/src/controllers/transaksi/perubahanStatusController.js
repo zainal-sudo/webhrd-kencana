@@ -85,9 +85,8 @@ export const getPerubahanStatusList = async (req, res, next) => {
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const dcol = LIST_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${FROM_SQL} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${FROM_SQL} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

@@ -55,6 +55,7 @@ const LIST_COLUMNS = {
 const NON_STRING_FILTER_COLUMNS = new Set(['MasaKerja', 'TglLahir', 'TglMasuk', 'TglKeluar', 'PKWT1', 'PKWT2'])
 const FILTER_OPTIONS = {
     stringColumns: new Set(Object.keys(LIST_COLUMNS).filter(alias => !NON_STRING_FILTER_COLUMNS.has(alias))),
+    numberColumns: new Set(['MasaKerja']),
 }
 
 // Display labels only: keep SQL aliases/API filter keys compatible.
@@ -106,11 +107,9 @@ export const getKaryawanList = async (req, res, next) => {
         if (req.query.distinct && LIST_COLUMNS[req.query.distinct]) {
             const dcol = LIST_COLUMNS[req.query.distinct]
             // PAD SPACE collations can collapse '' and ' '; keep their lengths distinct.
-            const lengthColumn = FILTER_OPTIONS.stringColumns.has(req.query.distinct)
-                ? `, OCTET_LENGTH(${dcol}) AS value_length` : ''
             const scoped = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct, FILTER_OPTIONS)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value${lengthColumn} ${FROM_SQL}${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${FROM_SQL}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

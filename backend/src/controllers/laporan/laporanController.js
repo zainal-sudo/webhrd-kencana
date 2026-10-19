@@ -89,7 +89,7 @@ export const getTidakMasukList = async (req, res, next) => {
             // dipilih di popup filter — frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TM_FROM}${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TM_FROM}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -249,7 +249,7 @@ export const getKeterlambatanList = async (req, res, next) => {
             // dipilih di popup filter — frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TL_FROM}${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TL_FROM}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -325,9 +325,8 @@ export const getPulangDuluList = async (req, res, next) => {
         if (req.query.distinct && PD_COLUMNS[req.query.distinct]) {
             const dcol = PD_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, PD_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${PD_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${PD_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -402,9 +401,8 @@ export const getTidakKeluarList = async (req, res, next) => {
         if (req.query.distinct && TK_COLUMNS[req.query.distinct]) {
             const dcol = TK_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TK_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TK_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TK_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -481,9 +479,8 @@ export const getLemburList = async (req, res, next) => {
         if (req.query.distinct && LL_COLUMNS[req.query.distinct]) {
             const dcol = LL_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, LL_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${LL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${LL_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -568,9 +565,8 @@ export const getLemburTanpaSplList = async (req, res, next) => {
         if (req.query.distinct && LS_COLUMNS[req.query.distinct]) {
             const dcol = LS_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, LS_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${LS_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${LS_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -864,9 +860,8 @@ export const getTanpaIjinList = async (req, res, next) => {
         if (req.query.distinct && TI_COLUMNS[req.query.distinct]) {
             const dcol = TI_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TI_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${TI_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TI_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -948,9 +943,8 @@ export const getStHariTanpaIjinList = async (req, res, next) => {
         if (req.query.distinct && SH_COLUMNS[req.query.distinct]) {
             const dcol = SH_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, SH_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value FROM (${SH_INNER}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length FROM (${SH_INNER}) t ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -1046,9 +1040,8 @@ export const getDetailLemburList = async (req, res, next) => {
         if (req.query.distinct && DL_COLUMNS[req.query.distinct]) {
             const dcol = DL_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, DL_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${DL_FROM} ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${DL_FROM} ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -1149,9 +1142,8 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
         if (req.query.distinct && AP_COLUMNS[req.query.distinct]) {
             const dcol = AP_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, AP_COLUMNS, req.query.distinct)
-            const dwhere = scoped.clause ? `${scoped.clause} AND` : 'WHERE'
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value FROM (${inner}) t ${dwhere} ${dcol} IS NOT NULL AND ${dcol} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length FROM (${inner}) t ${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

@@ -70,7 +70,7 @@ export const getLemburHariLiburList = async (req, res, next) => {
             const col = COLUMNS[req.query.distinct]
             const f = applyAllColumnFilters(where, params, req.query, COLUMNS, req.query.distinct)
             const [rows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value ${FROM}${f.clause} AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY value`, f.params
+                `SELECT DISTINCT ${col} AS value, OCTET_LENGTH(${col}) AS value_length ${FROM}${f.clause} ORDER BY value`, f.params
             )
             return success(res, rows.map((row) => row.value))
         }

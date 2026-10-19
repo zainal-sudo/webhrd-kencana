@@ -87,7 +87,7 @@ export const getRiilList = async (req, res, next) => {
             const col = LIST_COLUMNS[req.query.distinct]
             const f = applyAllColumnFilters(where, params, req.query, LIST_COLUMNS, req.query.distinct)
             const [rows] = await pool.query(
-                `SELECT DISTINCT ${col} AS value ${FROM_SQL}${f.clause} AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY value`,
+                `SELECT DISTINCT ${col} AS value, OCTET_LENGTH(${col}) AS value_length ${FROM_SQL}${f.clause} ORDER BY value`,
                 f.params
             )
             return success(res, rows.map((row) => row.value))

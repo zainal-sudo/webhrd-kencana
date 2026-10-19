@@ -18,6 +18,8 @@ test('Every header distinct-value query returns the full set, without a hard SQL
         // Keep lookup queries (AS Bagian etc.) and table/export pagination out of scope.
         for (const match of source.matchAll(/SELECT DISTINCT[^\r\n]*? AS value[^\r\n]*/g)) {
             assert.doesNotMatch(match[0], /\bLIMIT\b/i, file.pathname)
+            assert.doesNotMatch(match[0], /\bIS NOT NULL\b|<>\s*''/i, file.pathname)
+            assert.match(match[0], /OCTET_LENGTH\(.+\) AS value_length/i, file.pathname)
             count++
         }
     }

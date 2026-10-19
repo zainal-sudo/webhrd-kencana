@@ -46,24 +46,25 @@ export function applyColumnFilterSets(whereClause, params, query, allowedMap, ex
         let raw = query[`filterSet_${alias}`]
         if (raw === undefined) raw = query[`filterSet_${alias}[]`]
         const includeNull = query[`filterNull_${alias}`] === '1'
-        const stringColumn = options.stringColumns?.has(alias);
+        const stringColumn = options.stringColumns?.has(alias)
+        const numberColumn = options.numberColumns?.has(alias)
         const includeEmpty = query[`filterEmpty_${alias}`] === '1'
             && (!options.stringColumns || stringColumn)
         if ((raw === undefined || raw === null) && !includeNull && !includeEmpty) continue
         const arr = (raw === undefined || raw === null ? [] : Array.isArray(raw) ? raw : [raw])
-            .map((v) => stringColumn ? String(v) : String(v).trim())
+            .map((v) => String(v))
             .filter((v) => v !== '')
+            .map((v) => numberColumn && Number.isFinite(Number(v)) ? Number(v) : v)
         const alternatives = []
         if (arr.length) alternatives.push(`${col} IN (${arr.map(() => '?').join(',')})`)
         if (includeNull) alternatives.push(`${col} IS NULL`)
-        // Exact byte length excludes whitespace even under MySQL PAD SPACE collations.
-        // Typed callers only enable this predicate for actual string columns.
-        if (includeEmpty) alternatives.push(options.stringColumns ? `OCTET_LENGTH(${col}) = 0` : `${col} = ?`)
+        // Exact byte length keeps numeric/time zero and whitespace-only strings non-blank,
+        // including under MySQL PAD SPACE collations.
+        if (includeEmpty) alternatives.push(`OCTET_LENGTH(${col}) = 0`)
         if (!alternatives.length) continue
         // Preserve exact old SQL for normal-only filters; group mixed choices with OR.
         clause += ` AND ${alternatives.length === 1 ? alternatives[0] : `(${alternatives.join(' OR ')})`}`
         out.push(...arr)
-        if (includeEmpty && !options.stringColumns) out.push('')
     }
     return { clause, params: out }
 }

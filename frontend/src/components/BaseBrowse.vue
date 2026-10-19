@@ -50,7 +50,7 @@ const props = withDefaults(
     initialFilters?: Record<string, string[]>;
     /** Pilihan tetap untuk kolom enumerasi, tidak menyempit mengikuti hasil tabel. */
     filterValues?: Record<string, (string | number | null)[]>;
-    /** Opt-in Excel-style Blank choice; other browse pages keep distinct NULL/empty values. */
+    /** Excel-style Blank choice; disable only for an endpoint that cannot support blank flags. */
     combineBlankValues?: boolean;
     /** Muat ulang saat kembali ke browse keep-alive; aktif secara default. */
     refreshOnActivate?: boolean;
@@ -84,7 +84,7 @@ const props = withDefaults(
     exportName: "",
     extraQuery: () => ({}),
     refreshOnActivate: true,
-    combineBlankValues: false,
+    combineBlankValues: true,
     compact: false,
     actionWidth: 144,
     expandable: false,
@@ -675,7 +675,7 @@ onActivated(() => {
                 :col-label="col.label"
                 :column-type="col.type"
                 :combine-blank-values="combineBlankValues"
-                :filter-value-type="col.filterValueType"
+                :filter-value-type="col.filterValueType || (col.type === 'date' || col.type === 'datetime' ? 'date' : col.type === 'number' || col.type === 'align-right' ? 'number' : 'string')"
                 :selected="filterSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
                 @apply="(vals) => applyFilterSet(col, vals)"

@@ -25,6 +25,7 @@ test('Distinct Absensi retains NULL, blank, time zero and numeric zero within ac
         const values = distinct === 'Status' ? [null, 0, 1] : [null, '', '00:00:00', '08:00:00']
         const run = handler(async (sql, params) => {
             assert.match(sql, /^SELECT DISTINCT/)
+            assert.match(sql, /OCTET_LENGTH\(.+\) AS value_length/)
             // Satu-satunya pengecualian NULL/kosong yang dibolehkan adalah
             // penjaga kode absensi (karyawan tanpa kode tidak ditampilkan).
             const tanpaPenjagaKode = sql.replace(/k\.kar_kode_absensi IS NOT NULL AND k\.kar_kode_absensi <> ''/g, '')
@@ -52,11 +53,12 @@ test('Time zero is a real IN value; NULL is IS NULL, no coercion to empty', asyn
     assert.deepEqual(calls[0].params, [...Object.values(period), '00:00:00'])
 })
 
-test('Empty time/numeric filters cast to text so zero cannot be selected as blank', async () => {
+test('Empty time/numeric filters use byte length so zero cannot be selected as blank', async () => {
     const run = handler(async (sql, params) => {
-        assert.match(sql, /CAST\(a.scan1 AS CHAR\) = \?/)
-        assert.match(sql, /CAST\(a.status AS CHAR\) = \?/)
-        assert.deepEqual(Array.from(params).slice(2, 4), ['', ''])
+        assert.match(sql, /OCTET_LENGTH\(CAST\(a.scan1 AS CHAR\)\) = 0/)
+        assert.match(sql, /OCTET_LENGTH\(CAST\(a.status AS CHAR\)\) = 0/)
+        assert.deepEqual(Array.from(params).slice(0, 2), Object.values(period))
+        assert.ok(!Array.from(params).includes(''))
         return sql.startsWith('SELECT COUNT') ? [[{ total: 0 }]] : [[]]
     })
     await run({ query: { ...period, filterEmpty_Scan1: '1', filterEmpty_Status: '1' } }, {}, next)
@@ -66,8 +68,8 @@ test('Distinct excludes own selections but keeps other-column NULL/blank filters
     const run = handler(async (sql, params) => {
         assert.doesNotMatch(sql, /a.scan1 IN|a.scan1 IS NULL/)
         assert.match(sql, /a.scan2 IS NULL/)
-        assert.match(sql, /CAST\(TRIM\(CONCAT_WS\(' ', j.jab_nama, k.kar_bagian\)\) AS CHAR\) = \?/)
-        assert.deepEqual(Array.from(params), [...Object.values(period), ''])
+        assert.match(sql, /OCTET_LENGTH\(CAST\(TRIM\(CONCAT_WS\(' ', j.jab_nama, k.kar_bagian\)\) AS CHAR\)\) = 0/)
+        assert.deepEqual(Array.from(params), Object.values(period))
         return [[{ value: null }, { value: '00:00:00' }]]
     })
     await run({ query: { ...period, distinct: 'Scan1', filterSet_Scan1: ['08:00:00'], filterNull_Scan1: '1', filterNull_Scan2: '1', filterEmpty_Bagian: '1' } }, {}, next)
@@ -86,5 +88,5 @@ test('Browse and export share mixed NULL/blank/time-zero selections', async () =
     const excel = calls.at(-1)
     assert.equal(browse.sql.replace(/ LIMIT \? OFFSET \?$/, ''), excel.sql.replace(/ LIMIT 50000$/, ''))
     assert.deepEqual(browse.params.slice(0, -2), excel.params)
-    assert.match(excel.sql, /\(CAST\(a.scan1 AS CHAR\) IN \(\?\) OR CAST\(a.scan1 AS CHAR\) IS NULL OR CAST\(a.scan1 AS CHAR\) = \?\)/)
+    assert.match(excel.sql, /\(CAST\(a.scan1 AS CHAR\) IN \(\?\) OR CAST\(a.scan1 AS CHAR\) IS NULL OR OCTET_LENGTH\(CAST\(a.scan1 AS CHAR\)\) = 0\)/)
 })

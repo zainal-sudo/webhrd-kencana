@@ -137,7 +137,7 @@ export const getAbsensiList = async (req, res, next) => {
             const dcol = LIST_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, filterColumns, req.query.distinct)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value ${FROM_SQL}${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${FROM_SQL}${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))

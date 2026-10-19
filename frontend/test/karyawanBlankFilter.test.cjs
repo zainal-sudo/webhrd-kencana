@@ -67,7 +67,7 @@ test('Reopening combined selections deduplicates blank without incorrectly treat
   assert.ok(!reopened.checked.value.includes(key('')));
 });
 
-test('Default popup keeps NULL and empty separate; no synthetic blank appears when data has none', async () => {
+test('Popup without the combined flag keeps NULL and empty separate; no synthetic blank appears when data has none', async () => {
   const legacy = await popup();
   assert.ok(legacy.allValues.value.includes(key(null)));
   assert.ok(legacy.allValues.value.includes(key('')));
@@ -79,7 +79,7 @@ test('Default popup keeps NULL and empty separate; no synthetic blank appears wh
   assert.ok(!noBlank.allValues.value.includes(key(null)));
 });
 
-test('Karyawan wires every filter column with explicit semantic types and is the only opt-in page', () => {
+test('Karyawan wires explicit semantic types and every browse combines blank values by default', () => {
   const source = read('views/master/KaryawanView.vue');
   const types = compile(source.match(/const filterValueTypes:[\s\S]*?(?=\nconst barcodeTarget)/)[0] + '\nexport { columns };', {}).columns;
   assert.equal(types.length, 30);
@@ -87,15 +87,7 @@ test('Karyawan wires every filter column with explicit semantic types and is the
     const expected = column.key === 'MasaKerja' ? 'number' : ['TglLahir', 'TglMasuk', 'TglKeluar', 'PKWT1', 'PKWT2'].includes(column.key) ? 'date' : 'string';
     assert.equal(column.filterValueType, expected, column.key);
   }
-  const opted = [];
-  function walk(directory) {
-    for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
-      const filename = path.join(directory, item.name);
-      if (item.isDirectory()) walk(filename);
-      else if (filename.endsWith('.vue') && /\bcombine-blank-values\b/.test(fs.readFileSync(filename, 'utf8'))) opted.push(path.relative(root, filename).replaceAll('\\', '/'));
-    }
-  }
-  walk(path.join(root, 'views'));
-  assert.deepEqual(opted, ['views/master/KaryawanView.vue']);
-  assert.match(read('components/BaseBrowse.vue'), /combineBlankValues: false/);
+  // Blank handling is shared: BaseBrowse enables it for every browse view.
+  assert.match(read('components/BaseBrowse.vue'), /combineBlankValues: true/);
+  assert.match(read('components/BaseBrowse.vue'), /col\.type === 'date'.*'date'.*col\.type === 'number'.*'number'.*'string'/);
 });
