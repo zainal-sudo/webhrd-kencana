@@ -13,6 +13,7 @@ import {useAuthStore} from '/src/stores/authStore.ts';
 import {usePermissionStore} from '/src/stores/permissionStore.ts';
 import {api,TOKEN_KEY} from '/src/api/axios.ts';
 import {jakartaToday,calendarDays,moveMonth} from '/src/utils/agenda.ts';
+import {markAgendaLogin} from '/src/utils/agendaLoginMarker.ts';
 import 'vuetify/styles';
 import '/src/assets/design-system.css';
 import '/src/assets/main.css';
@@ -29,7 +30,8 @@ const calls=[];let failList=false, failUsers=false, delayUsers=0, delayList=0;
 api.defaults.adapter=async config=>{
  const url=config.url,method=config.method,body=config.data?JSON.parse(config.data):{};calls.push({url,method,body});
  let result;
- if(url==='/agenda/today')result={date:today,count:rows.length};
+ if(url==='/agenda/notifications/claim')result=[];
+ else if(url==='/agenda/today')result={date:today,count:rows.length,ongoing_count:0,all_day_open_count:rows.filter(row=>row.status==='OPEN'&&!row.start_time&&!row.end_time).length};
  else if(url==='/agenda/users'){
   if(delayUsers)await new Promise(resolve=>setTimeout(resolve,delayUsers));
   if(failUsers)throw {response:{status:503,data:{message:'Gagal memuat akun penerima.'}}};
@@ -51,6 +53,7 @@ api.defaults.adapter=async config=>{
 const app=createApp({render:()=>h(components.VApp,{},()=>h('div',{style:'display:flex;height:100vh'},[h(Sidebar),h('main',{style:'padding:24px'},'HRIS Kencana')]))});
 app.use(createPinia());app.use(createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]}));app.use(vuetify);
 const auth=useAuthStore();auth.token='fixture';auth.user={user_kode:'HRD',user_nama:'HRD',user_akses:''};localStorage.setItem(TOKEN_KEY,'fixture');
+markAgendaLogin('HRD');
 usePermissionStore().loaded=true;
 app.mount('#app');
 const wait=async()=>{await nextTick();await new Promise(r=>setTimeout(r,90));await Promise.all(document.querySelector('.calendar-grid')?.getAnimations().map(animation=>animation.finished.catch(()=>{}))||[]);};
@@ -64,7 +67,7 @@ window.agendaAudit=async()=>{
  await new Promise(resolve=>setTimeout(resolve,350));
  const reminder=document.querySelector('.agenda-login-notice'),reminderRect=reminder.getBoundingClientRect();
  const pointsToAgenda=()=>{const bubble=reminder.getBoundingClientRect(),icon=document.querySelector('.agenda-menu-icon').getBoundingClientRect();return Math.abs(bubble.left+parseFloat(getComputedStyle(reminder).getPropertyValue('--agenda-tail-x'))-(icon.left+icon.width/2))<=1&&Math.abs(icon.top-bubble.bottom-12)<=1;};
- result.loginReminder=reminder.textContent.includes('3 agenda')&&reminderRect.left>=0&&reminderRect.left<40&&pointsToAgenda();
+ result.loginReminder=reminder.textContent.includes('1 agenda seharian')&&reminder.querySelector('strong').textContent==='Agenda hari ini'&&reminderRect.left>=0&&reminderRect.left<40&&pointsToAgenda();
  const surface=reminder.querySelector('.agenda-login-shape path');
  result.translucentReminder=getComputedStyle(surface).fill.includes('0.88');
  result.continuousReminder=reminder.querySelectorAll('.agenda-login-shape path').length===1&&surface.getAttribute('d').includes('C')&&getComputedStyle(reminder,'::after').content==='none';
@@ -74,7 +77,7 @@ window.agendaAudit=async()=>{
  result.reminderPointsWhenExpanded=pointsToAgenda();
  document.querySelector('.agenda-login-close').click();await until(()=>!document.querySelector('.agenda-login-notice'));
  window.dispatchEvent(new Event('focus'));await wait();result.reminderDismissed=!document.querySelector('.agenda-login-notice');
- auth.token='fixture-login-2';await until(()=>document.querySelector('.agenda-login-notice'));
+ markAgendaLogin('HRD');auth.token='fixture-login-2';await until(()=>document.querySelector('.agenda-login-notice'));
  document.querySelector('.agenda-login-open').click();await until(()=>document.querySelector('.agenda-card'));
  result.reminderOpensCalendar=!!document.querySelector('.agenda-dialog');
  document.querySelector('[aria-label="Tutup kalender agenda"]').click();await wait();
@@ -127,7 +130,7 @@ window.agendaAudit=async()=>{
  result.clearFilteredOnly=document.querySelectorAll('.selected-recipients li').length===2&&!document.querySelector('.recipient-option input').checked;
  document.querySelector('.recipient-select-all input').click();await wait();
  document.querySelector('.agenda-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await until(()=>!document.querySelector('.agenda-form'));
- result.created=calls.some(c=>c.method==='post'&&['p1','p2','p4'].every(code=>c.body.recipients.includes(code)));
+ result.created=calls.some(c=>c.url==='/agenda'&&c.method==='post'&&['p1','p2','p4'].every(code=>c.body.recipients.includes(code)));
  [...document.querySelectorAll('.agenda-card')].find(e=>e.textContent.includes('Agenda baru')).click();await until(()=>document.querySelectorAll('.recipient-option input:checked').length===3);
  result.reopened=document.querySelectorAll('.selected-recipients li').length===3;
  document.querySelector('[aria-label="Hapus penerima P2"]').click();await wait();result.removedOne=document.querySelectorAll('.selected-recipients li').length===2&&!document.querySelector('.recipient-option input[value=p2]').checked;

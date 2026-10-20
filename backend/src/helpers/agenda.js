@@ -10,6 +10,11 @@ export function jakartaToday(now = new Date()) {
     const get = name => parts.find(part => part.type === name).value
     return `${get('year')}-${get('month')}-${get('day')}`
 }
+export function agendaNotificationClock(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(now)
+    const get = type => parts.find(part => part.type === type).value
+    return { date: jakartaToday(now), time: `${get('hour')}:${get('minute')}:${get('second')}` }
+}
 export function validateAgenda(body) {
     const title = typeof body.title === 'string' ? body.title.trim() : ''
     const notes = body.notes ?? ''

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { authApi } from "@/api";
 import { TOKEN_KEY, USER_KEY, MENUS_KEY, resetAuthRequests, getAuthSessionVersion, cancelledAuthRequest } from "@/api/axios";
 import type { AuthUser, MenuIjin } from "@/types";
+import { markAgendaLogin, clearAgendaLoginMarker } from "@/utils/agendaLoginMarker";
 
 function readJson<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key);
@@ -38,6 +39,7 @@ export const useAuthStore = defineStore("auth", {
       localStorage.setItem(TOKEN_KEY, res.token);
       localStorage.setItem(USER_KEY, JSON.stringify(res.user));
       localStorage.setItem(MENUS_KEY, JSON.stringify(this.menus));
+      markAgendaLogin(res.user.user_kode);
       return res;
     },
 
@@ -75,6 +77,7 @@ export const useAuthStore = defineStore("auth", {
     },
 
     logout() {
+      clearAgendaLoginMarker();
       resetAuthRequests();
       this.token = "";
       this.user = null;

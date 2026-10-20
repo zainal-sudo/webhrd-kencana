@@ -8,10 +8,12 @@ import { normalizeIcon } from "@/utils/icon";
 import { useTabNavigation } from "@/composables/useTabNavigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useAgendaNotice } from "@/composables/useAgendaNotice";
+import { useAgendaStartNotice } from "@/composables/useAgendaStartNotice";
 
 const auth = useAuthStore();
-const agenda = useAgendaNotice(() => auth.isAuthenticated ? `${auth.token}:${auth.user?.user_kode}` : "");
-const { open: agendaOpen, count: agendaCount, failure: agendaFailure, refreshKey: agendaRefreshKey, loginNoticeCount, dismissLoginNotice } = agenda;
+const agenda = useAgendaNotice(() => auth.isAuthenticated ? `${auth.token}:${auth.user?.user_kode}` : "", () => auth.user?.user_kode || "");
+useAgendaStartNotice(() => auth.isAuthenticated ? `${auth.token}:${auth.user?.user_kode}` : "");
+const { open: agendaOpen, count: agendaCount, failure: agendaFailure, refreshKey: agendaRefreshKey, loginNoticeCount, loginOngoingCount, loginAllDayCount, dismissLoginNotice } = agenda;
 const AgendaCalendar = defineAsyncComponent(() => import("@/components/AgendaCalendar.vue"));
 
 const route = useRoute();
@@ -250,7 +252,7 @@ function go(routePath?: string) {
       <section v-if="auth.isAuthenticated && loginNoticeCount > 0" ref="loginNotice" class="agenda-login-notice" :style="{ left: `${noticePosition.left}px`, bottom: `${noticePosition.bottom}px`, '--agenda-tail-x': `${noticePosition.tail}px` }" role="status" aria-live="polite" aria-atomic="true">
         <svg class="agenda-login-shape" :viewBox="`0 0 ${noticeSize.width} ${noticeSize.height + 12}`" preserveAspectRatio="none" aria-hidden="true"><path :d="noticeOutline" /></svg>
         <MsIcon name="calendar_month" :size="24" />
-        <div class="agenda-login-message"><strong>Agenda hari ini</strong><p>Ada {{ loginNoticeCount }} agenda untuk Anda hari ini.</p><button type="button" class="agenda-login-open" @click="agendaOpen = true; dismissLoginNotice(); agenda.refresh()">Lihat agenda</button></div>
+        <div class="agenda-login-message"><strong>{{ loginOngoingCount > 0 ? 'Agenda sedang berlangsung' : 'Agenda hari ini' }}</strong><p v-if="loginOngoingCount > 0">Ada {{ loginOngoingCount }} agenda yang sedang berlangsung.</p><p v-if="loginAllDayCount > 0">Ada {{ loginAllDayCount }} agenda seharian untuk Anda hari ini.</p><button type="button" class="agenda-login-open" @click="agendaOpen = true; dismissLoginNotice(); agenda.refresh()">Lihat agenda</button></div>
         <button type="button" class="agenda-login-close" aria-label="Tutup notifikasi agenda" @click="dismissLoginNotice"><MsIcon name="close" :size="18" /></button>
       </section>
     </Transition>

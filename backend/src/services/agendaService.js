@@ -1,7 +1,7 @@
-import { accountCode, agendaError, validAgendaDate, validateAgenda, jakartaToday } from '../helpers/agenda.js'
+import { accountCode, agendaError, validAgendaDate, validateAgenda, agendaNotificationClock } from '../helpers/agenda.js'
 
 // Factory keeps SQL/transactions testable without a live production database.
-export function createAgendaService(pool) {
+export function createAgendaService(pool, { now = () => new Date() } = {}) {
     const columns = 'a.*, UNIX_TIMESTAMP(a.updated_at) AS updated_at_epoch'
     const access = `(a.creator = ? OR (a.visibility = 'shared' AND EXISTS
         (SELECT 1 FROM web_agenda_recipient r WHERE r.agenda_id = a.id AND r.user_code = ?)))`
@@ -59,9 +59,16 @@ export function createAgendaService(pool) {
             return rows.map(row => shape(row, recipientsByAgenda.get(row.id) || []))
         },
         async today(user) {
-            const code = await actor(user), date = jakartaToday()
-            const [rows] = await pool.query(`SELECT COUNT(*) AS count FROM web_agenda a WHERE a.agenda_date = ? AND ${access}`, [date, code, code])
-            return { date, count: Number(rows[0].count) }
+            const code = await actor(user), { date, time } = agendaNotificationClock(now())
+            // Login reminder is independent of start-notice acknowledgements.
+            // Keep the original total for the daily sidebar indicator.
+            const [rows] = await pool.query(`SELECT COUNT(*) AS count,
+                COALESCE(SUM(CASE WHEN a.status = 'OPEN' AND a.start_time IS NOT NULL AND a.end_time IS NOT NULL
+                    AND a.end_time > a.start_time AND a.start_time <= ? AND a.end_time >= ? THEN 1 ELSE 0 END), 0) AS ongoing_count,
+                COALESCE(SUM(CASE WHEN a.status = 'OPEN' AND a.start_time IS NULL AND a.end_time IS NULL
+                    THEN 1 ELSE 0 END), 0) AS all_day_open_count
+                FROM web_agenda a WHERE a.agenda_date = ? AND ${access}`, [time, time, date, code, code])
+            return { date, count: Number(rows[0].count), ongoing_count: Number(rows[0].ongoing_count), all_day_open_count: Number(rows[0].all_day_open_count) }
         },
         async users(user, search = '') {
             await actor(user)

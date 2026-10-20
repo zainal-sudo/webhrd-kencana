@@ -18,7 +18,8 @@ async function render(routePath, collapsed = false) {
     { module, exports: module.exports, capture: ref => { ref.value = collapsed; }, require(name) {
       if (name === 'vue') return vue;
       if (name === '@/stores/authStore') return { useAuthStore: () => ({ isAuthenticated: true, user: { user_kode: 'hrd' }, token: 'test' }) };
-      if (name === '@/composables/useAgendaNotice') return { useAgendaNotice: () => ({ open: vue.ref(false), count: vue.ref(1), failure: vue.ref(''), refreshKey: vue.ref(0), refresh() {} }) };
+      if (name === '@/composables/useAgendaNotice') return { useAgendaNotice: () => ({ open: vue.ref(false), count: vue.ref(1), failure: vue.ref(''), refreshKey: vue.ref(0), loginNoticeCount: vue.ref(0), loginOngoingCount: vue.ref(0), loginAllDayCount: vue.ref(0), dismissLoginNotice() {}, refresh() {} }) };
+      if (name === '@/composables/useAgendaStartNotice') return { useAgendaStartNotice() {} };
       if (name === 'vue-router') return { useRoute: () => ({ path: routePath }), useRouter: () => ({ push() {} }) };
       if (name === '@/components/MsIcon.vue') return { default: vue.defineComponent({ props: ['name'], setup: props => () => vue.h('i', { 'data-icon': props.name }) }) };
       if (name === '@/stores/permissionStore') return { usePermissionStore: () => ({ menuTree: menus, loaded: true }) };

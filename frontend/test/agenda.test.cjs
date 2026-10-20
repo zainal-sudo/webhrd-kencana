@@ -39,31 +39,38 @@ test('Month/week calendar uses Monday start, correct leap/year transitions and J
   assert.equal(utils.agendaTimeError('08:00', '09:00'), '');
   for (const [start, end] of [['08:00', ''], ['', '09:00'], ['09:00', '09:00'], ['10:00', '09:00']]) assert.ok(utils.agendaTimeError(start, end));
 });
-function noticeFixture() {
+function noticeFixture({ storage = new Map(), login = true } = {}) {
   const mounted = [], unmounted = [], intervals = new Map(), timeouts = new Map(), events = new Map(), requests = [];
   let timer = 0;
   const identity = vue.ref('token:hrd');
+  const markers = evaluate(read('utils/agendaLoginMarker.ts'), {}, { crypto: require('node:crypto').webcrypto,
+    sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) } });
+  if (login) markers.markAgendaLogin('hrd');
   const doc = { hidden: false, addEventListener: (key, fn) => events.set(key, fn), removeEventListener: key => events.delete(key) };
   const scope = vue.effectScope();
   const { useAgendaNotice } = evaluate(read('composables/useAgendaNotice.ts'), {
     vue: { ...vue, onMounted: fn => mounted.push(fn), onUnmounted: fn => unmounted.push(fn) },
     '@/api/axios': { api: { get: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })) }, getErrorMessage: err => err.message },
     '@/utils/agenda': utils,
+    '@/utils/agendaLoginMarker': markers,
   }, { document: doc, window: doc, setInterval: (fn, ms) => { assert.equal(ms, 60000); intervals.set(++timer, fn); return timer; }, clearInterval: id => intervals.delete(id), setTimeout: (fn, ms) => { timeouts.set(++timer, { fn, ms }); return timer; }, clearTimeout: id => timeouts.delete(id) });
-  const state = scope.run(() => useAgendaNotice(() => identity.value));
+  const state = scope.run(() => useAgendaNotice(() => identity.value, () => identity.value.split(':').at(-1)));
   mounted.forEach(fn => fn());
-  return { ...state, identity, doc, intervals, timeouts, events, requests, dispose() { unmounted.forEach(fn => fn()); scope.stop(); } };
+  return { ...state, identity, markers, storage, doc, intervals, timeouts, events, requests,
+    login(value) { markers.markAgendaLogin(value.split(':').at(-1)); identity.value = value; },
+    dispose() { unmounted.forEach(fn => fn()); scope.stop(); } };
 }
 const flush = async () => { await Promise.resolve(); await vue.nextTick(); };
 test('Login reminder shows once for agenda today, closes after 20 seconds, and does not repeat on focus', async () => {
   const f = noticeFixture();
   try {
-    f.requests[0].resolve({ data: { data: { count: 3, date: utils.jakartaToday() } } }); await flush();
+    f.requests[0].resolve({ data: { data: { count: 5, ongoing_count: 2, all_day_open_count: 1, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.loginNoticeCount.value, 3);
+    assert.equal(f.count.value, 5); assert.equal(f.loginOngoingCount.value, 2); assert.equal(f.loginAllDayCount.value, 1);
     const timeout = [...f.timeouts.values()][0]; assert.equal(timeout.ms, 20000);
     timeout.fn(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
     f.events.get('focus')();
-    f.requests[1].resolve({ data: { data: { count: 4, date: utils.jakartaToday() } } }); await flush();
+    f.requests[1].resolve({ data: { data: { count: 4, ongoing_count: 4, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
   } finally { f.dispose(); }
 });
@@ -72,16 +79,16 @@ test('Login reminder has no empty alert and can be dismissed; logout and unmount
   try {
     f.requests[0].resolve({ data: { data: { count: 0, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
-    f.identity.value = 'token2:p1'; await flush();
-    f.requests[1].resolve({ data: { data: { count: 1, date: utils.jakartaToday() } } }); await flush();
+    f.login('token2:p1'); await flush();
+    f.requests[1].resolve({ data: { data: { count: 1, all_day_open_count: 1, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.loginNoticeCount.value, 1);
     f.dismissLoginNotice(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
-    f.identity.value = 'token3:hrd'; await flush();
-    f.requests[2].resolve({ data: { data: { count: 2, date: utils.jakartaToday() } } }); await flush();
+    f.login('token3:hrd'); await flush();
+    f.requests[2].resolve({ data: { data: { count: 2, all_day_open_count: 2, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.loginNoticeCount.value, 2);
     f.identity.value = ''; await flush(); assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.timeouts.size, 0);
-    f.identity.value = 'token4:hrd'; await flush();
-    f.requests[3].resolve({ data: { data: { count: 1, date: utils.jakartaToday() } } }); await flush();
+    f.login('token4:hrd'); await flush();
+    f.requests[3].resolve({ data: { data: { count: 1, all_day_open_count: 1, date: utils.jakartaToday() } } }); await flush();
     assert.equal(f.timeouts.size, 1);
   } finally { f.dispose(); }
   assert.equal(f.timeouts.size, 0);
@@ -112,6 +119,53 @@ test('Notice cannot reuse previous-account responses and clears stale indicator 
     assert.equal(f.count.value, 1);
     const pending = f.refresh(); f.requests[2].reject(Error('offline')); await pending;
     assert.equal(f.count.value, 0); assert.equal(f.failure.value, 'offline');
+  } finally { f.dispose(); }
+});
+
+test('Refresh/remount and profile restoration do not recreate a consumed login reminder; a fresh explicit login does', async () => {
+  const storage = new Map(), first = noticeFixture({ storage });
+  const summary = { count: 9, ongoing_count: 1, all_day_open_count: 2, date: utils.jakartaToday() };
+  first.requests[0].resolve({ data: { data: summary } }); await flush();
+  assert.equal(first.loginNoticeCount.value, 3); first.dispose();
+  const restored = noticeFixture({ storage, login: false });
+  try {
+    restored.requests[0].resolve({ data: { data: summary } }); await flush();
+    assert.equal(restored.loginNoticeCount.value, 0); assert.equal(restored.count.value, 9);
+    restored.identity.value = 'restored-profile:hrd'; await flush();
+    restored.requests[1].resolve({ data: { data: summary } }); await flush();
+    assert.equal(restored.loginNoticeCount.value, 0);
+    restored.login('explicit-login:hrd'); await flush();
+    restored.requests[2].resolve({ data: { data: summary } }); await flush();
+    assert.equal(restored.loginOngoingCount.value, 1); assert.equal(restored.loginAllDayCount.value, 2);
+  } finally { restored.dispose(); }
+});
+
+test('Empty successful login check consumes its marker; polling cannot later announce future agendas as a login reminder', async () => {
+  const f = noticeFixture();
+  try {
+    f.requests[0].resolve({ data: { data: { count: 7, ongoing_count: 0, all_day_open_count: 0, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.markers.readAgendaLoginMarker('hrd'), null);
+    f.events.get('focus')();
+    f.requests[1].resolve({ data: { data: { count: 7, ongoing_count: 3, all_day_open_count: 0, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 0);
+  } finally { f.dispose(); }
+});
+
+test('Login reminder failure can retry once; stale response never consumes a newer login nonce', async () => {
+  const f = noticeFixture();
+  try {
+    f.requests[0].reject(Error('offline')); await flush();
+    assert.ok(f.markers.readAgendaLoginMarker('hrd'));
+    f.events.get('focus')();
+    const previous = f.markers.readAgendaLoginMarker('hrd').nonce;
+    f.markers.markAgendaLogin('hrd');
+    const next = f.markers.readAgendaLoginMarker('hrd').nonce;
+    assert.notEqual(previous, next);
+    f.requests[1].resolve({ data: { data: { count: 1, ongoing_count: 1, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginNoticeCount.value, 0); assert.equal(f.markers.readAgendaLoginMarker('hrd').nonce, next);
+    f.events.get('focus')();
+    f.requests[2].resolve({ data: { data: { count: 1, ongoing_count: 1, date: utils.jakartaToday() } } }); await flush();
+    assert.equal(f.loginOngoingCount.value, 1); assert.equal(f.markers.readAgendaLoginMarker('hrd'), null);
   } finally { f.dispose(); }
 });
 function calendarFixture() {

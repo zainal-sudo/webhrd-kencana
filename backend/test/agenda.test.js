@@ -10,6 +10,7 @@ function database() {
     const calls = [], users = ['hrd', 'p1', 'p2', 'p4', 'super']
     const db = {
         calls,
+        seed(row) { records.push({ id: ++sequence, ...row }) },
         async query(sql, params = []) {
             calls.push({ sql, params })
             if (sql.startsWith('SELECT agenda_id, user_code FROM')) return [links.filter(link => params[0].includes(link.agenda_id)).sort((a, b) => a.user_code.localeCompare(b.user_code))]
@@ -29,8 +30,14 @@ function database() {
                 let found = records.filter(row => lockOnly || row.creator === code || (row.visibility === 'shared' && links.some(link => link.agenda_id === row.id && link.user_code === code)))
                 if (sql.includes('a.id = ?')) found = found.filter(row => row.id === Number(params[0]))
                 else if (sql.includes('BETWEEN')) found = found.filter(row => row.agenda_date >= params[0] && row.agenda_date <= params[1])
-                else found = found.filter(row => row.agenda_date === params[0])
-                return [sql.includes('COUNT(*)') ? [{ count: found.length }] : structuredClone(found)]
+                else found = found.filter(row => row.agenda_date === params[sql.includes('ongoing_count') ? 2 : 0])
+                if (sql.includes('COUNT(*)')) {
+                    const time = value => value?.length === 5 ? `${value}:00` : value
+                    return [[{ count: found.length,
+                        ongoing_count: found.filter(row => row.status === 'OPEN' && row.start_time && row.end_time && row.end_time > row.start_time && time(row.start_time) <= params[0] && time(row.end_time) >= params[1]).length,
+                        all_day_open_count: found.filter(row => row.status === 'OPEN' && row.start_time == null && row.end_time == null).length }]]
+                }
+                return [structuredClone(found)]
             }
             if (sql.startsWith('SELECT user_code FROM')) return [links.filter(link => link.agenda_id === Number(params[0]) && (params.length === 1 || link.user_code === params[1])).sort((a, b) => a.user_code.localeCompare(b.user_code)).map(link => ({ user_code: link.user_code }))]
             if (sql.startsWith('INSERT INTO web_agenda (')) {
@@ -115,10 +122,41 @@ test('Today counts all statuses and only authorized agendas; range/search return
     const service = createAgendaService(database()), date = jakartaToday()
     for (const status of ['OPEN', 'SELESAI', 'BATAL']) await service.save('hrd', null, body({ date, status, visibility: 'shared', recipients: ['p1'] }))
     assert.equal((await service.today('p1')).count, 3)
+    assert.equal((await service.today('p1')).all_day_open_count, 1)
     assert.equal((await service.today('super')).count, 0)
     assert.deepEqual(await service.users('p1', 'hrd'), [{ code: 'hrd', name: 'Nama hrd' }])
     await assert.rejects(service.list('p1', '2026-10-31', '2026-10-01'), { statusCode: 400 })
     await assert.rejects(service.list('p1', '2026-01-01', '2026-12-31'), { statusCode: 400 })
+})
+
+test('Login reminder counts only ongoing OPEN and all-day OPEN, independent of acknowledgements; indicator total stays unchanged', async () => {
+    const db = database(), date = '2026-10-20'
+    const service = createAgendaService(db, { now: () => new Date('2026-10-20T02:30:00Z') })
+    const seed = extra => db.seed({ title: 'Agenda', agenda_date: date, creator: 'hrd', visibility: 'private', status: 'OPEN', start_time: '09:00:00', end_time: '10:00:00', ...extra })
+    seed({}); seed({ start_time: '10:00:00', end_time: '11:00:00' }); seed({ start_time: '07:00:00', end_time: '08:00:00' })
+    seed({ status: 'SELESAI' }); seed({ status: 'BATAL' })
+    seed({ start_time: null, end_time: null }); seed({ status: 'SELESAI', start_time: null, end_time: null }); seed({ status: 'BATAL', start_time: null, end_time: null })
+    seed({ end_time: null }); seed({ start_time: null }); seed({ start_time: '10:00:00', end_time: '09:00:00' })
+    seed({ creator: 'p4' })
+    await service.save('hrd', null, body({ date, start_time: '09:00', end_time: '10:00', visibility: 'shared', recipients: ['p1'] }))
+    await service.save('p1', null, body({ date }))
+    assert.deepEqual(await service.today('hrd'), { date, count: 12, ongoing_count: 2, all_day_open_count: 1 })
+    assert.deepEqual(await service.today('p1'), { date, count: 2, ongoing_count: 1, all_day_open_count: 1 })
+    const query = db.calls.find(call => call.sql.includes('ongoing_count'))
+    assert.match(query.sql, /a\.status = 'OPEN'/)
+    assert.match(query.sql, /a\.end_time > a\.start_time AND a\.start_time <= \? AND a\.end_time >= \?/)
+    assert.match(query.sql, /a\.start_time IS NULL AND a\.end_time IS NULL/)
+    assert.doesNotMatch(query.sql, /web_agenda_start_notice|NOT EXISTS/)
+    assert.deepEqual(query.params, ['09:30:00', '09:30:00', date, 'hrd', 'hrd'])
+})
+
+test('Ongoing reminder uses inclusive start/end in WIB and excludes the agenda after end', async () => {
+    const db = database(), date = '2026-10-20'
+    db.seed({ agenda_date: date, creator: 'hrd', visibility: 'private', status: 'OPEN', start_time: '09:00:00', end_time: '10:00:00' })
+    for (const [time, count] of [['08:59:59', 0], ['09:00:00', 1], ['10:00:00', 1], ['10:00:01', 0]]) {
+        const service = createAgendaService(db, { now: () => new Date(`${date}T${time}+07:00`) })
+        assert.equal((await service.today('hrd')).ongoing_count, count, time)
+    }
 })
 test('Validation handles leap days, times, safe titles, recipients and Jakarta midnight', () => {
     assert.equal(validAgendaDate('2024-02-29'), true)

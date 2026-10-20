@@ -21,7 +21,9 @@ function fixture(token = 'session-a') {
   const values = new Map(token ? [['kencana_hrd_token', token]] : []);
   const localStorage = { getItem: k => values.get(k) ?? null, setItem: (k, v) => values.set(k, String(v)), removeItem: k => values.delete(k) };
   const events = [], requests = [];
-  const globals = { localStorage, window: { dispatchEvent: event => events.push(event.type) } };
+  const sessionValues = new Map();
+  const sessionStorage = { getItem: key => sessionValues.get(key) ?? null, setItem: (key, value) => sessionValues.set(key, value), removeItem: key => sessionValues.delete(key) };
+  const globals = { localStorage, sessionStorage, crypto: require('node:crypto').webcrypto, window: { dispatchEvent: event => events.push(event.type) } };
   const transport = compile(read('api/axios.ts'), { axios }, globals);
   transport.api.defaults.adapter = config => new Promise((resolve, reject) => requests.push({ config,
     reply(data = {}, status = 200) {
@@ -36,12 +38,13 @@ function fixture(token = 'session-a') {
   };
   const authApi = { login: async () => ({ token: 'session-b', user: { user_kode: 'B' }, menus: [] }),
     me: async () => ({ user_kode: 'A', user_nama: 'A', menus: [] }) };
-  const authModule = compile(read('stores/authStore.ts'), { pinia, '@/api': { authApi }, '@/api/axios': transport }, globals);
+  const loginMarkers = compile(read('utils/agendaLoginMarker.ts'), {}, globals);
+  const authModule = compile(read('stores/authStore.ts'), { pinia, '@/api': { authApi }, '@/api/axios': transport, '@/utils/agendaLoginMarker': loginMarkers }, globals);
   const instance = pinia.createPinia(), auth = authModule.useAuthStore(instance);
   if (token) auth.user = { user_kode: 'A', user_nama: 'A' };
   const permissionModule = compile(read('stores/permissionStore.ts'), { pinia, '@/stores/authStore': { useAuthStore: () => auth }, '@/utils/menuMap': { GRUP: {}, definisiMenu: () => null } });
   const permission = permissionModule.usePermissionStore(instance);
-  return { ...transport, values, events, requests, localStorage, start, auth, authApi, permission };
+  return { ...transport, values, sessionValues, loginMarkers, events, requests, localStorage, start, auth, authApi, permission };
 }
 function assertSilent(f, result) {
   assert.ok(axios.isCancel(result.error));
@@ -160,4 +163,21 @@ test('Request captures its session immediately before logout, without an interce
   assert.equal(request.config.signal.aborted, true);
   request.reply({ user_kode: 'A' }); assertSilent(f, await done);
   assert.deepEqual(f.events, []);
+});
+
+test('Only successful explicit login creates a new agenda nonce; profile restore does not, logout clears it', async () => {
+  const f = fixture('');
+  assert.equal(f.sessionValues.size, 0);
+  await f.auth.login('B', 'password');
+  const first = f.loginMarkers.readAgendaLoginMarker('b'); assert.ok(first);
+  assert.equal(f.sessionValues.size, 1);
+  f.authApi.me = async () => ({ user_kode: 'B', user_nama: 'B', menus: [] });
+  await f.auth.refreshProfile(); assert.equal(f.loginMarkers.readAgendaLoginMarker('b').nonce, first.nonce);
+  assert.equal(f.loginMarkers.consumeAgendaLoginMarker('B', first.nonce), true);
+  await f.auth.refreshProfile(); assert.equal(f.sessionValues.size, 0);
+  f.auth.logout(); assert.equal(f.sessionValues.size, 0);
+  await f.auth.login('B', 'password'); assert.notEqual(f.loginMarkers.readAgendaLoginMarker('b').nonce, first.nonce);
+  f.auth.logout(); assert.equal(f.sessionValues.size, 0);
+  f.authApi.login = async () => { throw Error('Wrong password') };
+  await assert.rejects(f.auth.login('B', 'wrong'), /Wrong password/); assert.equal(f.sessionValues.size, 0);
 });
