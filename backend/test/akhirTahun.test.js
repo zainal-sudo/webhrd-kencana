@@ -67,12 +67,12 @@ function fixture() {
     } }
 }
 
-test('Annual columns are 9 identity + 12 x 6 metrics + 6 totals, with consistent Lain Lain labels', () => {
+test('Annual columns are 9 identity + 12 x 6 metrics + 6 totals, with consistent Lain-lain labels', () => {
     assert.equal(AKHIR_TAHUN_COLUMNS.length, 87)
     for (let month = 1; month <= 12; month++) {
-        assert.equal(AKHIR_TAHUN_COLUMNS.find(column => column.key === `Lain_Lain_${month}`).label, `Lain Lain ${month}`)
+        assert.equal(AKHIR_TAHUN_COLUMNS.find(column => column.key === `Lain_Lain_${month}`).label, `Lain-lain ${month}`)
     }
-    assert.equal(AKHIR_TAHUN_COLUMNS.find(column => column.key === 'Total_Lain_Lain').label, 'Total Lain Lain')
+    assert.equal(AKHIR_TAHUN_COLUMNS.find(column => column.key === 'Total_Lain_Lain').label, 'Total Lain-lain')
     assert.doesNotMatch(JSON.stringify(AKHIR_TAHUN_COLUMNS), /cuti/i)
 })
 
@@ -83,7 +83,7 @@ test('Year validation is strict and creates inclusive-start/exclusive-end calend
     }
 })
 
-test('Verified October: 2 Dinas Luar + 2 Tidak Masuk/Ket3 give Lain Lain 2, annual total 36; types 4/5/1 are excluded', async () => {
+test('Verified October: 2 Dinas Luar + 2 Tidak Masuk/Ket3 give Lain-lain 2, annual total 36; types 4/5/1 are excluded', async () => {
     const f = fixture()
     try {
         const res = await f.request()
@@ -123,7 +123,7 @@ test('Legacy active employee/inner job scope, zero rows, shared attendance codes
     } finally { f.db.close() }
 })
 
-test('Every month 1 through 12 has independent category counts; types 4/5 never contribute to Lain Lain', async () => {
+test('Every month 1 through 12 has independent category counts; types 4/5 never contribute to Lain-lain', async () => {
     const f = fixture()
     try {
         const insert = f.db.prepare('INSERT INTO tijin VALUES (?, ?, ?, ?)')

@@ -62,9 +62,9 @@ test('Actual annual SFC renders year choice and forwards read-only browse/export
   assert.equal(yearProps.menuProps.contentClass, 'annual-year-menu');
   assert.equal(yearProps.menuProps.maxHeight, 280);
   assert.equal(yearProps.variant, 'outlined');
-  assert.match(html, /Lain Lain 1<\/th>/);
-  assert.match(html, /Lain Lain 12<\/th>/);
-  assert.match(html, /Total Lain Lain<\/th>/);
+  assert.match(html, /Lain-lain 1<\/th>/);
+  assert.match(html, /Lain-lain 12<\/th>/);
+  assert.match(html, /Total Lain-lain<\/th>/);
   assert.equal(props.endpoint, '/laporan/akhir-tahun');
   assert.equal(props.extraQuery.tahun, new Date().getFullYear());
   assert.equal(props.showActions, false);

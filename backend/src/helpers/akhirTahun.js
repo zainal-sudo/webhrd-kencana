@@ -3,7 +3,7 @@ export const AKHIR_TAHUN_METRICS = [
     { key: 'Sakit', label: 'Sakit', condition: 'ij_ji_id = 3 AND ij_keterangan = 0' },
     { key: 'Ijin', label: 'Ijin', condition: 'ij_ji_id = 3 AND ij_keterangan = 1' },
     { key: 'Alpha', label: 'Alpha', condition: 'ij_ji_id = 3 AND ij_keterangan = 2' },
-    { key: 'Lain_Lain', label: 'Lain Lain', condition: 'ij_ji_id = 3 AND ij_keterangan = 3' },
+    { key: 'Lain_Lain', label: 'Lain-lain', condition: 'ij_ji_id = 3 AND ij_keterangan = 3' },
     { key: 'Terlambat', label: 'Terlambat' },
     { key: 'ST_Hari', label: 'ST Hari', condition: 'ij_ji_id = 2' },
 ]

@@ -8,7 +8,7 @@ const tahun = ref(currentYear);
 const years = Array.from({ length: currentYear - 1900 + 2 }, (_, index) => currentYear + 1 - index);
 const metrics = [
   { key: "Sakit", label: "Sakit" }, { key: "Ijin", label: "Ijin" },
-  { key: "Alpha", label: "Alpha" }, { key: "Lain_Lain", label: "Lain Lain" },
+  { key: "Alpha", label: "Alpha" }, { key: "Lain_Lain", label: "Lain-lain" },
   { key: "Terlambat", label: "Terlambat" }, { key: "ST_Hari", label: "ST Hari" },
 ];
 const numericColumn = (key: string, label: string): BrowseColumn => ({ key, label, type: "number", align: "right" });
