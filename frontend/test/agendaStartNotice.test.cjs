@@ -9,22 +9,23 @@ const vue = require('vue');
 const CLIENT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CLIENT_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 function fixture(serverClaims = new Set(), clientId = CLIENT_A) {
-  const mounted = [], unmounted = [], intervals = new Map(), events = new Map(), requests = [], shown = [], dismissed = [];
+  const mounted = [], unmounted = [], intervals = new Map(), events = new Map(), requests = [], timeouts = new Map();
+  let sequence = 0;
   const identity = vue.ref('session1:hrd');
   const doc = { hidden: false, addEventListener: (key, fn) => events.set(key, fn), removeEventListener: key => events.delete(key) };
-  const toast = { info: (content, options) => { shown.push({ content, options }); return shown.length }, dismiss: id => dismissed.push(id) };
   const module = { exports: {} };
   const source = fs.readFileSync(path.join(__dirname, '../src/composables/useAgendaStartNotice.ts'), 'utf8');
   const api = { post: (url, body) => new Promise((resolve, reject) => requests.push({ url, body, resolve, reject, who: identity.value })) };
   const deps = {
     vue: { ...vue, onMounted: fn => mounted.push(fn), onUnmounted: fn => unmounted.push(fn) },
-    'vue-toastification': { useToast: () => toast }, '@/api/axios': { api }, '@/components/AgendaStartToast.vue': { default: {} },
+    '@/api/axios': { api },
     '@/utils/agendaClientId': { getAgendaClientId: () => Promise.resolve(clientId) },
   };
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     module, exports: module.exports, require: name => deps[name], document: doc,
     window: { addEventListener: (key, fn) => events.set(key, fn), removeEventListener: key => events.delete(key) },
     setInterval: (fn, delay) => { intervals.set(fn, delay); return fn }, clearInterval: fn => intervals.delete(fn),
+    setTimeout: (fn, delay) => { timeouts.set(++sequence, { fn, delay }); return sequence }, clearTimeout: id => timeouts.delete(id),
   });
   const scope = vue.effectScope();
   const instance = scope.run(() => module.exports.useAgendaStartNotice(() => identity.value));
@@ -37,7 +38,7 @@ function fixture(serverClaims = new Set(), clientId = CLIENT_A) {
     for (const notice of fresh) serverClaims.add(`${user}:${request.body.client_id}:${notice.id}`);
     request.resolve({ data: { data: fresh } }); await flush();
   };
-  return { identity, doc, intervals, events, requests, shown, dismissed, flush, respond, instance,
+  return { identity, doc, intervals, events, requests, get shown() { return instance.notices.value }, timeouts, flush, respond, instance,
     unmount() { unmounted.forEach(fn => fn()); scope.stop() } };
 }
 const notice = (id = 1) => ({ id, title: 'Rapat HRD', date: '2026-10-19', start_time: '09:00', end_time: '10:00', visibility: 'shared', kind: 'ongoing' });
@@ -51,10 +52,10 @@ test('Initial app/login checks catch-up; regular 60-second polling does not over
   [...f.intervals.keys()][0](); f.events.get('focus')();
   assert.equal(f.requests.length, 1);
   await f.respond(0, [notice()]); assert.equal(f.shown.length, 1);
-  assert.equal(f.shown[0].options.timeout, 15000); assert.equal(f.shown[0].options.closeButton, 'button');
+  assert.equal([...f.timeouts.values()][0].delay, 15000);
   [...f.intervals.keys()][0](); await f.flush(); assert.equal(f.requests[1].body.catch_up, false);
   await f.respond(1, [notice()]); assert.equal(f.shown.length, 1);
-  f.unmount(); assert.equal(f.intervals.size, 0); assert.equal(f.events.size, 0); assert.deepEqual(f.dismissed, [1]);
+  f.unmount(); assert.equal(f.intervals.size, 0); assert.equal(f.events.size, 0); assert.equal(f.shown.length, 0); assert.equal(f.timeouts.size, 0);
 });
 
 test('Acknowledgement survives refresh/remount and logout/login; different users remain independent', async () => {
@@ -83,8 +84,8 @@ test('Logout/account switch and unmount ignore responses from old sessions and c
   f.identity.value = 'session2:p1'; await f.flush();
   await f.respond(0, [notice()]); assert.equal(f.shown.length, 0);
   await f.respond(1, [notice(2)]); assert.equal(f.shown.length, 1);
-  f.identity.value = ''; await f.flush(); assert.deepEqual(f.dismissed, [1]);
+  f.identity.value = ''; await f.flush(); assert.equal(f.shown.length, 0); assert.equal(f.timeouts.size, 0);
   f.identity.value = 'session3:p2'; await f.flush(); f.unmount();
-  await f.respond(2, [notice(3)]); assert.equal(f.shown.length, 1);
+  await f.respond(2, [notice(3)]); assert.equal(f.shown.length, 0);
   assert.equal(f.intervals.size, 0); assert.equal(f.events.size, 0);
 });

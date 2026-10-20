@@ -6,6 +6,7 @@ import { createApp, h, ref, nextTick } from 'vue';
 import Toast, { POSITION } from 'vue-toastification';
 import { useAgendaStartNotice } from '/src/composables/useAgendaStartNotice.ts';
 import { api } from '/src/api/axios.ts';
+import Zone from '/src/components/AgendaNotificationZone.vue';
 import 'vue-toastification/dist/index.css';
 import '/src/assets/design-system.css';
 import '/src/assets/main.css';
@@ -21,7 +22,9 @@ api.post=async(url,body)=>{
   claims.add(key);
   return {data:{data:[{id:due,title:'Rapat HRD <script>aman</script>',date:'2026-10-19',start_time:'09:00',end_time:'10:00',visibility:due===1?'shared':'private',kind:body.catch_up?'ongoing':'started'}]}};
 };
-const Notices={setup(){useAgendaStartNotice(()=>who.value);return()=>h('p','HRIS Kencana');}};
+const Notices={setup(){const notices=useAgendaStartNotice(()=>who.value),anchor=ref(null);return()=>h('div',{},[
+ h('button',{ref:anchor,style:'position:fixed;left:24px;bottom:24px'},'Kalender Agenda'),
+ h(Zone,{anchor:anchor.value,notices:notices.notices.value,ongoingCount:0,allDayCount:0,onDismiss:notices.dismiss,onPause:notices.pauseNotice,onResume:notices.resumeNotice})]);}};
 createApp({render:()=>h('main',{},[mounted.value?h(Notices):null])}).use(Toast,{position:POSITION.TOP_RIGHT,toastClassName:'kencana-toast'}).mount('#app');
 window.tick=()=>poll();window.nextAgenda=()=>{due=2};
 window.remount=async()=>{mounted.value=false;await nextTick();mounted.value=true;await nextTick()};
@@ -36,11 +39,12 @@ await browserAudit('agenda-start-notice', fixture, async ({evaluate, screenshot}
   assert.equal(await evaluate("document.querySelector('.agenda-start-toast strong').textContent"),'Agenda sedang berlangsung')
   assert.equal(await evaluate("document.querySelector('.agenda-start-toast small').textContent"),'09:00–10:00 · Bersama')
   assert.equal(await evaluate("document.querySelector('.agenda-start-toast script')"),null)
-  assert.ok(await evaluate("!!document.querySelector('.Vue-Toastification__close-button')"))
+  assert.ok(await evaluate("!!document.querySelector('.agenda-realtime-notice .agenda-notice-close')"))
+  assert.equal(await evaluate("document.querySelector('.Vue-Toastification__toast .agenda-start-toast')"),null)
   await evaluate('new Promise(r=>setTimeout(r,800))')
   assert.ok(await evaluate("(()=>{const r=document.querySelector('.agenda-start-toast').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()"))
   await screenshot('ongoing-light.png')
-  await evaluate("document.querySelector('.Vue-Toastification__close-button').click()")
+  await evaluate("document.querySelector('.agenda-realtime-notice .agenda-notice-close').click()")
   await waitFor("!document.querySelector('.agenda-start-toast')")
   await evaluate("window.tick();window.dispatchEvent(new Event('focus'))")
   await evaluate('new Promise(r=>setTimeout(r,100))')
@@ -59,7 +63,7 @@ await browserAudit('agenda-start-notice', fixture, async ({evaluate, screenshot}
   await evaluate("window.changeUser()")
   await waitFor("document.querySelector('.agenda-start-toast strong')?.textContent==='Agenda sedang berlangsung'")
   assert.equal((await evaluate('window.inspect()')).claims.length,3)
-  await evaluate("document.querySelector('.Vue-Toastification__close-button').click()")
+  await evaluate("document.querySelector('.agenda-realtime-notice .agenda-notice-close').click()")
   await waitFor("!document.querySelector('.agenda-start-toast')")
   await evaluate("localStorage.setItem('kencana_agenda_client_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');window.remount()")
   await waitFor("document.querySelector('.agenda-start-toast')")

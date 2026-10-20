@@ -26,7 +26,7 @@ function fixture({initial='U1',canEdit=true,actor='ADMIN',getRights,put,refresh,
  async put(url,body){calls.push({method:'put',url,body});if(put)return put(url,body,server);const code=decodeURIComponent(url.split('/').at(-2));server[code]=body.items.map(item=>wire(item.men_id,item.view,item.insert,item.edit,item.delete));return{data:{message:'Saved'}};}};
  const deps={vue:{...vue,onMounted:fn=>mounted.push(fn),onUnmounted:fn=>unmounted.push(fn)},'vue-router':{useRoute:()=>({query:{kode:initial}}),useRouter:()=>({back(){},replace:async url=>calls.push({route:url,allowed:guards.every(guard=>guard())})}),onBeforeRouteLeave:fn=>guards.push(fn)},
  'vue-toastification':{useToast:()=>({success:message=>notices.push(message),error:message=>notices.push(message)})},'@/api/axios':{api,getErrorMessage:(err,fallback)=>err?.response?.data?.message||err?.message||fallback},'@/stores/authStore':{useAuthStore:()=>auth},'@/stores/permissionStore':{usePermissionStore:()=>({build:()=>calls.push({build:true})})},'@/stores/tabsStore':{useTabsStore:()=>tabs},'@/utils/userPermissions':helpers};
- const form=compile(script('views/setting/HakAksesView.vue')+'\nexport {items,kodeAktif,loadedKode,loaded,memuat,menyimpan,loadError,canSave,dirty,toggle,setAll,columnState,load,gantiUser,simpan};',deps,{window:{confirm:()=>confirm}});
+ const form=compile(script('views/setting/HakAksesView.vue')+'\nexport {items,kodeAktif,loadedKode,loaded,memuat,menyimpan,loadError,canSave,dirty,toggle,setAll,columnState,load,gantiUser,simpan,menuLabel};',deps,{window:{confirm:()=>confirm}});
  return{...form,server,calls,notices,guards,auth,tabs,mount:async()=>{for(const fn of mounted)await fn();},dispose:()=>unmounted.forEach(fn=>fn())};
 }
 test('Y/N helpers round-trip read-only rights and reject numeric/boolean wire flags',()=>{
@@ -119,4 +119,14 @@ test('Column header reflects none, mixed and all; bulk actions preserve view dep
  f.setAll(f.items.value,'view',false);for(const action of ['view','insert','edit','delete'])assert.equal(f.columnState(f.items.value,action).checked,false);
  assert.equal(f.columnState([],'view').checked,false);
  }finally{f.dispose();}
+});
+
+test('Label modul menulis "Sandi BPJS" sebagai "Sandi" tanpa mengubah keterangan lain',()=>{
+ const f=fixture();
+ assert.equal(f.menuLabel({men_keterangan:'Sandi BPJS',men_nama:'frmSandiBPJS'}),'Sandi');
+ assert.equal(f.menuLabel({men_keterangan:'sandi bpjs',men_nama:'frmSandiBPJS'}),'Sandi');
+ assert.equal(f.menuLabel({men_keterangan:'Lap. Akhit Tahun',men_nama:'frmLap'}),'Lap. Akhir Tahun');
+ assert.equal(f.menuLabel({men_keterangan:'Sandi',men_nama:'frmOther'}),'Sandi');
+ assert.equal(f.menuLabel({men_keterangan:null,men_nama:'frmTest'}),'frmTest');
+ assert.equal(f.menuLabel({men_keterangan:'',men_nama:''}),'');
 });

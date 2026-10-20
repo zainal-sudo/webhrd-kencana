@@ -14,6 +14,8 @@ import {usePermissionStore} from '/src/stores/permissionStore.ts';
 import {api,TOKEN_KEY} from '/src/api/axios.ts';
 import {jakartaToday,calendarDays,moveMonth} from '/src/utils/agenda.ts';
 import {markAgendaLogin} from '/src/utils/agendaLoginMarker.ts';
+import Toast,{useToast} from 'vue-toastification';
+import 'vue-toastification/dist/index.css';
 import 'vuetify/styles';
 import '/src/assets/design-system.css';
 import '/src/assets/main.css';
@@ -26,11 +28,11 @@ let rows=[
  {id:3,creator:'hrd',title:'Agenda dibatalkan dengan judul panjang untuk memastikan isi card tetap terbaca dan tidak melebar ke luar panel',notes:'',date:today,start_time:null,end_time:null,visibility:'shared',status:'BATAL',version:1,recipients:['p1',...Array.from({length:12},(_,i)=>'akun-penerima-panjang-'+i)]}
 ];
 rows.reverse();
-const calls=[];let failList=false, failUsers=false, delayUsers=0, delayList=0;
+const calls=[];let failList=false, failUsers=false, delayUsers=0, delayList=0, timeNotices=[];
 api.defaults.adapter=async config=>{
  const url=config.url,method=config.method,body=config.data?JSON.parse(config.data):{};calls.push({url,method,body});
  let result;
- if(url==='/agenda/notifications/claim')result=[];
+ if(url==='/agenda/notifications/claim'){result=timeNotices;timeNotices=[];}
  else if(url==='/agenda/today')result={date:today,count:rows.length,ongoing_count:0,all_day_open_count:rows.filter(row=>row.status==='OPEN'&&!row.start_time&&!row.end_time).length};
  else if(url==='/agenda/users'){
   if(delayUsers)await new Promise(resolve=>setTimeout(resolve,delayUsers));
@@ -51,7 +53,7 @@ api.defaults.adapter=async config=>{
  return {data:{success:true,data:structuredClone(result)},status:200,statusText:'OK',headers:{},config};
 };
 const app=createApp({render:()=>h(components.VApp,{},()=>h('div',{style:'display:flex;height:100vh'},[h(Sidebar),h('main',{style:'padding:24px'},'HRIS Kencana')]))});
-app.use(createPinia());app.use(createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]}));app.use(vuetify);
+app.use(createPinia());app.use(createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>null}}]}));app.use(vuetify);app.use(Toast,{position:'top-right'});
 const auth=useAuthStore();auth.token='fixture';auth.user={user_kode:'HRD',user_nama:'HRD',user_akses:''};localStorage.setItem(TOKEN_KEY,'fixture');
 markAgendaLogin('HRD');
 usePermissionStore().loaded=true;
@@ -60,6 +62,12 @@ const wait=async()=>{await nextTick();await new Promise(r=>setTimeout(r,90));awa
 const until=async(fn)=>{for(let i=0;i<100;i++){if(fn())return;await wait();}throw Error('UI not ready');};
 const button=text=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim().endsWith(text));
 const input=(element,value)=>{element.value=value;element.dispatchEvent(new Event('input',{bubbles:true}));};
+window.previewCalendarZone=async()=>{
+ timeNotices=Array.from({length:5},(_,i)=>({id:900+i,title:'Rapat HRD '+i,date:today,start_time:'09:00',end_time:'10:00',visibility:'shared',kind:'started'}));
+ markAgendaLogin('HRD');auth.token='fixture-zone';await until(()=>document.querySelectorAll('.agenda-realtime-notice').length===2&&document.querySelector('.agenda-login-notice'));
+ await new Promise(r=>setTimeout(r,350));
+ useToast().success('Notifikasi aplikasi lain',{timeout:false});
+};
 window.previewAgendaReminder=async()=>{await until(()=>document.querySelector('.agenda-login-notice'));await new Promise(resolve=>setTimeout(resolve,350));};
 window.agendaAudit=async()=>{
  const result={};await wait();
@@ -68,9 +76,9 @@ window.agendaAudit=async()=>{
  const reminder=document.querySelector('.agenda-login-notice'),reminderRect=reminder.getBoundingClientRect();
  const pointsToAgenda=()=>{const bubble=reminder.getBoundingClientRect(),icon=document.querySelector('.agenda-menu-icon').getBoundingClientRect();return Math.abs(bubble.left+parseFloat(getComputedStyle(reminder).getPropertyValue('--agenda-tail-x'))-(icon.left+icon.width/2))<=1&&Math.abs(icon.top-bubble.bottom-12)<=1;};
  result.loginReminder=reminder.textContent.includes('1 agenda seharian')&&reminder.querySelector('strong').textContent==='Agenda hari ini'&&reminderRect.left>=0&&reminderRect.left<40&&pointsToAgenda();
- const surface=reminder.querySelector('.agenda-login-shape path');
+ const surface=document.querySelector('.agenda-zone-tail path');
  result.translucentReminder=getComputedStyle(surface).fill.includes('0.88');
- result.continuousReminder=reminder.querySelectorAll('.agenda-login-shape path').length===1&&surface.getAttribute('d').includes('C')&&getComputedStyle(reminder,'::after').content==='none';
+ result.continuousReminder=document.querySelectorAll('.agenda-zone-tail path').length===1&&surface.getAttribute('d').includes('C')&&getComputedStyle(reminder,'::after').content==='none';
  document.querySelector('.sidebar-collapse').click();await new Promise(resolve=>setTimeout(resolve,300));
  result.reminderPointsWhenCollapsed=pointsToAgenda();
  document.querySelector('.sidebar-collapse').click();await new Promise(resolve=>setTimeout(resolve,300));
@@ -420,6 +428,24 @@ await browserAudit('agenda-audit', fixture, async ({ evaluate, command, screensh
     await command('Emulation.setDeviceMetricsOverride',{width:1100,height:600,deviceScaleFactor:1,mobile:false});
     await evaluate('window.auditCalendarFit(6)');
     await screenshot('calendar-fit-desktop.png');
+    await command('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false});
+    await evaluate('window.previewCalendarZone()');
+    const zoneState = () => evaluate(`(()=>{const zone=document.querySelector('.agenda-notification-zone'),cards=[...zone.querySelectorAll('.agenda-notice-card')],rect=zone.getBoundingClientRect();return {zones:document.querySelectorAll('.agenda-notification-zone').length,individuals:zone.querySelectorAll('.agenda-realtime-notice').length,cards:cards.length,overflow:zone.querySelector('.agenda-notice-more')?.textContent,title:cards[0].textContent,inside:rect.left>=0&&rect.right<=innerWidth&&rect.top>=0&&rect.bottom<=innerHeight,nonoverlap:cards.every((el,i)=>!i||el.getBoundingClientRect().top>=cards[i-1].getBoundingClientRect().bottom),width:rect.width,calendarToasts:document.querySelectorAll('.Vue-Toastification__toast .agenda-start-toast').length}})()`);
+    let zone = await zoneState();
+    assert.equal(zone.zones,1);assert.equal(zone.individuals,2);assert.equal(zone.cards,3);assert.equal(zone.overflow,'+3 agenda lainnya');assert.ok(zone.inside&&zone.nonoverlap);assert.ok(zone.width>=360&&zone.width<=420);assert.ok(zone.title.includes('Rapat HRD 4'));assert.equal(zone.calendarToasts,0);
+    await screenshot('calendar-notification-zone.png');
+    await evaluate("document.querySelector('.sidebar-collapse').click()");await evaluate('new Promise(r=>setTimeout(r,350))');
+    zone=await zoneState();assert.ok(zone.inside&&zone.nonoverlap);
+    await evaluate("document.querySelector('.agenda-notification-zone .agenda-login-open').click()");await evaluate('new Promise(r=>setTimeout(r,350))');
+    assert.equal(await evaluate("document.querySelectorAll('.agenda-dialog').length"),1);
+    assert.equal(await evaluate("document.querySelectorAll('.agenda-realtime-notice').length"),2);
+    await command('Emulation.setDeviceMetricsOverride',{width:390,height:360,deviceScaleFactor:1,mobile:true});await evaluate('new Promise(r=>setTimeout(r,350))');
+    zone=await zoneState();assert.ok(zone.inside);assert.ok(zone.individuals<=2&&zone.cards<=3);
+    await screenshot('calendar-notification-zone-mobile.png');
+    const previousOverflow = Number(zone.overflow.match(/\d+/)[0]);
+    await evaluate("document.querySelector('.agenda-realtime-notice .agenda-notice-close').click()");await evaluate('new Promise(r=>setTimeout(r,350))');
+    assert.equal(await evaluate("Number(document.querySelector('.agenda-notice-more').textContent.match(/\\d+/)[0])"),previousOverflow-1);
+    assert.ok(await evaluate("[...document.querySelectorAll('.Vue-Toastification__toast')].some(el=>el.textContent.includes('Notifikasi aplikasi lain')&&el.closest('.Vue-Toastification__container.top-right'))"));
     assert.equal(await evaluate('window.agendaLogout()'), true)
     console.log(JSON.stringify({ checks, mobile, fitChecks, desktop, dark, small }, null, 2))
 })

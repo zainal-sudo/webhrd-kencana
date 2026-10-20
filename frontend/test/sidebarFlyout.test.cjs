@@ -28,7 +28,8 @@ function fixture() {
     if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onUnmounted: fn => unmounted.push(fn) };
     if (name === '@/stores/authStore') return { useAuthStore: () => ({ isAuthenticated: false }) };
     if (name === '@/composables/useAgendaNotice') return { useAgendaNotice: () => ({ open: vue.ref(false), count: vue.ref(0), failure: vue.ref(''), refreshKey: vue.ref(0), loginNoticeCount: vue.ref(0), loginOngoingCount: vue.ref(0), loginAllDayCount: vue.ref(0), dismissLoginNotice() {}, refresh() {} }) };
-    if (name === '@/composables/useAgendaStartNotice') return { useAgendaStartNotice() {} };
+    if (name === '@/composables/useAgendaStartNotice') return { useAgendaStartNotice: () => ({ notices: vue.ref([]), dismiss() {}, pauseNotice() {}, resumeNotice() {} }) };
+    if (name === '@/components/AgendaNotificationZone.vue') return { default: { render: () => null } };
     if (name === 'vue-router') return { useRoute: () => route, useRouter: () => ({ push: path => calls.push(['route', path]) }) };
     if (name === '@/stores/permissionStore') return { usePermissionStore: () => permissions };
     if (name === '@/stores/tabsStore') return { useTabsStore: () => ({ openTab: tab => calls.push(['tab', tab]) }) };

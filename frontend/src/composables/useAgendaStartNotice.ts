@@ -1,6 +1,4 @@
-import { onMounted, onUnmounted, watch } from "vue";
-import { useToast } from "vue-toastification";
-import AgendaStartToast from "@/components/AgendaStartToast.vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { api } from "@/api/axios";
 import { getAgendaClientId } from "@/utils/agendaClientId";
 
@@ -10,8 +8,26 @@ export interface AgendaStartNotice {
 }
 
 export function useAgendaStartNotice(identity: () => string) {
-  const toast = useToast();
-  const activeToasts = new Set<string | number>();
+  const notices = ref<AgendaStartNotice[]>([]);
+  const timers = new Map<number, { timer?: ReturnType<typeof setTimeout>; remaining: number; started: number }>();
+  function dismiss(id: number) {
+    const state = timers.get(id);
+    if (state?.timer !== undefined) clearTimeout(state.timer);
+    timers.delete(id);
+    notices.value = notices.value.filter(notice => notice.id !== id);
+  }
+  function resumeNotice(id: number) {
+    const state = timers.get(id);
+    if (!state || state.timer !== undefined) return;
+    state.started = Date.now();
+    state.timer = setTimeout(() => dismiss(id), state.remaining);
+  }
+  function pauseNotice(id: number) {
+    const state = timers.get(id);
+    if (!state || state.timer === undefined) return;
+    clearTimeout(state.timer); state.timer = undefined;
+    state.remaining = Math.max(0, state.remaining - (Date.now() - state.started));
+  }
   let interval: ReturnType<typeof setInterval> | undefined;
   let generation = 0, disposed = false, mounted = false, running = false;
   async function check(catchUp = false) {
@@ -24,11 +40,10 @@ export function useAgendaStartNotice(identity: () => string) {
       const { data } = await api.post("/agenda/notifications/claim", { client_id: clientId, catch_up: catchUp });
       if (disposed || current !== generation || identity() !== who) return;
       for (const notice of data.data as AgendaStartNotice[]) {
-        const id = toast.info({ component: AgendaStartToast, props: { notice } }, {
-          timeout: 15000, closeOnClick: false, closeButton: "button", pauseOnHover: true,
-          onClose: () => activeToasts.delete(id),
-        });
-        activeToasts.add(id);
+        if (timers.has(notice.id)) continue;
+        notices.value = [notice, ...notices.value];
+        timers.set(notice.id, { remaining: 15000, started: Date.now() });
+        resumeNotice(notice.id);
       }
     } catch {
       // Background notification failures must not interrupt CRUD or the login reminder.
@@ -39,8 +54,7 @@ export function useAgendaStartNotice(identity: () => string) {
     generation++; running = false;
     if (interval !== undefined) clearInterval(interval);
     interval = undefined;
-    for (const id of activeToasts) toast.dismiss(id);
-    activeToasts.clear();
+    for (const id of timers.keys()) dismiss(id);
     if (mounted && !disposed && identity()) {
       interval = setInterval(() => { void check(); }, 60000);
       void check(true);
@@ -58,5 +72,5 @@ export function useAgendaStartNotice(identity: () => string) {
     document.removeEventListener("visibilitychange", resume);
     window.removeEventListener("focus", resume);
   });
-  return { check };
+  return { check, notices, dismiss, pauseNotice, resumeNotice };
 }

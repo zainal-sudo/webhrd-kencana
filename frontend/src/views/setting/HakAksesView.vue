@@ -31,7 +31,10 @@ const grup = computed(() => {
   return Object.entries(groups).map(([modul, list]) => ({ modul, list }));
 });
 function menuLabel(item: UserPermissionRow) {
-  return String(item.men_keterangan || item.men_nama || "").replace(/\bAkhit\b/gi, "Akhir");
+  return String(item.men_keterangan || item.men_nama || "")
+    .replace(/\bAkhit\b/gi, "Akhir")
+    // Tampilan nama modul di form ini: "Sandi BPJS" ditulis "Sandi" (data DB tidak diubah).
+    .replace(/\bSandi BPJS\b/gi, "Sandi");
 }
 function updateTabTitle(kode: string) {
   const tab = tabs.tabs.find(item => item.id === tabId);
@@ -195,10 +198,12 @@ async function simpan() {
 .btn:not(:disabled):hover { background: var(--ds-primary-50, #e8edf5); border-color: var(--ds-primary-200, #9aaad0); }
 .btn.primary:not(:disabled):hover { background: var(--ds-primary-darken-1, #2c4472); border-color: var(--ds-primary-darken-1, #2c4472); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
-.permission-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 14px 14px; }
+/* Scrollbar area kartu disembunyikan (area tetap bisa digulir) — scrollbar yang tampil hanya milik tabel. */
+.permission-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 14px 14px; scrollbar-width: none; }
+.permission-body::-webkit-scrollbar { display: none; }
 .permission-card { min-width: 0; margin: 0 0 16px; padding: 16px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-lg, 12px); background: var(--ds-surface-raised, #fff); }
 .permission-card legend { float: left; width: 100%; padding: 0; margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ds-text, #1b2d4a); }
-.table-scroll { clear: both; width: 100%; max-height: min(560px, max(180px, calc(100dvh - 300px))); overflow: auto; overscroll-behavior: contain; isolation: isolate; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); }
+.table-scroll { clear: both; width: 100%; max-height: min(560px, max(180px, calc(100dvh - 300px))); overflow: auto; overscroll-behavior: auto; isolation: isolate; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); }
 .tbl { width: 100%; min-width: 800px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11px; text-align: left; }
 .tbl th { position: sticky; top: 0; z-index: 2; vertical-align: middle; box-shadow: 0 1px 0 var(--ds-border-light, #c4cad3); padding: 10px 12px; background: var(--ds-surface, #f0f3f8); border-bottom: 1px solid var(--ds-border-light, #c4cad3); color: var(--ds-text-secondary, #5a6a7e); font-weight: 600; white-space: nowrap; }
 .tbl td { padding: 9px 12px; border-bottom: 1px solid var(--ds-border-light, #c4cad3); line-height: 1.4; }
