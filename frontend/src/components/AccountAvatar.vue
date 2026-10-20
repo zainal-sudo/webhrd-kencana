@@ -25,6 +25,8 @@ watch(() => props.username, () => { failed.value = false; });
   flex: 0 0 30px;
   width: 30px;
   height: 30px;
+  box-sizing: border-box;
+  aspect-ratio: 1;
   overflow: hidden;
   border-radius: 50%;
   background: #4c9bd6;
@@ -32,5 +34,14 @@ watch(() => props.username, () => { failed.value = false; });
   font-size: 14px;
   font-weight: 800;
 }
-.account-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.account-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  /* Crop the rim embedded in the assets so the image fills the circular frame. */
+  transform: scale(1.06);
+}
 </style>

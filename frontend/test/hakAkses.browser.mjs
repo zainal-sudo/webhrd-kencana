@@ -100,8 +100,8 @@ await browserAudit('hak-akses',fixture,async({evaluate,command,screenshot})=>{
  await waitFor("document.querySelector('input')?.value==='U1'");
 
  await evaluate("window.go('/setting/hak-akses?kode=U1')");
- await waitFor("document.querySelectorAll('.tbl input').length===4");
- assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl input')].map(i=>i.checked)"),[true,false,false,false]);
+ await waitFor("document.querySelectorAll('.tbl tbody input').length===4");
+ assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl tbody input')].map(i=>i.checked)"),[true,false,false,false]);
  for(const theme of ['light','dark']) {
   await evaluate(`document.documentElement.dataset.theme='${theme}'`);
   for(const width of [1360,390]) {
@@ -134,17 +134,17 @@ await browserAudit('hak-akses',fixture,async({evaluate,command,screenshot})=>{
  await waitFor("document.querySelectorAll('.hak-user-select-menu [role=option]').length===1");
  assert.ok(await evaluate("document.querySelector('.hak-user-select-menu [role=option]').textContent.includes('U1 - User One')"));
  await evaluate("document.querySelector('.hak-user-select-menu [role=option]').click()");
- await waitFor("document.querySelectorAll('.tbl input').length===4&&!document.querySelector('fieldset').disabled");
+ await waitFor("document.querySelectorAll('.tbl tbody input').length===4&&!document.querySelector('fieldset').disabled");
  assert.equal(await evaluate("window.fixture.tabs.tabs.find(t=>t.id==='/setting/hak-akses?kode=U1').title"),'Hak Akses \u00b7 User One');
  assert.equal(await evaluate("document.querySelector('.tbl tbody td:nth-child(2)').textContent.trim()"),'Lap. Akhir Tahun');
- assert.equal(await evaluate("document.querySelector('.tbl input').getAttribute('aria-label')"),'Lap. Akhir Tahun: view');
+ assert.equal(await evaluate("document.querySelector('.tbl tbody input').getAttribute('aria-label')"),'Lap. Akhir Tahun: view');
  await save();
  await waitFor("window.fixture.writes.length===1&&!document.querySelector('fieldset').disabled");
  assert.deepEqual(await evaluate("window.fixture.writes[0].body.items[0]"),{men_id:3,view:'Y',insert:'N',edit:'N',delete:'N'});
- await evaluate("document.querySelectorAll('.tbl input')[2].click()");
- assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl input')].map(i=>i.checked)"),[true,false,true,false]);
- await evaluate("document.querySelectorAll('.tbl input')[0].click()");
- assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl input')].map(i=>i.checked)"),[false,false,false,false]);
+ await evaluate("document.querySelectorAll('.tbl tbody input')[2].click()");
+ assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl tbody input')].map(i=>i.checked)"),[true,false,true,false]);
+ await evaluate("document.querySelectorAll('.tbl tbody input')[0].click()");
+ assert.deepEqual(await evaluate("[...document.querySelectorAll('.tbl tbody input')].map(i=>i.checked)"),[false,false,false,false]);
  await save();await waitFor("window.fixture.writes.length===2&&!document.querySelector('fieldset').disabled");
  await screenshot('rights.png');
  await evaluate("window.go('/setting/user/form?id=U1')");
@@ -160,18 +160,49 @@ await browserAudit('hak-akses',fixture,async({evaluate,command,screenshot})=>{
  await waitFor("document.querySelectorAll('.tbl tbody tr').length>40");
  const headerTop=await evaluate("document.querySelector('.sticky-header').getBoundingClientRect().top");
  const toolbarTop=await evaluate("document.querySelector('.bar-top').getBoundingClientRect().top");
- await evaluate("document.querySelector('.permission-body').scrollTop=300");
- await evaluate("new Promise(r=>setTimeout(r,100))");
- assert.ok(await evaluate("document.querySelector('.permission-body').scrollTop>0"));
+ for(const theme of ['light','dark']) {
+  await evaluate(`document.documentElement.dataset.theme='${theme}'`);
+  for(const width of [1360,390]) {
+   await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
+   await evaluate("document.querySelector('.table-scroll').scrollTop=300;document.querySelector('.table-scroll').scrollLeft=0");
+   await evaluate("new Promise(r=>setTimeout(r,100))");
+   assert.ok(await evaluate("document.querySelector('.table-scroll').scrollTop>0"));
+   const measured=await evaluate("[...document.querySelectorAll('.tbl thead th.c')].map(th=>th.getBoundingClientRect().width)");
+   assert.deepEqual(measured,[120,120,120,120]);
+   assert.equal(await evaluate("document.querySelector('.tbl thead th').getBoundingClientRect().width"),100);
+   assert.ok(await evaluate("(()=>{const box=document.querySelector('.table-scroll').getBoundingClientRect(),app=document.querySelector('.sticky-header').getBoundingClientRect();return [...document.querySelectorAll('.tbl thead th')].every(th=>{const r=th.getBoundingClientRect(),s=getComputedStyle(th);return Math.abs(r.top-box.top-1)<1&&r.top>=app.bottom&&s.position==='sticky'&&s.backgroundColor!=='rgba(0, 0, 0, 0)'})})()"));
+   assert.ok(await evaluate("[...document.querySelectorAll('.tbl thead th.c')].every(th=>{const a=th.getBoundingClientRect(),b=th.querySelector('.select-all').getBoundingClientRect();return Math.abs((a.left+a.right-b.left-b.right)/2)<1})"));
+   assert.ok(await evaluate("[...document.querySelectorAll('.tbl tbody tr')].every(row=>[...row.querySelectorAll('td.c')].every(td=>{const a=td.getBoundingClientRect(),b=td.querySelector('input').getBoundingClientRect();return Math.abs((a.left+a.right-b.left-b.right)/2)<1}))"));
+   if(width===390){
+    const before=await evaluate("document.querySelector('.tbl thead th').getBoundingClientRect().left");
+    await evaluate("document.querySelector('.table-scroll').scrollLeft=300");
+    assert.ok(await evaluate("document.querySelector('.table-scroll').scrollLeft>0"));
+    assert.ok(await evaluate("document.querySelector('.tbl thead th').getBoundingClientRect().left")<before);
+   }
+   await screenshot('permission-header-'+theme+'-'+width+'.png');
+  }
+ }
+ await command('Emulation.setDeviceMetricsOverride',{width:1360,height:900,deviceScaleFactor:1,mobile:false});
+ await evaluate("document.documentElement.dataset.theme='light';document.querySelector('.table-scroll').scrollLeft=0");
  assert.equal(await evaluate("document.querySelector('.sticky-header').getBoundingClientRect().top"),headerTop);
  assert.equal(await evaluate("document.querySelector('.bar-top').getBoundingClientRect().top"),toolbarTop);
- await screenshot('hak-user-sticky.png');
- await evaluate("window.fixture.longRights=false");
+ assert.equal(await evaluate("document.querySelector('.tbl thead input').indeterminate"),false);
+ await evaluate("document.querySelectorAll('.tbl tbody input')[0].click()");
+ assert.equal(await evaluate("document.querySelector('.tbl thead input').indeterminate"),true);
+ assert.equal(await evaluate("document.querySelector('.tbl thead input').getAttribute('aria-checked')"),'mixed');
+ await evaluate("document.querySelectorAll('.tbl thead input')[1].click()");
+ assert.ok(await evaluate("[...document.querySelectorAll('.tbl tbody tr')].every(row=>row.querySelectorAll('input')[0].checked&&row.querySelectorAll('input')[1].checked)"));
+ await evaluate("document.querySelector('.tbl thead input').click()");
+ assert.ok(await evaluate("[...document.querySelectorAll('.tbl tbody input')].every(input=>!input.checked)"));
+ await evaluate("document.querySelector('.tbl thead input').click()");
+ await evaluate("document.querySelector('.tbl thead input').click()");
+
+ await evaluate("window.fixture.longRights=false;window.confirm=()=>true");
  await evaluate("window.go('/setting/hak-akses?kode=ADMIN')");
- await waitFor("document.querySelectorAll('.tbl input').length===4");
+ await waitFor("document.querySelectorAll('.tbl tbody input').length===4");
  assert.equal(await evaluate("window.fixture.tabs.tabs.find(t=>t.id==='/setting/hak-akses?kode=ADMIN').title"),'Hak Akses \u00b7 Admin fixture');
  assert.equal(await evaluate("window.fixture.tabs.tabs.find(t=>t.id==='/setting/hak-akses?kode=U1').title"),'Hak Akses \u00b7 User One');
- await evaluate("document.querySelectorAll('.tbl input')[0].click()");
+ await evaluate("document.querySelectorAll('.tbl tbody input')[0].click()");
  await save();
  await waitFor("document.body.textContent.includes('Dashboard fixture')");
  assert.equal(await evaluate("window.fixture.auth.menus.length"),0);

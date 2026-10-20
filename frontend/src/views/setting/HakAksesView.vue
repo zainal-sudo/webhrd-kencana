@@ -76,6 +76,14 @@ function toggle(item: UserPermissionRow, action: PermissionAction, checked: bool
   if (!canSave.value) return;
   changePermission(item, action, checked);
 }
+const permissionColumns: { action: PermissionAction; label: string }[] = [
+  { action: "view", label: "Lihat" }, { action: "insert", label: "Tambah" },
+  { action: "edit", label: "Ubah" }, { action: "delete", label: "Hapus" },
+];
+function columnState(list: UserPermissionRow[], action: PermissionAction) {
+  const count = list.filter(item => item[action]).length;
+  return { checked: list.length > 0 && count === list.length, partial: count > 0 && count < list.length };
+}
 function setAll(list: UserPermissionRow[], action: PermissionAction, checked: boolean) {
   for (const item of list) toggle(item, action, checked);
 }
@@ -128,15 +136,19 @@ async function simpan() {
       <p v-else-if="!kodeAktif" class="empty-state">Pilih user untuk melihat hak akses.</p>
       <fieldset v-for="group in memuat ? [] : grup" :key="group.modul" class="fs permission-card" :disabled="!canSave">
         <legend>Modul {{ group.modul }}</legend>
-        <div class="tools" role="group" :aria-label="`Pengaturan sekaligus Modul ${group.modul}`">
-          <button type="button" class="mini" @click="setAll(group.list, 'view', true)">Semua Lihat</button>
-          <button type="button" class="mini" @click="setAll(group.list, 'insert', true)">Semua Tambah</button>
-          <button type="button" class="mini" @click="setAll(group.list, 'edit', true)">Semua Ubah</button>
-          <button type="button" class="mini" @click="setAll(group.list, 'delete', true)">Semua Hapus</button>
-          <button type="button" class="mini clear" @click="setAll(group.list, 'view', false)">Bersihkan</button>
-        </div>
         <div class="table-scroll" tabindex="0" :aria-label="`Tabel izin Modul ${group.modul}`">
-          <table class="tbl"><thead><tr><th scope="col" class="menu-code">Menu</th><th scope="col">Keterangan</th><th v-for="label in ['Lihat', 'Tambah', 'Ubah', 'Hapus']" :key="label" scope="col" class="c">{{ label }}</th></tr></thead>
+          <table class="tbl">
+            <colgroup><col class="menu-column" /><col /><col v-for="column in permissionColumns" :key="column.action" class="permission-column" /></colgroup>
+            <thead><tr>
+            <th scope="col" class="menu-code">Menu</th><th scope="col">Keterangan</th>
+            <th v-for="column in permissionColumns" :key="column.action" scope="col" class="c">
+              <span class="permission-title">{{ column.label }}</span>
+              <label class="select-all">
+                <input type="checkbox" :checked="columnState(group.list, column.action).checked" :indeterminate="columnState(group.list, column.action).partial" :aria-checked="columnState(group.list, column.action).partial ? 'mixed' : columnState(group.list, column.action).checked" :aria-label="`Semua ${column.label} pada Modul ${group.modul}`" @change="setAll(group.list, column.action, ($event.target as HTMLInputElement).checked)" />
+                <span>Semua</span>
+              </label>
+            </th>
+          </tr></thead>
             <tbody><tr v-for="item in group.list" :key="item.men_id"><td class="mono">{{ item.men_id }}</td><td>{{ menuLabel(item) }}</td>
               <td v-for="action in (['view', 'insert', 'edit', 'delete'] as const)" :key="action" class="c"><input type="checkbox" :aria-label="`${menuLabel(item)}: ${action}`" :checked="item[action]" @change="toggle(item, action, ($event.target as HTMLInputElement).checked)" /></td>
             </tr></tbody>
@@ -180,32 +192,35 @@ async function simpan() {
 
 .btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 6px; box-sizing: border-box; height: 36px; padding: 0 12px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); background: var(--ds-surface-raised, #fff); color: var(--ds-text, #1b2d4a); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background-color 150ms ease, border-color 150ms ease; }
 .btn.primary { background: var(--ds-action, #3b5998); border-color: var(--ds-action, #3b5998); color: #fff; }
-.btn:not(:disabled):hover, .mini:not(:disabled):hover { background: var(--ds-primary-50, #e8edf5); border-color: var(--ds-primary-200, #9aaad0); }
+.btn:not(:disabled):hover { background: var(--ds-primary-50, #e8edf5); border-color: var(--ds-primary-200, #9aaad0); }
 .btn.primary:not(:disabled):hover { background: var(--ds-primary-darken-1, #2c4472); border-color: var(--ds-primary-darken-1, #2c4472); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .permission-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 14px 14px; }
 .permission-card { min-width: 0; margin: 0 0 16px; padding: 16px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-lg, 12px); background: var(--ds-surface-raised, #fff); }
 .permission-card legend { float: left; width: 100%; padding: 0; margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ds-text, #1b2d4a); }
-.tools { clear: both; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
-.mini { min-height: 30px; padding: 4px 10px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); background: var(--ds-surface, #f0f3f8); color: var(--ds-text-secondary, #5a6a7e); font: inherit; font-size: 10px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease; }
-.mini.clear { margin-left: auto; color: var(--ds-error, #dc2626); background: transparent; }
-.table-scroll { width: 100%; overflow: auto; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); }
-.tbl { width: 100%; min-width: 580px; border-collapse: separate; border-spacing: 0; font-size: 11px; text-align: left; }
-.tbl th { padding: 10px 12px; background: var(--ds-surface, #f0f3f8); border-bottom: 1px solid var(--ds-border-light, #c4cad3); color: var(--ds-text-secondary, #5a6a7e); font-weight: 600; white-space: nowrap; }
+.table-scroll { clear: both; width: 100%; max-height: min(560px, max(180px, calc(100dvh - 300px))); overflow: auto; overscroll-behavior: contain; isolation: isolate; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); }
+.tbl { width: 100%; min-width: 800px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 11px; text-align: left; }
+.tbl th { position: sticky; top: 0; z-index: 2; vertical-align: middle; box-shadow: 0 1px 0 var(--ds-border-light, #c4cad3); padding: 10px 12px; background: var(--ds-surface, #f0f3f8); border-bottom: 1px solid var(--ds-border-light, #c4cad3); color: var(--ds-text-secondary, #5a6a7e); font-weight: 600; white-space: nowrap; }
 .tbl td { padding: 9px 12px; border-bottom: 1px solid var(--ds-border-light, #c4cad3); line-height: 1.4; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tbody tr:hover { background: var(--ds-primary-50, #e8edf5); }
-.tbl .c { width: 76px; text-align: center; }
-.tbl .menu-code { width: 76px; }
+.permission-title { display: block; margin-bottom: 8px; color: var(--ds-text, #1b2d4a); }
+.select-all { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--ds-text-secondary, #5a6a7e); font-size: 10px; font-weight: 500; cursor: pointer; }
+.tbl .select-all input { margin: 0; }
+fieldset:disabled .select-all { cursor: not-allowed; }
+.tbl .c { text-align: center; }
+.tbl .permission-column { width: 120px; }
+.tbl .menu-column { width: 100px; }
+.tbl td:nth-child(2) { overflow-wrap: anywhere; }
 .mono { font-family: var(--ds-font-mono, monospace); color: var(--ds-text-muted, #8494a7); }
 .tbl input { display: block; width: 16px; height: 16px; margin: 0 auto; accent-color: var(--ds-action, #3b5998); cursor: pointer; }
-fieldset:disabled input, fieldset:disabled .mini { cursor: not-allowed; }
+fieldset:disabled input { cursor: not-allowed; }
 fieldset:disabled { opacity: .7; }
 .notice { display: flex; align-items: center; flex-shrink: 0; gap: 8px; margin: 0 20px 12px; padding: 10px 12px; border: 1px solid var(--ds-border-light, #c4cad3); border-radius: var(--ds-radius-md, 8px); font-size: 11px; line-height: 1.5; }
 .err { justify-content: space-between; flex-wrap: wrap; color: var(--ds-error, #dc2626); background: color-mix(in srgb, var(--ds-error, #dc2626) 5%, transparent); }
 .dirty-notice { color: var(--ds-text-secondary, #5a6a7e); background: var(--ds-primary-50, #e8edf5); }
 .loading, .empty-state { margin: 0; padding: 32px 16px; text-align: center; font-size: 12px; color: var(--ds-text-secondary, #5a6a7e); }
-.btn:focus-visible, .mini:focus-visible, .table-scroll:focus-visible, .tbl input:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
+.btn:focus-visible, .table-scroll:focus-visible, .tbl input:focus-visible { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 2px; }
 @media (max-width: 600px) {
   .hak-user-page .page-head { align-items: flex-start; padding: 8px 12px; gap: 10px; }
   .page-heading { align-items: flex-start; gap: 8px; }
@@ -217,8 +232,7 @@ fieldset:disabled { opacity: .7; }
   .bar-top .primary { width: 100%; }
   .permission-body { padding: 0 12px 12px; }
   .permission-card { padding: 12px; }
-  .mini.clear { margin-left: 0; }
   .notice { margin-right: 12px; margin-left: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { .btn, .mini { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 </style>

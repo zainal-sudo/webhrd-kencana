@@ -26,7 +26,7 @@ function fixture({initial='U1',canEdit=true,actor='ADMIN',getRights,put,refresh,
  async put(url,body){calls.push({method:'put',url,body});if(put)return put(url,body,server);const code=decodeURIComponent(url.split('/').at(-2));server[code]=body.items.map(item=>wire(item.men_id,item.view,item.insert,item.edit,item.delete));return{data:{message:'Saved'}};}};
  const deps={vue:{...vue,onMounted:fn=>mounted.push(fn),onUnmounted:fn=>unmounted.push(fn)},'vue-router':{useRoute:()=>({query:{kode:initial}}),useRouter:()=>({back(){},replace:async url=>calls.push({route:url,allowed:guards.every(guard=>guard())})}),onBeforeRouteLeave:fn=>guards.push(fn)},
  'vue-toastification':{useToast:()=>({success:message=>notices.push(message),error:message=>notices.push(message)})},'@/api/axios':{api,getErrorMessage:(err,fallback)=>err?.response?.data?.message||err?.message||fallback},'@/stores/authStore':{useAuthStore:()=>auth},'@/stores/permissionStore':{usePermissionStore:()=>({build:()=>calls.push({build:true})})},'@/stores/tabsStore':{useTabsStore:()=>tabs},'@/utils/userPermissions':helpers};
- const form=compile(script('views/setting/HakAksesView.vue')+'\nexport {items,kodeAktif,loadedKode,loaded,memuat,menyimpan,loadError,canSave,dirty,toggle,setAll,load,gantiUser,simpan};',deps,{window:{confirm:()=>confirm}});
+ const form=compile(script('views/setting/HakAksesView.vue')+'\nexport {items,kodeAktif,loadedKode,loaded,memuat,menyimpan,loadError,canSave,dirty,toggle,setAll,columnState,load,gantiUser,simpan};',deps,{window:{confirm:()=>confirm}});
  return{...form,server,calls,notices,guards,auth,tabs,mount:async()=>{for(const fn of mounted)await fn();},dispose:()=>unmounted.forEach(fn=>fn())};
 }
 test('Y/N helpers round-trip read-only rights and reject numeric/boolean wire flags',()=>{
@@ -106,5 +106,17 @@ test('User browse uses API columns, correct action slot and permission-controlle
  assert.match(source,/#row-actions=/);
  assert.match(source,/:action-width="240"/);
  for(const title of ['Reset Password','Hapus User'])assert.ok(source.includes(`title="${title}"`));
- const permission=read('views/setting/HakAksesView.vue');assert.match(permission,/\['Lihat', 'Tambah', 'Ubah', 'Hapus'\]/);assert.match(permission,/:disabled="!canSave"/);
+ const permission=read('views/setting/HakAksesView.vue');for(const label of ['Lihat','Tambah','Ubah','Hapus'])assert.ok(permission.includes(`label: "${label}"`));assert.match(permission,/:disabled="!canSave"/);
+});
+
+
+test('Column header reflects none, mixed and all; bulk actions preserve view dependencies',async()=>{
+ const f=fixture();try{await f.mount();const second=helpers.permissionFromApi(wire(2,'N'));f.items.value.push(second);
+ assert.equal(f.columnState(f.items.value,'view').partial,true);assert.equal(f.columnState(f.items.value,'view').checked,false);
+ f.setAll(f.items.value,'insert',true);assert.equal(f.columnState(f.items.value,'insert').checked,true);assert.equal(f.columnState(f.items.value,'view').checked,true);
+ f.toggle(f.items.value[0],'insert',false);assert.equal(f.columnState(f.items.value,'insert').partial,true);
+ f.setAll(f.items.value,'insert',false);assert.equal(f.columnState(f.items.value,'insert').partial,false);assert.equal(f.columnState(f.items.value,'view').checked,true);
+ f.setAll(f.items.value,'view',false);for(const action of ['view','insert','edit','delete'])assert.equal(f.columnState(f.items.value,action).checked,false);
+ assert.equal(f.columnState([],'view').checked,false);
+ }finally{f.dispose();}
 });
