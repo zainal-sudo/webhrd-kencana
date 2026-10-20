@@ -42,11 +42,10 @@ function validate(body, res) {
     return true
 }
 
-function writeError(res, err) {
+function writeError(res) {
     // Jangan kirim/log error SQL: error database dapat memuat credential.
-    return error(res, err?.code === 'ER_DUP_ENTRY'
-        ? 'Username sudah terdaftar.' : 'Gagal menyimpan akun.',
-    err?.code === 'ER_DUP_ENTRY' ? 409 : 500)
+    // Username boleh berulang; tidak ada mapping konflik khusus username.
+    return error(res, 'Gagal menyimpan akun.', 500)
 }
 
 export async function getSandiBpjsList(req, res) {
@@ -71,6 +70,7 @@ export async function getSandiBpjsList(req, res) {
         const filtered = applyAllColumnFilters(where, params, req.query, BROWSE_COLUMNS)
         const sortQuery = { ...req.query, sort_by: Object.hasOwn(BROWSE_COLUMNS, req.query.sort_by) ? req.query.sort_by : undefined }
         const order = buildOrderBy(sortQuery, BROWSE_COLUMNS, 'ORDER BY sb_updated_at DESC, sb_id DESC')
+            + (sortQuery.sort_by ? ', sb_id ASC' : '')
         const [count] = await pool.query(`SELECT COUNT(*) AS total FROM tsandi_bpjs${filtered.clause}`, filtered.params)
         const [rows] = await pool.query(`${SELECT}${filtered.clause} ${order} LIMIT ? OFFSET ?`,
             [...filtered.params, perPage, (page - 1) * perPage])
@@ -101,8 +101,8 @@ export async function createSandiBpjs(req, res) {
             'INSERT INTO tsandi_bpjs (sb_judul, sb_username, sb_password, sb_updated_by) VALUES (?, ?, ?, ?)',
             [body.sb_judul ?? '', body.sb_username, body.sb_password, user])
         return success(res, { sb_id: result.insertId }, 'Akun berhasil ditambahkan.', 201)
-    } catch (err) {
-        return writeError(res, err)
+    } catch {
+        return writeError(res)
     }
 }
 
@@ -120,8 +120,8 @@ export async function updateSandiBpjs(req, res) {
             'UPDATE tsandi_bpjs SET sb_judul = ?, sb_username = ?, sb_password = ?, sb_updated_by = ?, sb_updated_at = CURRENT_TIMESTAMP WHERE sb_id = ?',
             [body.sb_judul ?? '', body.sb_username, body.sb_password, user, req.params.id])
         return success(res, null, 'Akun berhasil diperbarui.')
-    } catch (err) {
-        return writeError(res, err)
+    } catch {
+        return writeError(res)
     }
 }
 

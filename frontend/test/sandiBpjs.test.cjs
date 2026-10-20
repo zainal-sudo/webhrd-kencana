@@ -243,3 +243,23 @@ test('Actual Browse render: password plaintext, date-time, aksi menurut permissi
     assert.equal(html.includes('Tambah Akun'), !!rights.insert);
   }
 });
+
+
+test('Duplicate username forms still POST new accounts and deletion targets sb_id', async () => {
+  const a = formFixture(), b = formFixture(), edited = formFixture({ edit: true });
+  for (const f of [a, b, edited]) {
+    await f.mount();
+    f.values.sb_judul = 'Same title'; f.values.sb_username = 'test'; f.values.sb_password = 'Fictional';
+    await f.save();
+  }
+  assert.equal(a.calls.at(-1).method, 'post');
+  assert.equal(b.calls.at(-1).method, 'post');
+  assert.equal(edited.calls.at(-1).method, 'put');
+  assert.equal(edited.calls.at(-1).url, '/master/sandi-bpjs/7');
+  assert.deepEqual({ ...a.calls.at(-1).body }, { ...b.calls.at(-1).body });
+  const view = viewFixture({ delete: true });
+  view.confirmDelete({ sb_id: 7, sb_username: 'test' }); await view.remove();
+  view.confirmDelete({ sb_id: 8, sb_username: 'test' }); await view.remove();
+  assert.deepEqual(view.calls.filter(call => call.method === 'delete').map(call => call.url), ['/master/sandi-bpjs/7', '/master/sandi-bpjs/8']);
+  assert.match(read('views/master/SandiBpjsView.vue'), /primary-key="sb_id"/);
+});
