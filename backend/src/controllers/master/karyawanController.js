@@ -3,6 +3,7 @@ import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { nomorNik, nomorKodeAbsensi } from '../../helpers/nomor.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { HISTORY_CTE, HISTORY_COLUMNS, HISTORY_KEYS, HISTORY_FILTER_OPTIONS, normalizeHistoryRows } from '../../helpers/historyKaryawan.js'
 
 /** Nama advisory lock MySQL untuk jalur simpan Karyawan (MyISAM tanpa transaksi). */
 const KUNCI_IDENTITAS = 'hrd_karyawan_simpan_identitas'
@@ -589,35 +590,49 @@ export const getFormOptions = async (req, res, next) => {
     }
 }
 
-/** Riwayat perubahan data karyawan (ufrmHistoryKaryawan → tabel tkaryawanold). */
+/** Rekap riwayat terbaru per kategori untuk karyawan yang saat ini aktif. */
 export const getHistoryKaryawan = async (req, res, next) => {
     try {
         const page = Math.max(1, parseInt(req.query.page) || 1)
-        const perPage = Math.min(200, parseInt(req.query.per_page) || 25)
+        const perPage = Math.max(1, Math.min(500, parseInt(req.query.per_page) || 25))
         const nik = req.query.nik || ''
         let where = ' WHERE 1 = 1'
-        const params = []
+        let params = []
         if (nik) {
-            where += ' AND kar_Nik = ?'
+            where += ' AND h.Nik = ?'
             params.push(nik)
         }
-        const [rows] = await pool.query(
-            `SELECT kar_Nik AS Nik, kar_nama AS Nama, kar_pab_kode AS Pabrik, kar_bagian AS Bagian,
-                    kar_jab_kode AS Jabatan, kar_status_aktif AS Aktif, kar_tgl_masuk AS TglMasuk
-             FROM tkaryawanold${where} ORDER BY kar_Nik LIMIT ? OFFSET ?`,
-            [...params, perPage, (page - 1) * perPage]
-        )
-        if (req.query.export === 'xlsx') {
-            const [all] = await pool.query(
-                `SELECT kar_Nik AS Nik, kar_nama AS Nama, kar_pab_kode AS Pabrik, kar_bagian AS Bagian,
-                        kar_jab_kode AS Jabatan, kar_status_aktif AS Aktif, kar_tgl_masuk AS TglMasuk
-                 FROM tkaryawanold${where} ORDER BY kar_Nik LIMIT 50000`,
-                params
-            )
-            return sendExcel(res, 'History-Karyawan', ['Nik', 'Nama', 'Pabrik', 'Bagian', 'Jabatan', 'Aktif', 'TglMasuk'], all)
+        if (req.query.search) {
+            where += ' AND (h.Nik LIKE ? OR h.Nama LIKE ? OR h.Bagian LIKE ? OR h.Jabatan LIKE ?)'
+            params.push(...Array(4).fill(`%${req.query.search}%`))
         }
-        const [cnt] = await pool.query(`SELECT COUNT(*) AS c FROM tkaryawanold${where}`, params)
-        paginated(res, rows, { page, per_page: perPage, total: cnt[0].c, last_page: Math.ceil(cnt[0].c / perPage) })
+        if (req.query.pabrik) {
+            where += ' AND h.Pabrik = ?'
+            params.push(req.query.pabrik)
+        }
+        if (req.query.distinct && Object.hasOwn(HISTORY_COLUMNS, req.query.distinct)) {
+            const col = HISTORY_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, HISTORY_COLUMNS, req.query.distinct, HISTORY_FILTER_OPTIONS)
+            const [values] = await pool.query(
+                `${HISTORY_CTE}SELECT DISTINCT ${col} AS value, OCTET_LENGTH(${col}) AS value_length FROM history h${scoped.clause} ORDER BY value`,
+                scoped.params
+            )
+            return success(res, values.map(row => row.value))
+        }
+        const filtered = applyAllColumnFilters(where, params, req.query, HISTORY_COLUMNS, null, HISTORY_FILTER_OPTIONS)
+        where = filtered.clause
+        params = filtered.params
+        const order = buildOrderBy(req.query, HISTORY_COLUMNS, 'ORDER BY h.Nik')
+        const select = `${HISTORY_CTE}SELECT h.* FROM history h${where} ${order}`
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${select} LIMIT 50000`, params)
+            return sendExcel(res, 'History-Karyawan', HISTORY_KEYS, normalizeHistoryRows(all), {
+                columnWidths: { Rotasi: 45, Demosi: 45 },
+            })
+        }
+        const [cnt] = await pool.query(`${HISTORY_CTE}SELECT COUNT(*) AS c FROM history h${where}`, params)
+        const [rows] = await pool.query(`${select} LIMIT ? OFFSET ?`, [...params, perPage, (page - 1) * perPage])
+        paginated(res, normalizeHistoryRows(rows), { page, per_page: perPage, total: cnt[0].c, last_page: Math.ceil(cnt[0].c / perPage) })
     } catch (err) {
         next(err)
     }

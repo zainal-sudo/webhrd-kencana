@@ -16,7 +16,7 @@ import { formatTanggal } from './tanggal.js'
  * isi file sama persis dengan yang terlihat di tabel (termasuk search,
  * periode, sort & filter kolom yang sedang aktif).
  */
-export async function sendExcel(res, title, columns, rows) {
+export async function sendExcel(res, title, columns, rows, { columnWidths = {} } = {}) {
     const wb = new ExcelJS.Workbook()
     wb.creator = 'Web HRD Kencana'
     wb.created = new Date()
@@ -38,7 +38,7 @@ export async function sendExcel(res, title, columns, rows) {
                     const p = (n) => String(n).padStart(2, '0')
                     return `${formatTanggal(v)} ${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
                 }
-                if (typeof v === 'string' && /tanggal|tgl|date|pkwt|dibuat|diubah|^Periode[12]$/i.test(c)) {
+                if (typeof v === 'string' && !/\s+s\/d\s+/.test(v) && /tanggal|tgl|date|pkwt|dibuat|diubah|^Periode[12]$/i.test(c)) {
                     const tanggal = formatTanggal(v)
                     const waktu = /[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(v)?.[1]
                     if (tanggal) return waktu ? `${tanggal} ${waktu}` : tanggal
@@ -58,7 +58,7 @@ export async function sendExcel(res, title, columns, rows) {
             const len = v === null || v === undefined ? 0 : String(v).length
             if (len > w) w = len
         }
-        ws.getColumn(i + 1).width = Math.min(45, Math.max(12, w + 2))
+        ws.getColumn(i + 1).width = columnWidths[c] ?? Math.min(45, Math.max(12, w + 2))
     })
 
     const aman = String(title).replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'data'

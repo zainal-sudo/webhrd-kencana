@@ -23,8 +23,8 @@ test('Every header distinct-value query returns the full set, without a hard SQL
             count++
         }
     }
-    // 30 cabang: seluruh browse + laporan, termasuk Rekap Absensi dan Akhir Tahun.
-    assert.equal(count, 30, 'All existing header-filter SQL branches are covered')
+    // 31 cabang: seluruh browse + laporan, termasuk History Karyawan aktif.
+    assert.equal(count, 31, 'All existing header-filter SQL branches are covered')
 })
 
 test('Karyawan filter finds a late-alphabet name beyond 1,000 values and retains other filters', async () => {
