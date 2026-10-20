@@ -42,3 +42,41 @@
   width: 16px !important;
   height: 16px !important;
 }
+
+/* Tiga laporan satu aksi mengikuti dimensi dan sorotan Lembur Hari Libur. */
+.browse-panel.expanded-action-hover .action-col .row-actions {
+  min-height: 24px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.browse-panel.expanded-action-hover .action-col .row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+}
+.browse-panel.expanded-action-hover .action-col .row-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+  border-radius: 6px;
+  background: transparent;
+  pointer-events: none;
+  z-index: -1;
+  transition: inherit;
+}
+.browse-panel.expanded-action-hover .action-col .row-btn:not(:disabled):is(:hover, :focus-visible) {
+  background: transparent;
+}
+.browse-panel.expanded-action-hover .action-col .row-btn:not(:disabled):is(:hover, :focus-visible)::before {
+  background: var(--row-action-hover);
+}

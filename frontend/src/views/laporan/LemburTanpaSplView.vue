@@ -48,6 +48,7 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    class="expanded-action-hover"
     module-title="Lembur Tanpa SPL"
     module-subtitle="Scan keluar jauh dari jadwal tanpa surat perintah lembur"
     endpoint="/laporan/lembur-tanpa-spl"

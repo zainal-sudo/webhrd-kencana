@@ -61,6 +61,7 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    class="expanded-action-hover"
     module-title="Detail Lembur"
     module-subtitle="Rincian 2 jam pertama, lebih, panggilan & total lembur per karyawan"
     endpoint="/laporan/detail-lembur"

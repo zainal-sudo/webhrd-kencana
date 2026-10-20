@@ -50,6 +50,7 @@ function buatIjin(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    class="expanded-action-hover"
     module-title="Laporan Keterlambatan"
     module-subtitle="Absensi terlambat (status 2) di luar hari Minggu"
     endpoint="/laporan/keterlambatan"
