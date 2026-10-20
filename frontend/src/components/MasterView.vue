@@ -41,6 +41,7 @@ withDefaults(
     :search-placeholder="searchPlaceholder"
     :per-page="perPage"
     :can-delete="canDelete"
+    :paired-actions="!!formPath && canDelete"
   >
     <template v-if="$slots.default" #default="slotProps">
       <slot v-bind="slotProps" />

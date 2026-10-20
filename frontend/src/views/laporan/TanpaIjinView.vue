@@ -49,6 +49,7 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    paired-actions
     module-title="Laporan Tanpa Ijin"
     module-subtitle="Kehadiran 0–5 jam tanpa ijin apa pun pada tanggal tersebut"
     endpoint="/laporan/tanpa-ijin"

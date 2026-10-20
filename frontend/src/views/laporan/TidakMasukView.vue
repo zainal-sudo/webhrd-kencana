@@ -100,6 +100,7 @@ async function jalankan() {
 
 <template>
   <BaseBrowse
+    paired-actions
     ref="browse"
     module-title="Laporan Tidak Masuk"
     module-subtitle="Absensi tanpa scan (status 0), di luar Minggu & hari libur"

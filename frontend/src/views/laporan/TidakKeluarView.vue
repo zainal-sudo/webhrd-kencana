@@ -51,6 +51,7 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    paired-actions
     module-title="Absen Tidak Lengkap"
     module-subtitle="Tidak absen masuk / tidak absen keluar (salah satu scan 00:00:00)"
     endpoint="/laporan/tidak-keluar"

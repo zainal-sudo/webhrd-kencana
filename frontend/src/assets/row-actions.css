@@ -26,6 +26,9 @@
   flex-wrap: nowrap;
 }
 .browse-panel.standard-actions .action-col .row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 28px;
   width: 28px;
   height: 28px;

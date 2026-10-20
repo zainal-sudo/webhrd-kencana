@@ -55,6 +55,7 @@ function editAbsensi(row: Record<string, any>) {
 
 <template>
   <BaseBrowse
+    paired-actions
     module-title="Laporan Pulang Mendahului"
     module-subtitle="Pulang sebelum jam keluar jadwal (keluar &gt; scan2)"
     endpoint="/laporan/pulang-dulu"

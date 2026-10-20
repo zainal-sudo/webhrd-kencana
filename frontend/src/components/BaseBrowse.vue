@@ -37,6 +37,8 @@ const props = withDefaults(
     canDelete?: boolean;
     /** Sembunyikan seluruh kolom Aksi untuk laporan read-only. */
     showActions?: boolean;
+    /** Opt-in tampilan dua aksi sejajar, mengikuti tombol di Transaksi Ijin. */
+    pairedActions?: boolean;
     /** tampilkan tombol print di tiap baris (emit 'print' dengan data baris) */
     printable?: boolean;
     defaultStart?: string;
@@ -82,6 +84,7 @@ const props = withDefaults(
     addLabel: "Tambah",
     canDelete: true,
     showActions: true,
+    pairedActions: false,
     printable: false,
     perPage: 25,
     exportable: true,
@@ -599,7 +602,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="browse-panel" :class="{ compact, 'scrollable-header': scrollableHeader, 'compact-rows': endpoint === '/absensi' || endpoint.startsWith('/transaksi/') }" :style="scrollableHeader ? { '--browse-toolbar-height': `${toolbarHeight}px` } : undefined">
+  <div class="browse-panel" :class="{ compact, 'paired-actions': pairedActions, 'standard-actions': pairedActions, 'scrollable-header': scrollableHeader, 'compact-rows': endpoint === '/absensi' || endpoint.startsWith('/transaksi/') }" :style="scrollableHeader ? { '--browse-toolbar-height': `${toolbarHeight}px` } : undefined">
     <div ref="scrollRegion" class="browse-scroll-region">
     <div v-if="scrollableHeader" class="scroll-header"><slot name="scroll-header" /></div>
     <!-- Toolbar -->
@@ -1278,6 +1281,17 @@ tbody tr:hover td.action-col {
   display: flex;
   justify-content: center;
   gap: 4px;
+}
+.paired-actions .action-col {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.paired-actions .action-col .row-actions {
+  justify-content: center;
+  align-items: center;
 }
 .row-btn {
   width: 24px;
