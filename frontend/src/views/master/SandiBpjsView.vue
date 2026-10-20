@@ -13,6 +13,10 @@ const toast = useToast();
 const browse = ref<InstanceType<typeof BaseBrowse> | null>(null);
 const endpoint = "/master/sandi-bpjs";
 const formPath = "/master/sandi-bpjs/form";
+const editTabTitle = (row: Record<string, any>) => {
+  const title = String(row.sb_judul ?? "").trim();
+  return title ? `Edit Sandi · ${title}` : "Edit Sandi";
+};
 const canInsert = computed(() => auth.can("frmSandiBPJS", "insert"));
 const canEdit = computed(() => auth.can("frmSandiBPJS", "edit"));
 const canDelete = computed(() => auth.can("frmSandiBPJS", "delete"));
@@ -60,6 +64,7 @@ async function remove() {
     add-label="Tambah Akun"
     :add-form-path="canInsert ? formPath : ''"
     :edit-form-path="canEdit ? formPath : ''"
+    :edit-tab-title="editTabTitle"
     :can-delete="false"
     :show-actions="canEdit || canDelete"
     :exportable="false"

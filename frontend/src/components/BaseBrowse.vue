@@ -32,6 +32,8 @@ const props = withDefaults(
     addLabel?: string;
     addFormPath?: string;
     editFormPath?: string;
+    /** Custom display title; record identity remains primaryKey. */
+    editTabTitle?: (row: Record<string, any>) => string;
     canDelete?: boolean;
     /** Sembunyikan seluruh kolom Aksi untuk laporan read-only. */
     showActions?: boolean;
@@ -435,7 +437,7 @@ function editRow(row: Record<string, any>) {
   const id = row[props.primaryKey];
   const query = { id };
   tabsStore.openTab({
-    title: `Edit ${id}`,
+    title: props.editTabTitle?.(row) || `Edit ${id}`,
     path: props.editFormPath,
     query,
     icon: "mdi mdi-pencil-box-outline",
