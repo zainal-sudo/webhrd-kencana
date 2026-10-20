@@ -1,78 +1,83 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import FText from "@/components/fields/FText.vue";
 import { api, getErrorMessage } from "@/api/axios";
-
+import { useAuthStore } from "@/stores/authStore";
+import { usePermissionStore } from "@/stores/permissionStore";
 const route = useRoute();
-const router = useRouter();
 const toast = useToast();
-
-const isEdit = computed(() => !!(route.params.kode || route.query.id));
-const kode = computed(() => (route.params.kode as string) || (route.query.id as string) || "");
-
-const values = reactive<Record<string, any>>({ user_kode: "", user_nama: "", user_akses: "" });
+const auth = useAuthStore();
+const permissions = usePermissionStore();
+const kode = String(route.params.kode || route.query.id || "");
+const isEdit = !!kode;
+const canSave = computed(() => auth.can("frmUser", isEdit ? "edit" : "insert"));
+const values = reactive({ user_kode: "", user_nama: "", user_akses: "", user_password: "" });
 const errors = reactive<Record<string, string>>({});
 const pabriks = ref<{ Kode: string; Nama: string }[]>([]);
-
+const loading = ref(true), ready = ref(false), saving = ref(false);
 onMounted(async () => {
   try {
-    const { data } = await api.get("/master/lookup");
-    pabriks.value = data.data.pabrik || [];
-  } catch {
-    /* lookup bersifat opsional */
-  }
-  if (isEdit.value) {
-    try {
-      const { data } = await api.get(`/master/user/${encodeURIComponent(kode.value)}`);
-      Object.assign(values, data.data);
-    } catch (e) {
-      toast.error(getErrorMessage(e, "Gagal memuat user"));
+    try { const { data } = await api.get("/master/lookup"); pabriks.value = data.data.pabrik || []; }
+    catch (err) { toast.error(getErrorMessage(err, "Gagal memuat pilihan pabrik.")); }
+    if (isEdit) {
+      const { data } = await api.get(`/master/user/${encodeURIComponent(kode)}`);
+      values.user_kode = data.data.Kode;
+      values.user_nama = data.data.Nama ?? "";
+      values.user_akses = data.data.Cabang ?? "";
     }
-  }
+    ready.value = true;
+  } catch (err) { toast.error(getErrorMessage(err, "Gagal memuat user.")); }
+  finally { loading.value = false; }
 });
-
 async function simpan(): Promise<string> {
-  Object.keys(errors).forEach((k) => delete errors[k]);
-
-  if (!values.user_kode?.trim()) errors.user_kode = "Kode user wajib diisi";
-  if (!values.user_nama?.trim()) errors.user_nama = "Nama user wajib diisi";
-  if (!values.user_akses?.trim()) errors.user_akses = "Kode pabrik/cabang wajib diisi";
-  if (Object.keys(errors).length) throw new Error("Periksa kembali isian yang ditandai");
-
-  if (isEdit.value) {
-    await api.put(`/master/user/${encodeURIComponent(kode.value)}`, { ...values });
-    return `User ${kode.value} berhasil diperbarui.`;
-  }
-  await api.post("/master/user", { ...values });
-  return `User ${values.user_kode} berhasil ditambahkan.`;
+  if (!canSave.value) throw new Error("Tidak memiliki hak menyimpan user.");
+  if (loading.value || !ready.value || saving.value) throw new Error("Form belum siap disimpan.");
+  Object.keys(errors).forEach(key => delete errors[key]);
+  if (!values.user_kode.trim() || [...values.user_kode].length > 10) errors.user_kode = "Kode user wajib diisi dan maksimal 10 karakter.";
+  if (!values.user_nama.trim() || [...values.user_nama].length > 30) errors.user_nama = "Nama user wajib diisi dan maksimal 30 karakter.";
+  if ([...values.user_akses].length > 5) errors.user_akses = "Kode pabrik maksimal 5 karakter.";
+  if (!isEdit && (!values.user_password.trim() || [...values.user_password].length > 15)) errors.user_password = "Password awal wajib diisi dan maksimal 15 karakter.";
+  if (Object.keys(errors).length) throw new Error("Periksa kembali isian yang ditandai.");
+  saving.value = true;
+  try {
+    const body = { user_kode: isEdit ? kode : values.user_kode, user_nama: values.user_nama, user_akses: values.user_akses };
+    if (isEdit) await api.put(`/master/user/${encodeURIComponent(kode)}`, body);
+    else await api.post("/master/user", { ...body, user_password: values.user_password });
+    if (isEdit && auth.user?.user_kode === kode) { await auth.refreshProfile(); permissions.build(); }
+    return isEdit ? `User ${kode} berhasil diperbarui.` : `User ${values.user_kode} berhasil ditambahkan.`;
+  } finally { saving.value = false; }
 }
 </script>
 
 <template>
   <BaseForm
     :title="isEdit ? 'Edit User' : 'Tambah User'"
-    :subtitle="isEdit ? kode : 'User baru otomatis berstatus non-aktif sampai diberi hak akses'"
+    :subtitle="isEdit ? kode : 'Isi data user dan password awal, lalu atur hak akses modul'"
     icon="manage_accounts"
     :crumbs="[
       { label: 'User', path: '/setting/user' },
       { label: isEdit ? 'Edit' : 'Tambah' },
     ]"
-    :save-fn="simpan"
+    :save-fn="canSave ? simpan : undefined"
+    :show-save="canSave"
+    :save-disabled="loading || !ready || saving"
     return-path="/setting/user"
   >
     <template #form-content>
       <fieldset class="fs">
         <legend>Data User</legend>
+        <p v-for="(message, field) in errors" :key="field" class="err" role="alert">{{ message }}</p>
         <div class="grid">
-          <FText v-model="values.user_kode" label="Kode User" required :disabled="isEdit" />
-          <FText v-model="values.user_nama" label="Nama User" required />
+          <FText v-model="values.user_kode" label="Kode User" required :disabled="isEdit || loading || !ready || saving || !canSave" />
+          <FText v-model="values.user_nama" label="Nama User" required :disabled="loading || !ready || saving || !canSave" />
+          <FText v-if="!isEdit" v-model="values.user_password" label="Password Awal" type="password" required :disabled="loading || !ready || saving || !canSave" />
           <div class="field">
-            <label>Pabrik / Cabang <span class="req">*</span></label>
-            <select v-model="values.user_akses">
-              <option value="">Pilih...</option>
+            <label>Pabrik / Cabang</label>
+            <select v-model="values.user_akses" :disabled="loading || !ready || saving || !canSave">
+              <option value="">Semua Pabrik</option>
               <option v-for="p in pabriks" :key="p.Kode" :value="p.Kode">
                 {{ p.Kode }} - {{ p.Nama }}
               </option>
@@ -81,8 +86,7 @@ async function simpan(): Promise<string> {
           </div>
         </div>
         <p class="hint">
-          Password diatur terpisah lewat menu <b>Reset Password</b> di daftar user, mengikuti
-          penyimpanan plaintext pada tabel <code>tuser.USER_PASSWORD</code>.
+          Untuk mengubah password user existing, gunakan <b>Reset Password</b> di daftar user.
         </p>
       </fieldset>
     </template>

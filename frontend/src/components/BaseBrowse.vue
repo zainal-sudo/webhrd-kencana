@@ -32,6 +32,8 @@ const props = withDefaults(
     addLabel?: string;
     addFormPath?: string;
     editFormPath?: string;
+    /** Optional presentation label; editing behavior stays unchanged. */
+    editButtonLabel?: string;
     /** Custom display title; record identity remains primaryKey. */
     editTabTitle?: (row: Record<string, any>) => string;
     canDelete?: boolean;
@@ -82,6 +84,7 @@ const props = withDefaults(
     periodEndKey: "end_date",
     columns: () => [],
     addLabel: "Tambah",
+    editButtonLabel: "Edit",
     canDelete: true,
     showActions: true,
     pairedActions: false,
@@ -806,7 +809,8 @@ onActivated(() => {
                 <button
                   v-if="editFormPath"
                   class="row-btn edit"
-                  title="Edit"
+                  :title="editButtonLabel"
+                  :aria-label="editButtonLabel"
                   @click="editRow(row)"
                 >
                   <MsIcon name="edit" :size="14" />
