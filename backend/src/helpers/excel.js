@@ -16,11 +16,12 @@ import { formatTanggal } from './tanggal.js'
  * isi file sama persis dengan yang terlihat di tabel (termasuk search,
  * periode, sort & filter kolom yang sedang aktif).
  */
-export async function sendExcel(res, title, columns, rows, { columnWidths = {} } = {}) {
+export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false } = {}) {
     const wb = new ExcelJS.Workbook()
     wb.creator = 'Web HRD Kencana'
     wb.created = new Date()
     const ws = wb.addWorksheet(String(title).slice(0, 31))
+    if (freezeHeader) ws.views = [{ state: 'frozen', ySplit: 1 }]
 
     ws.addRow(columns)
     const head = ws.getRow(1)

@@ -77,6 +77,9 @@ test('Actual XLSX preserves complete PKWT ranges, text NIK, blank history, and n
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(res.buffer)
     const sheet = workbook.worksheets[0]
+    assert.equal(sheet.views[0].state, 'frozen')
+    assert.equal(sheet.views[0].ySplit, 1)
+    assert.equal(sheet.views[0].xSplit, 0)
     assert.deepEqual(sheet.getRow(1).values.slice(1), history.HISTORY_KEYS)
     const cell = key => sheet.getRow(2).getCell(history.HISTORY_KEYS.indexOf(key) + 1)
     assert.equal(cell('Nik').value, '001231229')
