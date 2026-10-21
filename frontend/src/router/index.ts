@@ -24,6 +24,13 @@ const routes = [
     component: () => import("@/views/dashboard/DashboardView.vue"),
     meta: { requiresAuth: true, title: "Dashboard" },
   },
+  /* Halaman Eksekusi PKWT (tombol Eksekusi di card "Masa PKWT Akan Habis"). */
+  {
+    path: "/dashboard/eksekusi-pkwt",
+    name: "eksekusi-pkwt",
+    component: () => import("@/views/dashboard/PkwtEksekusiView.vue"),
+    meta: { requiresAuth: true, title: "Eksekusi PKWT" },
+  },
 
   /* ── Master ── */
   { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi", form: "frmSandiBPJS" } },

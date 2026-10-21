@@ -74,7 +74,7 @@ window.agendaAudit=async()=>{
  await until(()=>document.querySelector('.agenda-login-notice'));
  await new Promise(resolve=>setTimeout(resolve,350));
  const reminder=document.querySelector('.agenda-login-notice'),reminderRect=reminder.getBoundingClientRect();
- const pointsToAgenda=()=>{const bubble=reminder.getBoundingClientRect(),icon=document.querySelector('.agenda-menu-icon').getBoundingClientRect();return Math.abs(bubble.left+parseFloat(getComputedStyle(reminder).getPropertyValue('--agenda-tail-x'))-(icon.left+icon.width/2))<=1&&Math.abs(icon.top-bubble.bottom-12)<=1;};
+ const pointsToAgenda=()=>{const tail=document.querySelector('.agenda-zone-tail').getBoundingClientRect(),icon=document.querySelector('.agenda-menu-icon').getBoundingClientRect();return Math.abs(tail.left+8-(icon.left+icon.width/2))<=1&&Math.abs(icon.top-tail.bottom)<=2;};
  result.loginReminder=reminder.textContent.includes('1 agenda seharian')&&reminder.querySelector('strong').textContent==='Agenda hari ini'&&reminderRect.left>=0&&reminderRect.left<40&&pointsToAgenda();
  const surface=document.querySelector('.agenda-zone-tail path');
  result.translucentReminder=getComputedStyle(surface).fill.includes('0.88');

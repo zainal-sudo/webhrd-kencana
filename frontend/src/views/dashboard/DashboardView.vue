@@ -92,6 +92,8 @@ interface Panel {
   tone: string;
   route: string;
   routeLabel: string;
+  /** Tombol aksi khusus panel (mis. Eksekusi PKWT). */
+  eksekusi?: { route: string; label: string };
   columns: PanelKolom[];
 }
 
@@ -151,6 +153,7 @@ const panels: Panel[] = [
     tone: "violet",
     route: "/master/karyawan",
     routeLabel: "Karyawan",
+    eksekusi: { route: "/dashboard/eksekusi-pkwt", label: "Eksekusi PKWT" },
     columns: [
       { key: "Nik", label: "NIK" },
       { key: "Nama", label: "Nama" },
@@ -436,6 +439,15 @@ onActivated(() => {
             <span>{{ exporting[p.key] ? "Menyiapkan..." : "Excel" }}</span>
           </button>
           <span class="foot-spacer"></span>
+          <button
+            v-if="p.eksekusi"
+            class="link-btn"
+            :title="`Buka halaman ${p.eksekusi.label} (Kirim WA per karyawan)`"
+            @click="bukaRoute(p.eksekusi.route, p.eksekusi.label)"
+          >
+            <MsIcon name="send" :size="13" />
+            <span>Eksekusi</span>
+          </button>
           <button
             v-if="bagian(p.key).rows.length > 8"
             class="link-btn"

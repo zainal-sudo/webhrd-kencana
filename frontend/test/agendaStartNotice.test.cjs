@@ -43,6 +43,15 @@ function fixture(serverClaims = new Set(), clientId = CLIENT_A) {
 }
 const notice = (id = 1) => ({ id, title: 'Rapat HRD', date: '2026-10-19', start_time: '09:00', end_time: '10:00', visibility: 'shared', kind: 'ongoing' });
 
+test('Presentation retains latest-first order, supports close/hover pause, and clears expiry timers', async () => {
+  const f = fixture(); await f.flush(); await f.respond(0,[notice(1),notice(2),notice(3)]);
+  assert.deepEqual(Array.from(f.shown, row=>row.id),[3,2,1]); assert.equal(f.timeouts.size,3);
+  f.instance.pauseNotice(3); assert.equal(f.timeouts.size,2);
+  f.instance.resumeNotice(3); assert.equal(f.timeouts.size,3);
+  f.instance.dismiss(2); assert.deepEqual(Array.from(f.shown,row=>row.id),[3,1]);
+  f.unmount(); assert.equal(f.shown.length,0);assert.equal(f.timeouts.size,0);
+});
+
 test('Initial app/login checks catch-up; regular 60-second polling does not overlap requests', async () => {
   const f = fixture();
   await f.flush();

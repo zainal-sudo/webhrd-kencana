@@ -2,12 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
+import { PKWT_HABIS_SELECT, EKSEKUSI_SELECT, PKWT_HABIS_ORDER } from '../src/helpers/pkwtEksekusi.js'
 
 // Mock saja, tidak memuat config/database atau menjalankan query ke DB.
 function handler(query) {
     const scope = {
         pool: { query },
         success: (res, data) => { res.status(200).json({ success: true, data }) },
+        // Konstanta sumber tunggal PKWT (helper di-import controller, VM tidak).
+        PKWT_HABIS_SELECT, EKSEKUSI_SELECT, PKWT_HABIS_ORDER,
     }
     scope.res = { status: () => scope.res, json: (body) => { scope.res.body = body } }
     vm.createContext(scope)
@@ -35,6 +38,8 @@ function exportHandler(query) {
         success: (res, data) => { res.status(200).json({ success: true, data }) },
         error: (res, message, status) => { res.status(status || 500).json({ success: false, message }) },
         sendExcel: (res, title, columns, rows) => { Object.assign(sent, { title, columns, rows }) },
+        // Konstanta sumber tunggal PKWT (helper di-import controller, VM tidak).
+        PKWT_HABIS_SELECT, EKSEKUSI_SELECT, PKWT_HABIS_ORDER,
     }
     scope.res = { status: () => scope.res, json: (body) => { scope.res.body = body } }
     vm.createContext(scope)

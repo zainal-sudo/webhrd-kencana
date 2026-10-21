@@ -21,7 +21,7 @@ watch([() => props.anchor, zone], ([anchor, element], _previous, cleanup) => {
     const center = anchored ? rect.left + rect.width / 2 : 32;
     const left = Math.max(12, Math.min(center - 24, window.innerWidth - element.offsetWidth - 12));
     position.value = { left, bottom: anchored ? window.innerHeight - rect.top + 12 : 24,
-      tail: Math.max(18, Math.min(center - left, element.offsetWidth - 24)),
+      tail: Math.max(8, Math.min(center - left, element.offsetWidth - 24)),
       maxHeight: Math.max(120, Math.min(440, (anchored ? rect.top : window.innerHeight - 24) - 24)) };
   };
   const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(place); };
@@ -57,13 +57,13 @@ watch([() => props.anchor, zone], ([anchor, element], _previous, cleanup) => {
           <button type="button" class="agenda-notice-close agenda-login-close" aria-label="Tutup notifikasi agenda" @click="emit('dismiss-summary')"><MsIcon name="close" :size="18" /></button>
         </section>
       </TransitionGroup>
-      <svg class="agenda-zone-tail" viewBox="0 0 40 12" aria-hidden="true"><path d="M 0 0 H 40 C 27 0 27 8 17 12 C 20 7 18 2 12 0 Z" /></svg>
+      <svg class="agenda-zone-tail" viewBox="0 0 32 12" aria-hidden="true"><path d="M 0 0 H 32 C 19 0 18 9 8 12 C 11 7 10 2 4 0 Z" /></svg>
     </div>
   </Teleport>
 </template>
 
 <style scoped>
-.agenda-notification-zone { --agenda-notice-bg: color-mix(in srgb, var(--ds-surface-raised, #fff) 88%, transparent); position: fixed; z-index: 1800; width: min(390px, calc(100vw - 24px)); box-sizing: border-box; color: var(--ds-text, #1b2d4a); font-size: 12px; }
+.agenda-notification-zone { --agenda-notice-bg: color-mix(in srgb, var(--ds-surface-raised, #fff) 88%, transparent); position: fixed; z-index: 3000; width: min(390px, calc(100vw - 24px)); box-sizing: border-box; color: var(--ds-text, #1b2d4a); font-size: 12px; }
 .agenda-zone-stack { display: flex; flex-direction: column; gap: 10px; max-height: var(--agenda-zone-height); overflow-y: auto; overscroll-behavior: contain; padding: 4px; margin: -4px; scrollbar-width: thin; }
 .agenda-notice-card { position: relative; flex: 0 0 auto; display: flex; align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid var(--ds-border-light, #d5dce6); border-radius: 14px; background: var(--agenda-notice-bg); box-shadow: 0 4px 14px rgb(15 35 65 / 12%); }
 .agenda-realtime-notice { padding: 12px 14px; border-left: 3px solid var(--ds-primary, #3b5998); }
@@ -76,7 +76,7 @@ p { margin: 6px 0 10px; line-height: 1.5; }
 .agenda-notice-close { display: flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
 .agenda-notice-close:hover { background: var(--ds-surface-inset); }
 button:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
-.agenda-zone-tail { position: absolute; top: calc(100% - 1px); left: calc(var(--agenda-tail-x) - 17px); width: 40px; height: 12px; fill: var(--agenda-notice-bg); pointer-events: none; }
+.agenda-zone-tail { position: absolute; top: calc(100% - 1px); left: calc(var(--agenda-tail-x) - 8px); width: 32px; height: 12px; fill: var(--agenda-notice-bg); pointer-events: none; }
 .agenda-zone-enter-active, .agenda-zone-leave-active, .agenda-zone-move { transition: opacity 200ms ease, transform 200ms ease; }
 .agenda-zone-enter-from, .agenda-zone-leave-to { opacity: 0; transform: translateY(6px); }
 .agenda-zone-leave-active { position: absolute; width: 100%; box-sizing: border-box; pointer-events: none; }

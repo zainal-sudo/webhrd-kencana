@@ -1,6 +1,7 @@
 import pool from '../config/database.js'
 import { success, error } from '../helpers/response.js'
 import { sendExcel } from '../helpers/excel.js'
+import { PKWT_HABIS_SELECT, EKSEKUSI_SELECT, EKSEKUSI_MONITORING_SELECT, PKWT_HABIS_ORDER } from '../helpers/pkwtEksekusi.js'
 
 /**
  * Peringatan dashboard — pengganti 7 popup `TfrmLogin.cxButton2Click`
@@ -52,15 +53,8 @@ const Q_NONAKTIF_BPJS = `SELECT kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
     WHERE kar_status_aktif = 0 AND kar_status_BPJS = 1
     ORDER BY kar_nama`
 
-const Q_PKWT_HABIS = `SELECT kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
-        (SELECT LEFT(jab_nama, 20) FROM tjabatan WHERE jab_kode = kar_jab_kode) AS Jabatan,
-        (SELECT LEFT(sk_keterangan, 20) FROM tstatuskaryawan WHERE sk_id = kar_status_kerja) AS Status_Kerja,
-        LEFT(kar_bagian, 20) AS Bagian, LEFT(kar_pab_kode, 10) AS Pabrik,
-        kar_tglpkwt2 AS Tgl_Berakhir
-    FROM tkaryawan
-    WHERE kar_tglpkwt2 < DATE_ADD(CURDATE(), INTERVAL 2 MONTH)
-    AND kar_status_kerja IN (2, 3, 4, 5, 6) AND kar_status_aktif = 1
-    ORDER BY kar_tglpkwt2 ASC`
+/* Definisi PKWT memakai sumber tunggal helper pkwtEksekusi.js (lihat file itu). */
+const Q_PKWT_HABIS = PKWT_HABIS_SELECT
 
 const hitung = (q) => `SELECT COUNT(*) AS c FROM (${q}) x`
 
@@ -123,5 +117,21 @@ export const getPeringatan = async (req, res, next) => {
             nonaktif_bpjs: { total: Number(cNonaktif[0].c), rows: rNonaktif },
             pkwt_habis: { total: Number(cPkwt[0].c), rows: rPkwt },
         })
+    } catch (err) { next(err) }
+}
+
+/**
+ * Halaman Eksekusi PKWT — daftar penuh "Masa PKWT Akan Habis" yang dibuka
+ * tombol Eksekusi di card Dashboard. Sumber tunggal `pkwtEksekusi.js`
+ * (rule sama dengan card), identitas penuh tanpa potongan LEFT, plus sisa
+ * hari dari DB. Hanya membaca data; tidak mengubah data PKWT.
+ * Opsi cakupan=semua memuat seluruh PKWT aktif bertanggal akhir untuk monitoring.
+ */
+export const getEksekusiPkwt = async (req, res, next) => {
+    try {
+        // Cakupan default pengingat tetap sama dengan card Dashboard.
+        const select = req.query.cakupan === 'semua' ? EKSEKUSI_MONITORING_SELECT : EKSEKUSI_SELECT
+        const [rows] = await pool.query(`${select} ${PKWT_HABIS_ORDER} LIMIT 50000`)
+        success(res, rows)
     } catch (err) { next(err) }
 }
