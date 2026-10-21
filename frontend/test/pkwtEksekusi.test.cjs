@@ -17,6 +17,7 @@ const helper=compile(read('utils/pkwtWa.ts'),{window:{open:url=>opens.push(url)}
 const row={Nik:'K001',Nama:'Budi',Jabatan:'STAF',Status_PKWT:'PKWT 2',Bagian:'Produksi',Pabrik:'1',
  Tgl_Mulai:'2024-01-01',Tgl_Berakhir:'2026-11-10',Sisa_Hari:20};
 const monitoring=compile(read('utils/pkwtMonitoring.ts'));
+const linkPenilaian='https://hrd.example/penilaian/tanpa-bawahan?t='+ 'a'.repeat(64);
 
 test('Kategori monitoring terpisah pada batas -1, 0, 7, 8, 30, 31 hari',()=>{
  for(const [days,category] of [[-100,'berakhir'],[-1,'berakhir'],[0,'segera'],[7,'segera'],[8,'akan'],[30,'akan'],[31,'aman'],[60,'aman'],[365,'aman']]) {
@@ -80,13 +81,49 @@ test('Card, pencarian dan filter kolom dapat digabung; pilihan kolom tetap menca
  assert.equal(Object.values(state.ringkas.value).reduce((a,b)=>a+b,0),0);
 });
 
-test('Konfigurasi link penilaian prototipe: OPERATOR/STAF tanpa bawahan, lainnya dengan bawahan',()=>{
- assert.equal(helper.LINK_TANPA_BAWAHAN,'https://peniliantanpabawahan.netlify.app/');
- assert.equal(helper.LINK_DENGAN_BAWAHAN,'https://penilaiankaryawandenganbawahan.netlify.app/');
- assert.equal(helper.getLinkPenilaian('STAF'),helper.LINK_TANPA_BAWAHAN);
- assert.equal(helper.getLinkPenilaian('operator'),helper.LINK_TANPA_BAWAHAN);
- assert.equal(helper.getLinkPenilaian('FORMAN'),helper.LINK_DENGAN_BAWAHAN);
- assert.equal(helper.getLinkPenilaian(null),helper.LINK_DENGAN_BAWAHAN);
+test('Wording pesan PKWT sama persis dengan existing selain URL nomor 1',()=>{
+ const expected=fs.readFileSync(path.join(__dirname,'fixtures/pkwt-wa-existing.txt'),'utf8').replace('{{LINK_PENILAIAN}}',linkPenilaian);
+ assert.equal(helper.buatPesanWa(row,linkPenilaian),expected);
+ assert.doesNotMatch(helper.buatPesanWa(row,linkPenilaian),/netlify/);
+});
+
+test('Kirim WA menunggu token backend, mencegah klik ganda, dan menutup popup ketika gagal',async()=>{
+ const events=[],errors=[];
+ let closeCount=0,resolveRequest,fail=false;
+ const popup={opener:'initial',document:{title:'',body:{textContent:''}},closed:false,location:{replace:url=>events.push(['wa',url])},close:()=>closeCount++};
+ const script=read('views/dashboard/PkwtEksekusiView.vue').match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
+ const state=compile(script+'\nexport {kirimPenilaianWa,sendingNik,waFallback};',{
+  URL,window:{location:{origin:'https://hrd.example'},open:url=>{events.push(['popup',url]);return popup}},
+  require:name=>{
+   if(name==='vue')return {...require('vue'),onMounted:()=>{}};
+   if(name==='vue-toastification')return {useToast:()=>({error:message=>errors.push(message)})};
+   if(name==='@/api')return {pickError:error=>error.message,safePost:url=>{
+    events.push(['token',url]);
+    return fail?Promise.reject(new Error('Token gagal dibuat')):new Promise(resolve=>{resolveRequest=resolve});
+   }};
+   if(name==='@/utils/pkwtWa')return helper;
+   if(name==='@/utils/pkwtMonitoring')return monitoring;
+   return {};
+  }
+ });
+ const pending=state.kirimPenilaianWa(row);
+ assert.equal(state.sendingNik.value,row.Nik);
+ assert.equal(events.filter(e=>e[0]==='wa').length,0);
+ await state.kirimPenilaianWa(row);
+ assert.equal(events.filter(e=>e[0]==='token').length,1);
+ assert.equal(popup.opener,null);
+ resolveRequest({path:'/penilaian/tanpa-bawahan?t='+'a'.repeat(64)});
+ await pending;
+ assert.equal(state.sendingNik.value,null);
+ const sent=events.find(e=>e[0]==='wa')[1];
+ assert.equal(decodeURIComponent(sent.split('?text=')[1]),helper.buatPesanWa(row,linkPenilaian));
+ assert.equal(state.waFallback.value,sent);
+ fail=true;
+ await state.kirimPenilaianWa(row);
+ assert.equal(closeCount,1);
+ assert.equal(errors[0],'Token gagal dibuat');
+ assert.equal(state.waFallback.value,'');
+ assert.equal(state.sendingNik.value,null);
 });
 
 test('Tanggal diformat dd/mm/yyyy, tahun aneh tampil apa adanya, form H+3 dihitung dari akhir kontrak',()=>{
@@ -111,7 +148,7 @@ test('Label status mengikuti getStatusText prototipe',()=>{
 });
 
 test('Pesan WA berisi data karyawan + link penilaian, tanpa pengiriman daring',()=>{
- const pesan=helper.buatPesanWa(row);
+ const pesan=helper.buatPesanWa(row,linkPenilaian);
  assert.match(pesan,/\*HR Kontrak - Notifikasi PKWT\*/);
  assert.match(pesan,/Kepada Yth\. Atasan/);
  assert.match(pesan,/Karyawan: Budi/);
@@ -119,7 +156,7 @@ test('Pesan WA berisi data karyawan + link penilaian, tanpa pengiriman daring',(
  assert.match(pesan,/Bagian: Produksi/);
  assert.match(pesan,/Status: PKWT 2/);
  assert.match(pesan,/Kontrak berakhir: 10\/11\/2026 \(20 hari lagi\)/);
- assert.match(pesan,/1\. https:\/\/peniliantanpabawahan\.netlify\.app\//);
+ assert.ok(pesan.includes('1. '+linkPenilaian));
  assert.match(pesan,/pada tanggal 13\/11\/2026\)/);
  assert.match(pesan,/HR Departemen/);
  // Pesan WA TIDAK PERNAH memuat nomor penerima — HR memilih sendiri di WhatsApp.
@@ -128,13 +165,13 @@ test('Pesan WA berisi data karyawan + link penilaian, tanpa pengiriman daring',(
 
 test('Kirim WA membuka wa.me tanpa nomor (hanya ?text= pesan terisi)',()=>{
  opens.length=0;
- helper.kirimWa(row);
+ helper.kirimWa(row,linkPenilaian);
  assert.equal(opens.length,1);
  const url=opens[0];
  assert.match(url,/^https:\/\/wa\.me\/\?text=.{10,}$/);
- assert.equal(url,`https://wa.me/?text=${encodeURIComponent(helper.buatPesanWa(row))}`);
+ assert.equal(url,`https://wa.me/?text=${encodeURIComponent(helper.buatPesanWa(row,linkPenilaian))}`);
  const text=decodeURIComponent(url.split('?text=')[1]);
- assert.equal(text,helper.buatPesanWa(row));
+ assert.equal(text,helper.buatPesanWa(row,linkPenilaian));
  assert.ok(!/%2B6|\+62|phone/.test(url));
 });
 
@@ -155,6 +192,7 @@ test('Tombol Eksekusi + route + view terpasang tanpa tab Keputusan atau upload E
    assert.doesNotMatch(file,/Keputusan/i);
    assert.doesNotMatch(file,/fileInput|\.pdf/i);
  }
- // Perubahan data PKWT dilarang: endpoint read-only tidak melakukan POST/PUT.
- assert.doesNotMatch(view,/safePost|safePut|safeDelete|\.post\(|\.put\(/);
+ // POST hanya membuat access token, bukan mengubah data karyawan/kontrak.
+ assert.match(view,/link-penilaian/);
+ assert.doesNotMatch(view,/safePut|safeDelete|\.put\(/);
 });

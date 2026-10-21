@@ -2,10 +2,6 @@
 // Pesan WA hanya ditampilkan di WhatsApp Web/aplikasi; TIDAK ada backend
 // pengirim dan TIDAK ada nomor di URL — HR memilih penerima sendiri.
 
-/** Link form penilaian (konfigurasi per prototipe `hr kontrak.html`). */
-export const LINK_TANPA_BAWAHAN = "https://peniliantanpabawahan.netlify.app/";
-export const LINK_DENGAN_BAWAHAN = "https://penilaiankaryawandenganbawahan.netlify.app/";
-
 /** Baris daftar Eksekusi PKWT (dari `GET /dashboard/eksekusi-pkwt`). */
 export interface EksekusiRow {
   Nik: string;
@@ -17,13 +13,6 @@ export interface EksekusiRow {
   Tgl_Mulai: string | null;
   Tgl_Berakhir: string | null;
   Sisa_Hari: number;
-}
-
-/** Aturan prototipe: OPERATOR/STAF menilai tanpa bawahan, lainnya dengan bawahan. */
-export function getLinkPenilaian(jabatan: string | null | undefined): string {
-  const jabatanUpper = String(jabatan || "").trim().toUpperCase();
-  if (jabatanUpper === "OPERATOR" || jabatanUpper === "STAF") return LINK_TANPA_BAWAHAN;
-  return LINK_DENGAN_BAWAHAN;
 }
 
 /** "YYYY-MM-DD" dari DB (dateStrings) → objek Date lokal tanpa geser zona. */
@@ -77,7 +66,7 @@ export function sisaHariPesan(sisaHari: number | null | undefined): string {
 const kosong = (v: string | null | undefined) => String(v || "-").trim() || "-";
 
 /** Rangka pesan WA per karyawan — teks prototipe dipertahankan apa adanya. */
-export function buatPesanWa(row: EksekusiRow): string {
+export function buatPesanWa(row: EksekusiRow, linkPenilaian: string): string {
   const jabatan = kosong(row.Jabatan);
   return `*HR Kontrak - Notifikasi PKWT*
 
@@ -90,7 +79,7 @@ Status: ${kosong(row.Status_PKWT)}
 Kontrak berakhir: ${formatTglBerakhir(row.Tgl_Berakhir)} (${sisaHariPesan(row.Sisa_Hari)})
 
 Mohon segera lakukan evaluasi dan penilaian kinerja karyawan melalui metode berikut:
-1. ${getLinkPenilaian(jabatan)}
+1. ${linkPenilaian}
 2. Form penilaian prestasi kerja (yang akan dikirimkan HR pada tanggal ${formatHPlus3(row.Tgl_Berakhir)})
 
 ☝️ Silahkan pilih salah satu form penilaian di atas. ☝️
@@ -109,7 +98,9 @@ HR Departemen`;
  * Buka WhatsApp Web dengan pesan terisi — TANPA nomor penerima
  * (`wa.me/?text=...`); HR memilih kontak sendiri, tidak ada pengiriman daring.
  */
-export function kirimWa(row: EksekusiRow): void {
-  const url = `https://wa.me/?text=${encodeURIComponent(buatPesanWa(row))}`;
-  window.open(url, "_blank", "noopener");
+export function kirimWa(row: EksekusiRow, linkPenilaian: string, popup?: Window | null): string {
+  const url = `https://wa.me/?text=${encodeURIComponent(buatPesanWa(row, linkPenilaian))}`;
+  if (popup && !popup.closed) popup.location.replace(url);
+  else window.open(url, "_blank", "noopener");
+  return url;
 }

@@ -132,7 +132,7 @@ test('Permission refresh cannot build old menus after reset/logout', async () =>
   wait.resolve({ user_kode: 'A', menus: [{ men_nama: 'old-menu' }] }); await loading;
   assert.equal(builds, 0); assert.equal(f.permission.loaded, false); assert.equal(f.permission.loading, false);
 });
-test('Expired dialog ignores logged-out/login-page events and closes synchronously on session changes', () => {
+test('Expired dialog ignores logged-out/login/public-form events and closes synchronously on session changes', () => {
   const source = read('App.vue'), dialog = vue.ref(false), authStore = vue.reactive({ token: 'A', isAuthenticated: true }), route = { path: '/dashboard' };
   const logic = source.slice(source.indexOf('watch(() => authStore.token'), source.indexOf('onMounted(() =>'));
   const scope = vue.effectScope(), context = { watch: vue.watch, authStore, route, showExpiredDialog: dialog };
@@ -143,6 +143,10 @@ test('Expired dialog ignores logged-out/login-page events and closes synchronous
     context.expire(); assert.equal(dialog.value, false);
     authStore.token = 'B'; authStore.isAuthenticated = true; route.path = '/login';
     context.expire(); assert.equal(dialog.value, false);
+    route.path = '/penilaian/tanpa-bawahan'; route.meta = { publicPenilaian: true };
+    context.expire(); assert.equal(dialog.value, false);
+    route.path = '/dashboard'; route.meta = {};
+    context.expire(); assert.equal(dialog.value, true);
   } finally { scope.stop(); }
 });
 test('Toast filter ignores only empty cancellation messages; normal errors remain', () => {

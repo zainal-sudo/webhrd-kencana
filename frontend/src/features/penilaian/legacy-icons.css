@@ -1,0 +1,22 @@
+/* Alias ikon legacy ke font MDI lokal yang sudah dipakai HRIS. */
+.fas, .fab { display:inline-block; font-family:"Material Design Icons"; font-style:normal; font-weight:normal; line-height:1; }
+.fa-briefcase::before { content: "\F00D6"; }
+.fa-calculator::before { content: "\F00EC"; }
+.fa-calendar-alt::before { content: "\F00ED"; }
+.fa-calendar-check::before { content: "\F00EF"; }
+.fa-chevron-right::before { content: "\F0142"; }
+.fa-circle::before { content: "\F0765"; }
+.fa-clipboard-list::before { content: "\F10D4"; }
+.fa-edit::before { content: "\F03EB"; }
+.fa-exclamation-triangle::before { content: "\F0026"; }
+.fa-file-pdf::before { content: "\F0226"; }
+.fa-hand-wave::before { content: "\F1821"; }
+.fa-info-circle::before { content: "\F02FC"; }
+.fa-pen::before { content: "\F03EA"; }
+.fa-print::before { content: "\F042A"; }
+.fa-star::before { content: "\F04CE"; }
+.fa-times::before { content: "\F0156"; }
+.fa-undo-alt::before { content: "\F054C"; }
+.fa-user::before { content: "\F0004"; }
+.fa-user-check::before { content: "\F0008"; }
+.fa-whatsapp::before { content: "\F05A3"; }

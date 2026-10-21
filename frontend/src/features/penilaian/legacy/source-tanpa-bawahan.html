@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=c5548a2d-e16d-4b1b-afb8-0303f20e94bd
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>Penilaian Prestasi Kerja - Kencana Print HR</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --primary: #0d6efd;
+    --primary-light: #4d8bf7;
+    --primary-lighter: #e8f0fe;
+    --secondary: #4A2E0E;
+    --accent: #ffc107;
+    --accent-light: #fff3cd;
+    --success: #25D366;
+    --bg: #f0f7ff;
+    --card-bg: #ffffff;
+    --text: #1a1a2e;
+    --text-light: #6b7a8f;
+    --border: #dce5f0;
+    --shadow: 0 8px 30px rgba(13, 110, 253, 0.10);
+    --shadow-hover: 0 12px 40px rgba(13, 110, 253, 0.18);
+    --radius: 20px;
+    --radius-sm: 12px;
+    --danger: #dc3545;
+    --warning: #856404;
+    --warning-bg: #fff3cd;
+}
+
+body {
+    background: var(--bg);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 20px 16px 40px;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.app-container {
+    max-width: 600px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.header-section {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: var(--radius);
+    padding: 24px 24px 30px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(13, 110, 253, 0.25);
+}
+
+.header-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+}
+
+.header-section::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -10%;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 193, 7, 0.08);
+    border-radius: 50%;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    z-index: 1;
+}
+
+.header-left {
+    flex: 1;
+}
+
+.header-badge {
+    display: inline-block;
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.header-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: white;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.header-title span {
+    color: var(--accent);
+}
+
+.header-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 400;
+}
+
+.greeting-section {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    border: 1px solid var(--border);
+}
+
+.greeting-text h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.greeting-text h2 i {
+    color: var(--accent);
+    margin-right: 8px;
+}
+
+.greeting-text p {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.greeting-date {
+    background: var(--primary-lighter);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(13, 110, 253, 0.1);
+}
+
+.form-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 24px 20px 28px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    transition: box-shadow 0.3s ease;
+}
+
+.form-card:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+}
+
+.section-label .icon {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-lighter);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-size: 14px;
+}
+
+.section-label h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.section-label .badge-count {
+    margin-left: auto;
+    background: var(--primary);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field.full {
+    grid-column: 1 / -1;
+}
+
+.field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.field label .required {
+    color: var(--danger);
+    margin-left: 2px;
+}
+
+.field input, .field select {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: all 0.25s ease;
+    width: 100%;
+}
+
+.field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+}
+
+.field input::placeholder {
+    color: #b0b8c0;
+}
+
+.field.error input, .field.error select {
+    border-color: var(--danger);
+    background: #fff5f5;
+}
+
+.field .error-msg {
+    font-size: 10px;
+    color: var(--danger);
+    margin-top: 2px;
+    display: none;
+}
+
+.field.error .error-msg {
+    display: block;
+}
+
+.aspek-section {
+    margin-top: 20px;
+}
+
+.aspek-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.aspek-item {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.aspek-item:hover {
+    border-color: var(--primary-light);
+    background: #f5f9ff;
+}
+
+.aspek-item.has-selected {
+    border-color: var(--primary);
+    background: #f0f7ff;
+}
+
+.aspek-item.no-selected {
+    border-color: #ffe0b0;
+    background: #fffcf5;
+}
+
+.aspek-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.aspek-nama {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.aspek-nama .num {
+    color: var(--primary);
+    margin-right: 4px;
+}
+
+.bobot {
+    font-size: 10px;
+    background: var(--accent-light);
+    padding: 2px 10px;
+    border-radius: 20px;
+    color: var(--secondary);
+    font-weight: 600;
+}
+
+.aspek-detail {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-bottom: 10px;
+    padding-left: 20px;
+}
+
+.radio-group {
+    display: flex;
+    gap: 6px;
+}
+
+.radio-option {
+    flex: 1;
+    text-align: center;
+    background: white;
+    border-radius: 30px;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    border: 1.5px solid var(--border);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.radio-option:hover {
+    border-color: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.radio-option input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.radio-option span {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.radio-label-text {
+    font-size: 7px;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.radio-option.selected {
+    border-color: var(--primary);
+    background: #e8f0fe;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
+}
+
+.nilai-bobot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.nilai-skor {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--primary);
+}
+
+.nilai-skor.empty {
+    color: #b0b8c0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.keterangan {
+    font-size: 11px;
+    color: var(--text-light);
+    font-style: italic;
+    text-align: right;
+    line-height: 1.3;
+    max-width: 60%;
+}
+
+.keterangan.empty {
+    color: #b0b8c0;
+    font-style: normal;
+}
+
+.total-area {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: var(--radius-sm);
+    padding: 18px 20px;
+    margin: 18px 0 16px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    box-shadow: 0 4px 16px rgba(13, 110, 253, 0.2);
+}
+
+.total-label {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.total-angka {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.kriteria-badge {
+    background: rgba(255, 193, 7, 0.2);
+    padding: 4px 14px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.usulan-box {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    margin: 14px 0 18px;
+}
+
+.usulan-box label {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--secondary);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.usulan-box label .required {
+    color: var(--danger);
+    margin-left: 2px;
+}
+
+.usulan-box select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    background: white;
+    color: var(--text);
+    transition: all 0.25s ease;
+}
+
+.usulan-box select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+}
+
+.usulan-box select.error {
+    border-color: var(--danger);
+    background: #fff5f5;
+}
+
+.usulan-box .error-msg {
+    font-size: 10px;
+    color: var(--danger);
+    margin-top: 4px;
+    display: none;
+}
+
+.usulan-box.error .error-msg {
+    display: block;
+}
+
+.catatan-box textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 60px;
+    background: var(--bg);
+    transition: all 0.25s ease;
+}
+
+.catatan-box textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.08);
+}
+
+.catatan-box label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.penilai-info {
+    background: var(--bg);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    margin-top: 12px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border: 1px solid var(--border);
+}
+
+.penilai-info span {
+    color: var(--text-light);
+}
+
+.penilai-info strong {
+    color: var(--text);
+}
+
+/* ===== MODAL PERINGATAN ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 20px;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-box {
+    background: white;
+    border-radius: var(--radius);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px 24px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: modalIn 0.3s ease;
+}
+
+@keyframes modalIn {
+    from { transform: scale(0.95) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-box .modal-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-box .modal-title i {
+    color: var(--accent);
+}
+
+.modal-box .warning-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+}
+
+.modal-box .warning-list li {
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: var(--warning-bg);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--warning);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.modal-box .warning-list li .num {
+    font-weight: 800;
+    color: var(--accent);
+    min-width: 24px;
+}
+
+.modal-box .warning-list li i {
+    color: var(--accent);
+    margin-top: 2px;
+}
+
+.modal-box .checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    border: 2px solid var(--border);
+    transition: border-color 0.3s;
+}
+
+.modal-box .checkbox-group.error {
+    border-color: var(--danger);
+    background: #fff5f5;
+}
+
+.modal-box .checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.modal-box .checkbox-group label {
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.modal-box .checkbox-group label span {
+    color: var(--danger);
+}
+
+.modal-box .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-box .modal-actions .btn-modal {
+    padding: 10px 28px;
+    border-radius: 40px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.25s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.modal-box .modal-actions .btn-cancel {
+    background: #f1f5f9;
+    color: var(--text-light);
+}
+
+.modal-box .modal-actions .btn-cancel:hover {
+    background: #e2e8f0;
+}
+
+.modal-box .modal-actions .btn-confirm {
+    background: var(--success);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.modal-box .modal-actions .btn-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 211, 102, 0.4);
+}
+
+.modal-box .modal-actions .btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* BUTTONS */
+.btn-wa-besar {
+    width: 100%;
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 16px 18px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 17px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-family: 'Inter', sans-serif;
+    box-shadow: 0 4px 16px rgba(37, 211, 102, 0.3);
+    margin: 18px 0 14px;
+}
+
+.btn-wa-besar:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(37, 211, 102, 0.4);
+}
+
+.btn-wa-besar:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.btn-wa-besar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn-group-kecil {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-kecil {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Inter', sans-serif;
+    flex: 1;
+}
+
+.btn-kecil:hover {
+    transform: translateY(-1px);
+}
+
+.btn-kecil:active {
+    transform: scale(0.97);
+}
+
+.btn-reset {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    color: var(--text-light);
+}
+
+.btn-reset:hover {
+    background: #fee;
+    border-color: #fcc;
+    color: #c0392b;
+}
+
+.btn-pdf-kecil {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-pdf-kecil:hover:not(:disabled) {
+    background: var(--primary-light);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.btn-pdf-kecil:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.app-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-light);
+    opacity: 0.7;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+}
+
+.app-footer .dev {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13, 110, 253, 0.92);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.overlay.show {
+    display: flex;
+}
+
+.spin {
+    width: 44px;
+    height: 44px;
+    border: 3px solid rgba(255,255,255,0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.ov-txt {
+    color: rgba(255,255,255,0.8);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--secondary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    transform: translateX(-50%) translateY(-10px);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 500px) {
+    body { padding: 12px 10px 30px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .header-title { font-size: 20px; }
+    .greeting-section { padding: 14px 16px; }
+    .greeting-text h2 { font-size: 16px; }
+    .form-card { padding: 18px 14px 22px; }
+    .aspek-item { padding: 12px 12px; }
+    .radio-option { padding: 4px 2px; }
+    .radio-option span { font-size: 11px; }
+    .radio-label-text { font-size: 6px; }
+    .total-angka { font-size: 28px; }
+    .btn-wa-besar { font-size: 15px; padding: 14px 16px; }
+    .modal-box { padding: 20px 16px; }
+}
+
+@media (max-width: 380px) {
+    .radio-option input { width: 14px; height: 14px; }
+    .radio-label-text { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toastMsg"></div>
+<div class="overlay" id="overlay"><div class="spin"></div><div class="ov-txt">Membuat PDF...</div></div>
+
+<!-- ===== MODAL PERINGATAN ===== -->
+<div class="modal-overlay" id="warningModal">
+    <div class="modal-box">
+        <div class="modal-title">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Alur Tanda Tangan & Persetujuan</span>
+        </div>
+        
+        <ul class="warning-list">
+            <li>
+                <span class="num">1.</span>
+                <span>Apabila menggunakan link ini, hasil dikirimkan ke WA <strong>Karyawan Ybs</strong> untuk ditandatangani, lalu dikirim balik ke <strong>Atasan / Leader</strong>.</span>
+            </li>
+            <li>
+                <span class="num">2.</span>
+                <span><strong>Leader</strong> TTD pada PDF, lalu dikirimkan ke <strong>Supervisor</strong> untuk ditandatangani.</span>
+            </li>
+            <li>
+                <span class="num">3.</span>
+                <span><strong>Supervisor</strong> TTD pada PDF, lalu dikirimkan ke <strong>Manager</strong>.</span>
+            </li>
+            <li>
+                <span class="num">4.</span>
+                <span><strong>Manager</strong> berhak merevisi penilaian dari atasan jika tidak sesuai (menggunakan edit PDF).</span>
+            </li>
+            <li>
+                <span class="num">5.</span>
+                <span>Jika Manager sudah approve, maka harus <strong>TTD di PDF</strong>, lalu hasilnya dikirimkan ke <strong>HR</strong> bersangkutan.</span>
+            </li>
+        </ul>
+        
+        <div style="background: #e8f0fe; padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 18px; font-size: 13px; color: var(--primary); border-left: 4px solid var(--primary);">
+            <i class="fas fa-info-circle"></i> Pastikan semua ter TTD dan dikirim ke HR kembali.
+        </div>
+        
+        <div class="checkbox-group" id="checkboxGroup">
+            <input type="checkbox" id="agreeCheck">
+            <label for="agreeCheck">
+                Saya telah membaca dan menyetujui <span>alur tanda tangan</span> di atas serta akan memastikan semua pihak menandatangani dokumen sebelum dikirim ke HR.
+            </label>
+        </div>
+        
+        <div class="modal-actions">
+            <button class="btn-modal btn-cancel" id="cancelModal">Batalkan</button>
+            <button class="btn-modal btn-confirm" id="confirmModal" disabled>Lanjutkan Kirim</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-container">
+
+    <div class="header-section">
+        <div class="header-top">
+            <div class="header-left">
+                <div class="header-badge"><i class="fas fa-star" style="margin-right:4px;"></i> Performance Appraisal</div>
+                <div class="header-title">Penilaian <span>Prestasi</span></div>
+                <div class="header-sub">Karyawan Tanpa Bawahan · HR Departemen</div>
+            </div>
+            <div class="header-right"></div>
+        </div>
+    </div>
+
+    <div class="greeting-section">
+        <div class="greeting-text">
+            <h2><i class="fas fa-hand-wave"></i> Halo! Semoga hari Anda menyenangkan.</h2>
+            <p>Isi penilaian prestasi kerja karyawan dengan lengkap</p>
+        </div>
+        <div class="greeting-date">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="greetingDate">-</span>
+        </div>
+    </div>
+
+    <div class="form-card" id="appForm">
+
+        <div class="section-label">
+            <div class="icon"><i class="fas fa-user"></i></div>
+            <h3>Identitas Karyawan</h3>
+            <span class="badge-count"><i class="fas fa-edit"></i> 8</span>
+        </div>
+
+        <div class="form-grid">
+            <div class="field full required-field">
+                <label>Nama Karyawan <span class="required">*</span></label>
+                <input type="text" id="namaKaryawan" placeholder="Masukkan nama karyawan" value="" required>
+                <div class="error-msg">Nama karyawan wajib diisi</div>
+            </div>
+            <div class="field">
+                <label>NIK</label>
+                <input type="text" id="nik" placeholder="Nomor Induk" value="">
+            </div>
+            <div class="field required-field">
+                <label>Jabatan <span class="required">*</span></label>
+                <select id="jabatan" required>
+                    <option value="" selected disabled>-- Pilih --</option>
+                    <option value="Operator">Operator</option>
+                    <option value="Staff">Staff</option>
+                    <option value="Leed">Leed</option>
+                    <option value="Spv">Spv</option>
+                    <option value="Manager">Manager</option>
+                </select>
+                <div class="error-msg">Jabatan wajib dipilih</div>
+            </div>
+            <div class="field full required-field">
+                <label>Unit / Departemen <span class="required">*</span></label>
+                <select id="departemen" required>
+                    <option value="" selected disabled>-- Pilih Unit --</option>
+                    <option value="Digital Print">Digital Print</option>
+                    <option value="Finance">Finance</option>
+                    <option value="HRDGAIT">HRDGAIT</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Marketing Retail (KOASAN)">Marketing Retail (KOASAN)</option>
+                    <option value="PPIC">PPIC</option>
+                    <option value="Produksi P1">Produksi P1</option>
+                    <option value="Produksi P2">Produksi P2</option>
+                    <option value="Produksi P4">Produksi P4</option>
+                    <option value="Warehouse">Warehouse</option>
+                </select>
+                <div class="error-msg">Unit wajib dipilih</div>
+            </div>
+            <div class="field required-field">
+                <label>Status Kepegawaian <span class="required">*</span></label>
+                <select id="statusKepegawaian" required>
+                    <option value="" selected disabled>-- Pilih --</option>
+                    <option value="PKWT (Kontrak)">PKWT (Kontrak)</option>
+                    <option value="PKWTT (Tetap)">PKWTT (Tetap)</option>
+                </select>
+                <div class="error-msg">Status wajib dipilih</div>
+            </div>
+            <div class="field required-field">
+                <label>Tanggal Penilaian <span class="required">*</span></label>
+                <input type="date" id="tglPenilaian" required>
+                <div class="error-msg">Tanggal wajib diisi</div>
+            </div>
+            <div class="field full required-field">
+                <label>Nama Atasan (Penilai) <span class="required">*</span></label>
+                <input type="text" id="atasannya" placeholder="Nama Atasan Langsung" value="" required>
+                <div class="error-msg">Nama atasan wajib diisi</div>
+            </div>
+            <div class="field full required-field">
+                <label>Jabatan Atasan <span class="required">*</span></label>
+                <select id="jabatanAtasan" required>
+                    <option value="" selected disabled>-- Pilih --</option>
+                    <option value="Lead">Lead</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Koordinator">Koordinator</option>
+                    <option value="HRD">HRD</option>
+                    <option value="Direktur">Direktur</option>
+                </select>
+                <div class="error-msg">Jabatan atasan wajib dipilih</div>
+            </div>
+        </div>
+
+        <div class="aspek-section">
+            <div class="section-label">
+                <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+                <h3>Aspek Penilaian</h3>
+                <span class="badge-count"><i class="fas fa-star"></i> 5</span>
+            </div>
+            <div id="aspekContainer" class="aspek-list"></div>
+        </div>
+
+        <div class="total-area">
+            <div>
+                <div class="total-label"><i class="fas fa-calculator"></i> TOTAL NILAI AKHIR</div>
+                <div class="total-angka" id="totalNilaiDisplay">0</div>
+            </div>
+            <div class="kriteria-badge" id="kriteriaBadge">-</div>
+        </div>
+
+        <div class="usulan-box" id="usulanBox">
+            <label>USULAN <span class="required">*</span></label>
+            <select id="usulanSelect" required>
+                <option value="" selected disabled>-- Pilih Usulan --</option>
+                <option value="1. Diangkat karyawan tetap (skor 46-50)">1. Diangkat karyawan tetap (skor 46-50)</option>
+                <option value="2. Diangkat karyawan kontrak ...... th (skor 31-45)">2. Diangkat karyawan kontrak ...... th (skor 31-45)</option>
+                <option value="3. Dipromosikan">3. Dipromosikan</option>
+                <option value="4. Dimutasi">4. Dimutasi</option>
+                <option value="5. Diperpanjang kontrak (skor 26-45)">5. Diperpanjang kontrak (skor 26-45)</option>
+                <option value="6. Diputus kontrak (skor 10-25)">6. Diputus kontrak (skor 10-25)</option>
+                <option value="7. Lain – lain : .....">7. Lain – lain : .....</option>
+            </select>
+            <div class="error-msg">Usulan wajib dipilih</div>
+        </div>
+
+        <div class="catatan-box">
+            <label><i class="fas fa-pen" style="margin-right:6px;color:var(--primary);"></i> Catatan Rincian Prestasi Kerja</label>
+            <textarea id="catatanPrestasi" rows="2" placeholder="Tulis capaian, perilaku kerja, rekomendasi..."></textarea>
+        </div>
+
+        <div class="penilai-info">
+            <span><i class="fas fa-user-check"></i> <strong>Penilai:</strong> <span id="penilaiNamaSpan">-</span></span>
+            <span><i class="fas fa-briefcase"></i> <strong>Jabatan:</strong> <span id="penilaiJabatanSpan">-</span></span>
+            <span><i class="fas fa-calendar-check"></i> <strong>Tgl:</strong> <span id="tglPenilaianSpan">-</span></span>
+        </div>
+
+        <button class="btn-wa-besar" id="shareWABtn" disabled>
+            <i class="fab fa-whatsapp"></i> Kirim PDF ke WhatsApp
+        </button>
+        
+        <div class="btn-group-kecil">
+            <button class="btn-kecil btn-reset" id="resetFormBtn"><i class="fas fa-undo-alt"></i> Reset</button>
+            <button class="btn-kecil btn-pdf-kecil" id="printPDFbtn" disabled><i class="fas fa-file-pdf"></i> Save Cetak</button>
+        </div>
+
+    </div>
+
+    <div class="app-footer">
+        <i class="fas fa-print"></i> HR · Performance Appraisal System v2.0<br>
+        <span class="dev">developed by HR Fahrun Ali</span>
+    </div>
+
+</div>
+
+<script>
+const aspekData = [
+    { nama: "Hasil Pekerjaan", detail: "diperbandingkan dengan target pencapaian" },
+    { nama: "Attitude pada Perusahaan", detail: "sikap, cara berfikir & tindakan" },
+    { nama: "Kerjasama", detail: "teamwork & kolaborasi" },
+    { nama: "Tanggung Jawab", detail: "dari hasil pekerjaan, beban kerja ekstra, perawatan alat kerja dan kebersihan lingkungan kerja" },
+    { nama: "Inisiatif", detail: "proaktif & kemandirian" }
+];
+
+let currentScores = [null, null, null, null, null];
+let aspekElements = [];
+let isProcessing = false;
+
+function toast(msg) {
+    const t = document.getElementById('toastMsg');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function getKeteranganByAspek(aspekIndex, skor) {
+    const nama = aspekData[aspekIndex].nama;
+    if (skor === null || skor === undefined) return "☐ Belum dipilih";
+    
+    if (nama === "Hasil Pekerjaan") {
+        if (skor === 5) return "✨ Selalu lebih dari yang diharapkan (diatas target pencapaian)";
+        else if (skor === 4) return "✅ Kadang – kadang lebih dari target pencapaian";
+        else if (skor === 3) return "📌 Sesuai dengan target yang ditetapkan";
+        else if (skor === 2) return "⚠️ Dapat diterima, tapi kadang – kadang membuat kesalahan";
+        else return "❌ Jauh dari target yang ditetapkan";
+    } else if (nama === "Attitude pada Perusahaan") {
+        if (skor === 5) return "✨ Selalu mempunyai reaksi positif dan bersemangat dalam bekerja";
+        else if (skor === 4) return "✅ Reaksi positif cukup banyak";
+        else if (skor === 3) return "📌 Reaksi positif biasa saja";
+        else if (skor === 2) return "⚠️ Kadang – kadang mempunyai reaksi positif / negatif";
+        else return "❌ Sering mempunyai reaksi negatif";
+    } else if (nama === "Kerjasama") {
+        if (skor === 5) return "✨ Mudah & dapat mengajak orang lain bekerja sama";
+        else if (skor === 4) return "✅ Mudah bekerja sama & membantu orang lain";
+        else if (skor === 3) return "📌 Bisa bekerja sama";
+        else if (skor === 2) return "⚠️ Kadang – kadang bisa bekerja sama";
+        else return "❌ Sulit untuk bekerja sama";
+    } else if (nama === "Tanggung Jawab") {
+        if (skor === 5) return "✨ Bertanggung jawab penuh (bertanggung jawab dalam perawatan alat kerja, kebersihan area, tidak pernah mengeluh tentang pekerjaannya)";
+        else if (skor === 4) return "✅ Lebih bertanggung jawab (tidak pernah mengeluh tentang pekerjaan, mampu merawat alat kerja dan lingkungan dengan baik)";
+        else if (skor === 3) return "📌 Bertanggung jawab sesuai tugas-tugas pokoknya";
+        else if (skor === 2) return "⚠️ Kurang bertanggung jawab (terkadang mengeluh tentang pekerjaan maupun lingkungan kerjanya)";
+        else return "❌ Tidak bertanggung jawab (sering mengeluh tentang pekerjaan, fasilitas, lingkungan kerja maupun bagian kerja lainnya)";
+    } else if (nama === "Inisiatif") {
+        if (skor === 5) return "✨ Sering mengambil inisiatif & produktif";
+        else if (skor === 4) return "✅ Kadang-kadang berinisiatif";
+        else if (skor === 3) return "📌 Kerja rutin saja dengan baik";
+        else if (skor === 2) return "⚠️ Perlu dorongan untuk pekerjaan rutin";
+        else return "❌ Selalu menunggu perintah";
+    }
+    return "";
+}
+
+function buildAspekUI() {
+    const container = document.getElementById("aspekContainer");
+    container.innerHTML = "";
+    aspekElements = [];
+    
+    for (let i = 0; i < aspekData.length; i++) {
+        const item = aspekData[i];
+        const card = document.createElement("div");
+        card.className = "aspek-item no-selected";
+        card.id = `aspekCard_${i}`;
+        
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "aspek-header";
+        headerDiv.innerHTML = `
+            <div class="aspek-nama"><span class="num">${i+1}.</span> ${item.nama}</div>
+            <div class="bobot"><i class="fas fa-times"></i> Bobot x2</div>
+        `;
+        card.appendChild(headerDiv);
+        
+        const detailDiv = document.createElement("div");
+        detailDiv.className = "aspek-detail";
+        detailDiv.innerHTML = `<i class="fas fa-chevron-right" style="font-size:8px;margin-right:4px;color:var(--primary);"></i> ${item.detail}`;
+        card.appendChild(detailDiv);
+        
+        const radioGroup = document.createElement("div");
+        radioGroup.className = "radio-group";
+        const radioValues = [5,4,3,2,1];
+        const labels = {5:"Baik Sekali",4:"Baik",3:"Cukup",2:"Kurang",1:"Kurang Sekali"};
+        
+        radioValues.forEach(val => {
+            const optionDiv = document.createElement("div");
+            optionDiv.className = "radio-option";
+            if (currentScores[i] === val) optionDiv.classList.add("selected");
+            
+            const radio = document.createElement("input");
+            radio.type = "radio";
+            radio.name = `aspek_${i}`;
+            radio.value = val;
+            radio.checked = (currentScores[i] === val);
+            radio.addEventListener("change", () => {
+                if (radio.checked) {
+                    currentScores[i] = parseInt(radio.value);
+                    updateAllUI();
+                    const options = radioGroup.querySelectorAll('.radio-option');
+                    options.forEach(opt => {
+                        const r = opt.querySelector('input');
+                        if (r && parseInt(r.value) === parseInt(radio.value)) {
+                            opt.classList.add('selected');
+                        } else {
+                            opt.classList.remove('selected');
+                        }
+                    });
+                    const cardEl = document.getElementById(`aspekCard_${i}`);
+                    if (cardEl) {
+                        cardEl.classList.remove('no-selected');
+                        cardEl.classList.add('has-selected');
+                    }
+                    validateForm();
+                }
+            });
+            
+            const spanAngka = document.createElement("span");
+            spanAngka.innerText = val;
+            const smallLabel = document.createElement("div");
+            smallLabel.className = "radio-label-text";
+            smallLabel.innerText = labels[val];
+            optionDiv.appendChild(radio);
+            optionDiv.appendChild(spanAngka);
+            optionDiv.appendChild(smallLabel);
+            radioGroup.appendChild(optionDiv);
+        });
+        card.appendChild(radioGroup);
+        
+        const nilaiRow = document.createElement("div");
+        nilaiRow.className = "nilai-bobot";
+        const skorSpan = document.createElement("span");
+        skorSpan.className = "nilai-skor empty";
+        skorSpan.id = `skorValue_${i}`;
+        skorSpan.innerHTML = `<i class="fas fa-circle" style="font-size:6px;color:#b0b8c0;margin-right:6px;"></i> Belum dipilih`;
+        const ketSpan = document.createElement("span");
+        ketSpan.className = "keterangan empty";
+        ketSpan.id = `ketValue_${i}`;
+        ketSpan.innerText = "☐ Belum dipilih";
+        nilaiRow.appendChild(skorSpan);
+        nilaiRow.appendChild(ketSpan);
+        card.appendChild(nilaiRow);
+        
+        container.appendChild(card);
+        aspekElements.push({ 
+            card, 
+            radioGroup, 
+            skorSpan, 
+            ketSpan, 
+            radios: radioGroup.querySelectorAll('input') 
+        });
+    }
+    updateAllUI();
+}
+
+function validateForm() {
+    const requiredFields = document.querySelectorAll('.required-field input, .required-field select');
+    let allValid = true;
+    let allAspekSelected = true;
+    
+    requiredFields.forEach(field => {
+        const parent = field.closest('.field');
+        if (field.tagName === 'SELECT') {
+            if (!field.value || field.value === '') {
+                allValid = false;
+                parent.classList.add('error');
+            } else {
+                parent.classList.remove('error');
+            }
+        } else {
+            if (!field.value.trim()) {
+                allValid = false;
+                parent.classList.add('error');
+            } else {
+                parent.classList.remove('error');
+            }
+        }
+    });
+    
+    for (let i = 0; i < currentScores.length; i++) {
+        if (currentScores[i] === null || currentScores[i] === undefined) {
+            allAspekSelected = false;
+            break;
+        }
+    }
+    
+    const usulanSelect = document.getElementById('usulanSelect');
+    const usulanBox = document.getElementById('usulanBox');
+    if (!usulanSelect.value || usulanSelect.value === '') {
+        allValid = false;
+        usulanBox.classList.add('error');
+    } else {
+        usulanBox.classList.remove('error');
+    }
+    
+    const isComplete = allValid && allAspekSelected;
+    
+    document.getElementById('shareWABtn').disabled = !isComplete;
+    document.getElementById('printPDFbtn').disabled = !isComplete;
+    
+    return isComplete;
+}
+
+function updateAllUI() {
+    let total = 0;
+    let allSelected = true;
+    
+    for (let i = 0; i < aspekData.length; i++) {
+        const skor = currentScores[i];
+        const isSelected = (skor !== null && skor !== undefined);
+        
+        if (!isSelected) {
+            allSelected = false;
+            if (aspekElements[i]) {
+                aspekElements[i].skorSpan.className = "nilai-skor empty";
+                aspekElements[i].skorSpan.innerHTML = `<i class="fas fa-circle" style="font-size:6px;color:#b0b8c0;margin-right:6px;"></i> Belum dipilih`;
+                aspekElements[i].ketSpan.className = "keterangan empty";
+                aspekElements[i].ketSpan.innerText = "☐ Belum dipilih";
+                const cardEl = document.getElementById(`aspekCard_${i}`);
+                if (cardEl) {
+                    cardEl.classList.remove('has-selected');
+                    cardEl.classList.add('no-selected');
+                }
+            }
+            continue;
+        }
+        
+        const nilai = skor * 2;
+        total += nilai;
+        if (aspekElements[i]) {
+            aspekElements[i].skorSpan.className = "nilai-skor";
+            aspekElements[i].skorSpan.innerHTML = `${nilai} <span style="font-weight:400;font-size:11px;color:var(--text-light);">poin</span> <span style="font-weight:400;font-size:11px;color:var(--text-light);">(skor ${skor} x2)</span>`;
+            aspekElements[i].ketSpan.className = "keterangan";
+            aspekElements[i].ketSpan.innerText = getKeteranganByAspek(i, skor);
+            const cardEl = document.getElementById(`aspekCard_${i}`);
+            if (cardEl) {
+                cardEl.classList.remove('no-selected');
+                cardEl.classList.add('has-selected');
+            }
+        }
+    }
+    
+    document.getElementById("totalNilaiDisplay").innerText = total;
+    
+    let kriteria = "";
+    if (!allSelected) {
+        kriteria = "Belum Lengkap";
+    } else if (total >= 46) { 
+        kriteria = "Sangat Baik"; 
+    } else if (total >= 36) { 
+        kriteria = "Baik"; 
+    } else if (total >= 26) { 
+        kriteria = "Cukup"; 
+    } else if (total >= 16) { 
+        kriteria = "Kurang"; 
+    } else { 
+        kriteria = "Kurang Sekali"; 
+    }
+    document.getElementById("kriteriaBadge").innerText = kriteria;
+    
+    const namaAtasan = document.getElementById("atasannya").value.trim();
+    const jabatanAtasanSelect = document.getElementById("jabatanAtasan");
+    let jabatanText = jabatanAtasanSelect.options[jabatanAtasanSelect.selectedIndex]?.text || "-";
+    if (jabatanAtasanSelect.value === "") jabatanText = "-";
+    document.getElementById("penilaiNamaSpan").innerText = namaAtasan || "(belum diisi)";
+    document.getElementById("penilaiJabatanSpan").innerText = jabatanText;
+    const tgl = document.getElementById("tglPenilaian").value;
+    const formatted = tgl ? tgl.split('-').reverse().join('/') : "-";
+    document.getElementById("tglPenilaianSpan").innerText = formatted;
+}
+
+function resetForm() {
+    document.getElementById("namaKaryawan").value = "";
+    document.getElementById("nik").value = "";
+    document.getElementById("jabatan").selectedIndex = 0;
+    document.getElementById("departemen").selectedIndex = 0;
+    document.getElementById("statusKepegawaian").selectedIndex = 0;
+    document.getElementById("atasannya").value = "";
+    document.getElementById("jabatanAtasan").selectedIndex = 0;
+    document.getElementById("tglPenilaian").value = new Date().toISOString().split('T')[0];
+    document.getElementById("catatanPrestasi").value = "";
+    document.getElementById("usulanSelect").selectedIndex = 0;
+    
+    document.querySelectorAll('.field').forEach(f => f.classList.remove('error'));
+    document.getElementById('usulanBox').classList.remove('error');
+    
+    currentScores = [null, null, null, null, null];
+    
+    for (let i = 0; i < aspekElements.length; i++) {
+        const radios = aspekElements[i].radios;
+        radios.forEach(r => { r.checked = false; });
+        const options = aspekElements[i].radioGroup.querySelectorAll('.radio-option');
+        options.forEach(opt => opt.classList.remove('selected'));
+        const cardEl = document.getElementById(`aspekCard_${i}`);
+        if (cardEl) {
+            cardEl.classList.remove('has-selected');
+            cardEl.classList.add('no-selected');
+        }
+    }
+    updateAllUI();
+    validateForm();
+    toast("⟳ Form telah direset");
+}
+
+// ===== GENERATE PDF =====
+async function generatePDFBlob() {
+    const { jsPDF } = window.jspdf;
+    
+    const namaKaryawan = document.getElementById('namaKaryawan').value.trim() || "Karyawan";
+    const nik = document.getElementById('nik').value.trim() || "-";
+    const jabatan = document.getElementById('jabatan').value || "-";
+    const departemen = document.getElementById('departemen').value || "-";
+    const statusKepegawaian = document.getElementById('statusKepegawaian').value || "-";
+    const atasannya = document.getElementById('atasannya').value.trim() || "-";
+    const jabatanAtasan = document.getElementById('jabatanAtasan').value || "-";
+    let tglPenilaian = document.getElementById('tglPenilaian').value || new Date().toISOString().split('T')[0];
+    const catatan = document.getElementById('catatanPrestasi').value || "";
+    const usulan = document.getElementById('usulanSelect').value || "-";
+
+    let totalNilai = 0;
+    let allSelected = true;
+    for (let i = 0; i < currentScores.length; i++) {
+        if (currentScores[i] === null || currentScores[i] === undefined) {
+            allSelected = false;
+        } else {
+            totalNilai += currentScores[i] * 2;
+        }
+    }
+
+    let kriteria = "";
+    if (!allSelected) {
+        kriteria = "Belum Lengkap";
+    } else if (totalNilai >= 46) { kriteria = "Sangat Baik"; }
+    else if (totalNilai >= 36) { kriteria = "Baik"; }
+    else if (totalNilai >= 26) { kriteria = "Cukup"; }
+    else if (totalNilai >= 16) { kriteria = "Kurang"; }
+    else { kriteria = "Kurang Sekali"; }
+
+    const W = 85, margin = 5;
+    const contentW = W - margin * 2;
+
+    function calcHeight() {
+        let h = 0;
+        h += 28; // header
+        h += 42; // identitas
+        h += 7;  // judul aspek
+        for (let i = 0; i < currentScores.length; i++) {
+            const skor = currentScores[i];
+            const ket = (skor !== null && skor !== undefined) ? getKeteranganByAspek(i, skor) : "Belum dipilih";
+            const lines = ket.length > 35 ? 2 : 1;
+            h += 13 + (lines - 1) * 3;
+        }
+        h += 18; // total
+        h += 16; // usulan
+        if (catatan) h += 16 + Math.ceil(catatan.length / 38) * 4;
+        h += 34; // TTD 5 orang (tanpa (.............))
+        h += 12; // footer
+        return Math.max(h, 200);
+    }
+
+    const pageH = calcHeight();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, pageH] });
+    let y = 0;
+
+    // HEADER
+    doc.setFillColor(13, 110, 253);
+    doc.rect(0, 0, W, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text(`Approval PKWT (${namaKaryawan})`, margin, 9);
+    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(232, 232, 232);
+    doc.text('Kencana Print HR Department', margin, 16);
+    doc.setFontSize(4.5); doc.setTextColor(200, 200, 200);
+    doc.text(`Tanggal: ${tglPenilaian}`, margin, 22);
+    y = 28;
+
+    // IDENTITAS
+    doc.setFillColor(248, 245, 240);
+    doc.rect(0, y, W, 40, 'F');
+    const identitas = [
+        ['Nama', namaKaryawan], ['NIK', nik], ['Jabatan', jabatan],
+        ['Unit', departemen], ['Status', statusKepegawaian],
+        ['Penilai', atasannya + ' (' + jabatanAtasan + ')']
+    ];
+    identitas.forEach((item, idx) => {
+        const yy = y + 4 + idx * 5.5;
+        doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(120, 90, 60);
+        doc.text(item[0] + ':', margin + 2, yy);
+        doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(40, 30, 20);
+        let val = item[1].length > 20 ? item[1].substring(0, 18) + '..' : item[1];
+        doc.text(val, margin + 28, yy);
+    });
+    y += 44;
+
+    // ASPEK
+    doc.setFillColor(13, 110, 253);
+    doc.rect(0, y, W, 6, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(5.5); doc.setFont('helvetica', 'bold');
+    doc.text('ASPEK PENILAIAN', margin, y + 4.5);
+    y += 8;
+
+    const aspekNamaPDF = ['Hasil Pekerjaan', 'Attitude', 'Kerjasama', 'Tanggung Jawab', 'Inisiatif'];
+    for (let i = 0; i < aspekNamaPDF.length; i++) {
+        const skor = currentScores[i];
+        const isSelected = (skor !== null && skor !== undefined);
+        const nilai = isSelected ? skor * 2 : 0;
+        const ket = isSelected ? getKeteranganByAspek(i, skor) : '☐ Belum dipilih';
+        const ketLines = doc.splitTextToSize(ket, 48);
+        const rowH = 11 + (ketLines.length - 1) * 3;
+        if (i % 2 === 0) { doc.setFillColor(250, 248, 245); doc.rect(0, y, W, rowH, 'F'); }
+        doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(40, 30, 20);
+        doc.text(`${i+1}. ${aspekNamaPDF[i]}`, margin + 1, y + 4);
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(isSelected ? 13 : 180, isSelected ? 110 : 180, isSelected ? 253 : 180);
+        doc.text(isSelected ? `${nilai}` : '-', margin + 62, y + 4);
+        doc.setFontSize(4.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(isSelected ? 100 : 170, isSelected ? 80 : 170, isSelected ? 60 : 170);
+        doc.text(ketLines, margin + 1, y + 8);
+        y += rowH;
+    }
+
+    // TOTAL
+    y += 1;
+    doc.setFillColor(13, 110, 253);
+    doc.roundedRect(margin, y, contentW, 14, 2, 2, 'F');
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+    doc.text('TOTAL NILAI', margin + 3, y + 6);
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text(allSelected ? `${totalNilai} / 50` : 'Belum Lengkap', margin + contentW - 3, y + 10, { align: 'right' });
+    y += 18;
+
+    // KRITERIA & USULAN
+    doc.setFillColor(255, 248, 235);
+    doc.rect(margin, y, contentW, 14, 'F');
+    doc.setFontSize(5.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(140, 100, 30);
+    doc.text(`Kriteria: ${kriteria}`, margin + 2, y + 5);
+    doc.text(`Usulan : ${usulan}`, margin + 2, y + 10);
+    y += 18;
+
+    // CATATAN
+    if (catatan) {
+        doc.setFillColor(248, 245, 240);
+        doc.rect(margin, y, contentW, 14, 'F');
+        doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(74, 46, 14);
+        doc.text('Catatan:', margin + 2, y + 4);
+        doc.setFontSize(5); doc.setFont('helvetica', 'normal'); doc.setTextColor(46, 26, 8);
+        const noteLines = doc.splitTextToSize(catatan, contentW - 4);
+        doc.text(noteLines, margin + 2, y + 9);
+        y += 16;
+    }
+
+    // TTD LENGKAP (tanpa (.............) dan tanpa tanggal di bawah)
+    doc.setFillColor(248, 245, 240);
+    doc.rect(margin, y, contentW, 32, 'F');
+    doc.setDrawColor(13, 110, 253);
+    doc.setLineWidth(0.2);
+    doc.rect(margin, y, contentW, 32);
+    
+    doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(13, 110, 253);
+    doc.text('PERSETUJUAN', margin + contentW / 2, y + 4, { align: 'center' });
+    
+    const ttdData = [
+        { label: 'Karyawan Ybs', x: margin + 2 },
+        { label: 'Atasan Langsung', x: margin + 18 },
+        { label: 'Supervisor', x: margin + 34 },
+        { label: 'Manager', x: margin + 50 },
+        { label: 'HRD', x: margin + 66 }
+    ];
+    
+    ttdData.forEach((item) => {
+        doc.setDrawColor(120, 90, 60);
+        doc.setLineWidth(0.2);
+        doc.line(item.x, y + 16, item.x + 13, y + 16);
+        doc.setFontSize(4); doc.setFont('helvetica', 'italic'); doc.setTextColor(120, 90, 60);
+        doc.text(item.label, item.x, y + 20);
+        // Kosongkan area (.............) - dihapus
+    });
+    
+    // Tanggal di bawah - dihapus
+    y += 36;
+
+    // FOOTER
+    doc.setDrawColor(200, 180, 160);
+    doc.setLineWidth(0.1);
+    doc.line(margin, y, W - margin, y);
+    y += 3;
+    doc.setFontSize(4); doc.setFont('helvetica', 'normal'); doc.setTextColor(140, 120, 100);
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')}`, margin, y);
+    y += 3;
+    doc.text('Kencana Print HR - Performance Appraisal', margin, y);
+
+    return doc.output('blob');
+}
+
+// ===== MODAL HANDLER =====
+function showWarningModal() {
+    const modal = document.getElementById('warningModal');
+    const checkbox = document.getElementById('agreeCheck');
+    const confirmBtn = document.getElementById('confirmModal');
+    const cancelBtn = document.getElementById('cancelModal');
+    const checkboxGroup = document.getElementById('checkboxGroup');
+    
+    // Reset state
+    checkbox.checked = false;
+    confirmBtn.disabled = true;
+    checkboxGroup.classList.remove('error');
+    modal.classList.add('show');
+    
+    // Checkbox listener
+    checkbox.onchange = function() {
+        if (this.checked) {
+            confirmBtn.disabled = false;
+            checkboxGroup.classList.remove('error');
+        } else {
+            confirmBtn.disabled = true;
+        }
+    };
+    
+    // Cancel
+    cancelBtn.onclick = function() {
+        modal.classList.remove('show');
+    };
+    
+    // Confirm
+    confirmBtn.onclick = function() {
+        if (!checkbox.checked) {
+            checkboxGroup.classList.add('error');
+            return;
+        }
+        modal.classList.remove('show');
+        // Lanjutkan kirim PDF
+        executeSharePDF();
+    };
+    
+    // Click outside to close
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            modal.classList.remove('show');
+        }
+    };
+}
+
+// ===== EXECUTE SHARE PDF =====
+async function executeSharePDF() {
+    if (isProcessing) return;
+    isProcessing = true;
+    
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('show');
+    
+    try {
+        const pdfBlob = await generatePDFBlob();
+        const namaKaryawan = document.getElementById('namaKaryawan').value.trim() || "Karyawan";
+        const tglPenilaian = document.getElementById('tglPenilaian').value || new Date().toISOString().split('T')[0];
+        const filename = `Approval_PKWT_${namaKaryawan.replace(/\s/g, '_')}_${tglPenilaian.replace(/-/g, '')}.pdf`;
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        
+        // Buat pesan WA
+        const nik = document.getElementById('nik').value.trim() || "-";
+        const jabatan = document.getElementById('jabatan').value || "-";
+        const departemen = document.getElementById('departemen').value || "-";
+        const statusKepegawaian = document.getElementById('statusKepegawaian').value || "-";
+        const atasannya = document.getElementById('atasannya').value.trim() || "-";
+        const jabatanAtasan = document.getElementById('jabatanAtasan').value || "-";
+        const usulan = document.getElementById('usulanSelect').value || "-";
+        const catatan = document.getElementById('catatanPrestasi').value || "";
+        
+        let totalNilai = 0;
+        let allSelected = true;
+        for (let i = 0; i < currentScores.length; i++) {
+            if (currentScores[i] === null || currentScores[i] === undefined) {
+                allSelected = false;
+            } else {
+                totalNilai += currentScores[i] * 2;
+            }
+        }
+        let kriteria = "";
+        if (!allSelected) kriteria = "Belum Lengkap";
+        else if (totalNilai >= 46) kriteria = "Sangat Baik";
+        else if (totalNilai >= 36) kriteria = "Baik";
+        else if (totalNilai >= 26) kriteria = "Cukup";
+        else if (totalNilai >= 16) kriteria = "Kurang";
+        else kriteria = "Kurang Sekali";
+        
+        const aspekNama = ['Hasil Pekerjaan', 'Attitude pada Perusahaan', 'Kerjasama', 'Tanggung Jawab', 'Inisiatif'];
+        let waMessage = `📋 PENILAIAN PRESTASI KERJA 📋\n`;
+        waMessage += `👥 Karyawan Tanpa Bawahan\n`;
+        waMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        waMessage += `👤 Nama       : ${namaKaryawan}\n`;
+        waMessage += `🆔 NIK        : ${nik}\n`;
+        waMessage += `📌 Jabatan    : ${jabatan}\n`;
+        waMessage += `🏢 Unit       : ${departemen}\n`;
+        waMessage += `📋 Status     : ${statusKepegawaian}\n`;
+        waMessage += `👨‍💼 Penilai    : ${atasannya} (${jabatanAtasan})\n`;
+        waMessage += `📅 Tanggal    : ${tglPenilaian.split('-').reverse().join('/')}\n`;
+        waMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        waMessage += `⭐ HASIL PENILAIAN ⭐\n`;
+        for (let i = 0; i < aspekNama.length; i++) {
+            const skor = currentScores[i];
+            const isSelected = (skor !== null && skor !== undefined);
+            const nilai = isSelected ? skor * 2 : 0;
+            let statusText = "";
+            let icon = "";
+            if (!isSelected) { statusText = "Belum dipilih"; icon = "⬜"; }
+            else if (skor === 5) { statusText = "Baik Sekali"; icon = "🔥"; }
+            else if (skor === 4) { statusText = "Baik"; icon = "✅"; }
+            else if (skor === 3) { statusText = "Cukup"; icon = "📌"; }
+            else if (skor === 2) { statusText = "Kurang"; icon = "⚠️"; }
+            else { statusText = "Kurang Sekali"; icon = "❌"; }
+            waMessage += `   ${i+1}. ${aspekNama[i]} : ${isSelected ? nilai + ' poin' : '-'} ${icon} (skor ${isSelected ? skor : '-'} - ${statusText})\n`;
+        }
+        waMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        waMessage += `✅ TOTAL NILAI: ${allSelected ? totalNilai + ' / 50' : 'Belum Lengkap'} (${kriteria})\n`;
+        waMessage += `📌 USULAN    : ${usulan}\n`;
+        if (catatan) waMessage += `📝 CATATAN: ${catatan}\n`;
+        waMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        waMessage += `📊 POLLING PERSETUJUAN\n`;
+        waMessage += `Silakan berikan keputusan:\n`;
+        waMessage += `✅ ACC / SETUJU (balas: ACC)\n`;
+        waMessage += `❌ TIDAK ACC / TOLAK (balas: TIDAK ACC)\n`;
+        waMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        waMessage += `🏢 HR - Performance Appraisal System`;
+        
+        overlay.classList.remove('show');
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'Approval PKWT',
+                    text: waMessage,
+                    files: [file]
+                });
+                toast('✅ PDF dan pesan berhasil dikirim ke WhatsApp');
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(pdfBlob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    await navigator.clipboard.writeText(waMessage);
+                    toast('📄 PDF diunduh & pesan disalin ke clipboard');
+                }
+            }
+        } else {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(pdfBlob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            await navigator.clipboard.writeText(waMessage);
+            toast('📄 PDF diunduh & pesan disalin ke clipboard');
+        }
+        
+    } catch (err) {
+        console.error(err);
+        overlay.classList.remove('show');
+        toast('❌ Gagal membuat PDF');
+    }
+    
+    isProcessing = false;
+}
+
+// ===== SAVE CETAK (PDF) =====
+async function generateAndSavePDF() {
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('show');
+    
+    try {
+        const pdfBlob = await generatePDFBlob();
+        const namaKaryawan = document.getElementById('namaKaryawan').value.trim() || "Karyawan";
+        const tglPenilaian = document.getElementById('tglPenilaian').value || new Date().toISOString().split('T')[0];
+        const filename = `Approval_PKWT_${namaKaryawan.replace(/\s/g, '_')}_${tglPenilaian.replace(/-/g, '')}.pdf`;
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfBlob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        toast('📄 PDF berhasil diunduh');
+    } catch (err) {
+        console.error(err);
+        toast('❌ Gagal membuat PDF');
+    }
+    
+    overlay.classList.remove('show');
+}
+
+// ===== EVENT LISTENERS =====
+document.getElementById("resetFormBtn").addEventListener("click", resetForm);
+document.getElementById("printPDFbtn").addEventListener("click", generateAndSavePDF);
+
+// Tombol Kirim WA -> tampilkan modal dulu
+document.getElementById("shareWABtn").addEventListener("click", showWarningModal);
+
+const dynamicInputs = ["namaKaryawan", "nik", "jabatan", "departemen", "statusKepegawaian", "atasannya", "jabatanAtasan", "tglPenilaian", "usulanSelect"];
+dynamicInputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", () => {
+        updateAllUI();
+        validateForm();
+    });
+    if (el && el.tagName === "SELECT") el.addEventListener("change", () => {
+        updateAllUI();
+        validateForm();
+    });
+});
+
+const today = new Date();
+const todayStr = today.toISOString().split('T')[0];
+document.getElementById('tglPenilaian').value = todayStr;
+
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const dateStr = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+document.getElementById('greetingDate').innerText = dateStr;
+
+buildAspekUI();
+updateAllUI();
+validateForm();
+</script>
+</body>
+</html>

@@ -12,6 +12,18 @@ import { useTabsStore } from "@/stores/tabsStore";
  */
 const routes = [
   {
+    path: "/penilaian/tanpa-bawahan",
+    component: () => import("@/views/public/PenilaianPublicView.vue"),
+    props: { formType: "tanpa-bawahan" },
+    meta: { layout: "PublicPenilaianLayout", requiresAuth: false, publicPenilaian: true, title: "Penilaian Tanpa Bawahan" },
+  },
+  {
+    path: "/penilaian/dengan-bawahan",
+    component: () => import("@/views/public/PenilaianPublicView.vue"),
+    props: { formType: "dengan-bawahan" },
+    meta: { layout: "PublicPenilaianLayout", requiresAuth: false, publicPenilaian: true, title: "Penilaian Dengan Bawahan" },
+  },
+  {
     path: "/login",
     name: "login",
     component: () => import("@/views/auth/LoginView.vue"),

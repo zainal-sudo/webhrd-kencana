@@ -1,0 +1,24 @@
+*HR Kontrak - Notifikasi PKWT*
+
+Kepada Yth. Atasan
+
+Karyawan: Budi
+Jabatan: STAF
+Bagian: Produksi
+Status: PKWT 2
+Kontrak berakhir: 10/11/2026 (20 hari lagi)
+
+Mohon segera lakukan evaluasi dan penilaian kinerja karyawan melalui metode berikut:
+1. {{LINK_PENILAIAN}}
+2. Form penilaian prestasi kerja (yang akan dikirimkan HR pada tanggal 13/11/2026)
+
+☝️ Silahkan pilih salah satu form penilaian di atas. ☝️
+
+Ketentuan:
+1. Apabila menggunakan link (pilihan no 1) hasil dikirimkan ke Karyawan Ybs untuk di tandatangani, lalu di kirim balik ke atasan/ leader
+2. Leader TTD pada PDF lalu di kirimkan ke SPV untuk ditandatangani oleh SPV
+3. SPV TTD pada PDF lalu di kirimkan ke Manager
+4. Manager berhak merevisi penilaian dari atasan jika tidak sesuai (menggunakan edit PDF)
+5. Jika Manager sudah approve maka harus TTD di PDF, lalu hasilnya di kirimkan ke HR bersangkutan
+--
+HR Departemen

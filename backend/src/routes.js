@@ -9,12 +9,14 @@ import gajiRoutes from './routes/gajiRoutes.js'
 import otorisasiRoutes from './routes/otorisasiRoutes.js'
 import dashboardRoutes from './routes/dashboardRoutes.js'
 import agendaRoutes from './routes/agendaRoutes.js'
+import publicPenilaianRoutes from './routes/publicPenilaianRoutes.js'
 
 const r = Router()
 
 /* Publik */
 r.post('/login', login)
 r.get('/health', (req, res) => res.json({ success: true, message: 'Web HRD Kencana API aktif' }))
+r.use('/public/penilaian', publicPenilaianRoutes)
 
 /* Terlindungi */
 r.use(verifyToken)

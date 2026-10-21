@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import BlankLayout from "@/layouts/BlankLayout.vue";
+import PublicPenilaianLayout from "@/layouts/PublicPenilaianLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
@@ -17,19 +18,19 @@ const tabsStore = useTabsStore();
 // Terapkan preferensi tema sejak awal, termasuk pada layout Login.
 useThemeToggle();
 
-const layout = computed(() => (route.meta?.layout === "BlankLayout" ? BlankLayout : DefaultLayout));
+const layout = computed(() => route.meta?.layout === "PublicPenilaianLayout" ? PublicPenilaianLayout : route.meta?.layout === "BlankLayout" ? BlankLayout : DefaultLayout);
 
 const showExpiredDialog = ref(false);
 
 watch(() => authStore.token, () => { showExpiredDialog.value = false; }, { flush: "sync" });
 
 function onAuthExpired() {
-  if (!authStore.isAuthenticated || route.path === "/login") return;
+  if (!authStore.isAuthenticated || route.path === "/login" || route.meta?.publicPenilaian) return;
   showExpiredDialog.value = true;
 }
 
 onMounted(() => {
-  if (authStore.isAuthenticated && !permissionStore.loaded) {
+  if (!route.meta?.publicPenilaian && authStore.isAuthenticated && !permissionStore.loaded) {
     permissionStore.fetchAll().catch(() => undefined);
   }
   window.addEventListener("auth:expired", onAuthExpired);
@@ -51,7 +52,7 @@ const goToLogin = () => {
 <template>
   <component :is="layout" />
 
-  <v-dialog v-model="showExpiredDialog" max-width="380" persistent>
+  <v-dialog v-if="!route.meta.publicPenilaian" v-model="showExpiredDialog" max-width="380" persistent>
     <v-card rounded="false">
       <v-card-item>
         <template #prepend>
