@@ -1032,7 +1032,7 @@ const DL_FROM = ` FROM (${DL_INNER}) final INNER JOIN tkaryawan t ON t.kar_Nik =
 
 const DL_SELECT = `SELECT DISTINCT t.kar_kode_absensi AS \`Kode\`, final.Tanggal, final.Nik,
     t.kar_nama AS \`Nama\`, t.kar_pab_kode AS \`Pabrik\`, t.kar_bagian AS \`Bagian\`,
-    final.\`2jam\`, (final.Lembur - final.\`2jam\`) AS \`Lebih2Jam\`, final.Panggilan, final.Lembur, final.Jenis_Kerja ${DL_FROM}`
+    final.\`2jam\`, (final.Lembur - final.\`2jam\`) AS \`Lebih2Jam\`, final.panggilan AS \`Panggilan\`, final.lembur AS \`Lembur\`, final.Jenis_Kerja ${DL_FROM}`
 
 /** Daftar rincian lembur (2 jam pertama / lebih / panggilan / total) per periode. */
 export const getDetailLemburList = async (req, res, next) => {
