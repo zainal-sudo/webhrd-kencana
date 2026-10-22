@@ -1168,7 +1168,8 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`SELECT t.* FROM (${inner}) t ${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Absensi-Periode', Object.keys(AP_COLUMNS), all)
+            const exportCols = AP_STATIC.map(([alias]) => alias).concat(tanggalPeriode(start, end).map(h => h.dd))
+            return sendExcel(res, 'Absensi-Periode', exportCols, all)
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${inner}) t ${where}`, params)

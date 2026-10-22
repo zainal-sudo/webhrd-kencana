@@ -34,11 +34,11 @@ function hariAntara(start: string, end: string): { date: string; dd: string }[] 
 
 const statik: BrowseColumn[] = [
   { key: "Nik", label: "NIK", width: "110px" },
-  { key: "Nama", label: "Nama Lengkap", filterable: false },
-  { key: "Bagian", label: "Bagian", filterable: false },
-  { key: "Status", label: "Sistem", width: "80px", filterable: false },
-  { key: "Jabatan", label: "Jabatan", filterable: false },
-  { key: "Pabrik", label: "Pabrik", width: "70px", filterable: false },
+  { key: "Nama", label: "Nama Lengkap" },
+  { key: "Bagian", label: "Bagian" },
+  { key: "Status", label: "Sistem", width: "80px" },
+  { key: "Jabatan", label: "Jabatan" },
+  { key: "Pabrik", label: "Pabrik", width: "70px" },
 ];
 
 function builder(startDate: string, endDate: string): BrowseColumn[] {
