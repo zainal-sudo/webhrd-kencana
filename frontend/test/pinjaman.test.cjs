@@ -111,6 +111,77 @@ test('Export Pengajuan uses visible dates even when they differ from applied bro
   assert.match(source, /Export Pengajuan/);
   f.dispose();
 });
+test('Date selection accepts past, today and future dates, adjusting the opposite end before refreshing', async () => {
+  const f = fixture('view');
+  const periods = [];
+  f.browse.value = { refresh() { periods.push({ ...f.periodQuery.value }); } };
+  try {
+    for (const changed of ['start', 'end']) {
+      for (const date of ['2020-01-01', dateFormat.todaySql(), '2030-12-31']) {
+        f.exportStart.value = changed === 'end' ? '2099-01-01' : date;
+        f.exportEnd.value = changed === 'start' ? '2000-01-01' : date;
+        await f.applyPeriod(changed);
+        assert.deepEqual(periods.at(-1), { start_date: date, end_date: date });
+        assert.equal(f.exportStart.value, date);
+        assert.equal(f.exportEnd.value, date);
+      }
+    }
+    assert.equal(periods.length, 6);
+  } finally { f.dispose(); }
+});
+
+test('Date selection fills an empty opposite date but rejects invalid dates and changes during export', async () => {
+  const f = fixture('view');
+  let refreshes = 0;
+  f.browse.value = { refresh() { refreshes++; } };
+  try {
+    for (const changed of ['start', 'end']) {
+      f.exportStart.value = changed === 'start' ? '2026-10-23' : '';
+      f.exportEnd.value = changed === 'end' ? '2026-10-23' : '';
+      await f.applyPeriod(changed);
+      assert.equal(f.exportStart.value, '2026-10-23');
+      assert.equal(f.exportEnd.value, '2026-10-23');
+    }
+    for (const changed of ['start', 'end']) {
+      f.exportStart.value = changed === 'start' ? '2026-02-30' : '';
+      f.exportEnd.value = changed === 'end' ? '2026-02-30' : '';
+      await f.applyPeriod(changed);
+    }
+    assert.equal(refreshes, 2);
+    f.exporting.value = true;
+    f.exportStart.value = '2026-10-23';
+    f.exportEnd.value = '';
+    await f.applyPeriod('start');
+    assert.equal(f.exportEnd.value, '');
+    assert.equal(refreshes, 2);
+  } finally { f.dispose(); }
+});
+
+test('Empty results preserve selected dates for browse/export, and all dates restores the original range', async () => {
+  const f = fixture('view');
+  const b = fixture('browse');
+  try {
+    f.browseLoaded({ date_start: '2026-10-06', date_end: '2026-10-20' });
+    f.browse.value = { refresh() { b.props.extraQuery = { ...f.periodQuery.value }; b.refresh(); } };
+    f.exportStart.value = '2026-10-23';
+    await f.applyPeriod('start');
+    await settle();
+    assert.equal(b.calls.at(-1).config.params.start_date, '2026-10-23');
+    assert.equal(b.calls.at(-1).config.params.end_date, '2026-10-23');
+    f.browseLoaded({ date_start: null, date_end: null, total: 0 });
+    assert.equal(f.exportStart.value, '2026-10-23');
+    assert.equal(f.exportEnd.value, '2026-10-23');
+    await f.exportPengajuan();
+    assert.equal(f.calls.at(-1).url, '/transaksi/pinjaman/export-pengajuan?start_date=2026-10-23&end_date=2026-10-23');
+    await f.allDates();
+    await settle();
+    assert.equal(f.exportStart.value, '2026-10-06');
+    assert.equal(f.exportEnd.value, '2026-10-20');
+    assert.equal(b.calls.at(-1).config.params.start_date, undefined);
+    assert.equal(b.calls.at(-1).config.params.end_date, undefined);
+  } finally { f.dispose(); b.dispose(); }
+});
+
 test('Invalid period is not applied/downloaded; download error releases loading', async () => {
   const f = fixture('view', { failExport: true });
   f.exportEnd.value = '2026-09-30';

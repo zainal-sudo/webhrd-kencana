@@ -39,8 +39,16 @@ function browseLoaded(pagination?: Record<string, any>) {
   allDateRange.value = { start: validExportDate(start) ? start : '', end: validExportDate(end) ? end : '' };
   showAllDateRange();
 }
-async function applyPeriod() {
-  if (!exportPeriodValid.value || exporting.value) return;
+async function applyPeriod(changed?: 'start' | 'end') {
+  if (exporting.value) return;
+  if (changed === 'start' && validExportDate(exportStart.value)
+    && (!exportEnd.value || exportStart.value > exportEnd.value)) {
+    exportEnd.value = exportStart.value;
+  } else if (changed === 'end' && validExportDate(exportEnd.value)
+    && (!exportStart.value || exportEnd.value < exportStart.value)) {
+    exportStart.value = exportEnd.value;
+  }
+  if (!exportPeriodValid.value) return;
   appliedPeriod.value = { start_date: exportStart.value, end_date: exportEnd.value };
   await nextTick();
   browse.value?.refresh();
@@ -187,8 +195,8 @@ function display(row: Record<string, any>, column: BrowseColumn, text?: string) 
       <template #toolbar-before-search>
         <div class="loan-period">
           <div class="period-fields" role="group" aria-label="Periode pinjaman">
-            <div class="date-field"><label for="loan-export-start">DARI</label><DateInput id="loan-export-start" v-model="exportStart" :max="exportEnd || undefined" :disabled="exporting" @change="applyPeriod" /></div>
-            <div class="date-field"><label for="loan-export-end">SAMPAI</label><DateInput id="loan-export-end" v-model="exportEnd" :min="exportStart || undefined" :disabled="exporting" @change="applyPeriod" /></div>
+            <div class="date-field"><label for="loan-export-start">DARI</label><DateInput id="loan-export-start" v-model="exportStart" :disabled="exporting" @change="applyPeriod('start')" /></div>
+            <div class="date-field"><label for="loan-export-end">SAMPAI</label><DateInput id="loan-export-end" v-model="exportEnd" :disabled="exporting" @change="applyPeriod('end')" /></div>
             <button type="button" class="all-dates-button" :class="{ active: !appliedPeriod }" :aria-pressed="!appliedPeriod" :disabled="exporting" @click="allDates"><MsIcon v-if="!appliedPeriod" name="check" :size="14" />Semua periode</button>
           </div>
           <span v-if="(exportStart || exportEnd) && !exportPeriodValid" class="period-error" role="alert">Rentang tanggal tidak valid.</span>

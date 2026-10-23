@@ -3,6 +3,7 @@ import { computed, onActivated, onMounted, ref, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import MsIcon from '@/components/MsIcon.vue';
 import { api, getErrorMessage } from '@/api/axios';
+import { downloadFile } from '@/api';
 import { useAuthStore } from '@/stores/authStore';
 import { rupiah } from '@/utils/pinjaman';
 import { useLiveSearch } from '@/composables/useLiveSearch';
@@ -27,6 +28,17 @@ const visiblePages = computed(() => {
 });
 watch(page, value => { pageInput.value = value; });
 const loading = ref(false), processing = ref(false), ready = ref(false), loadError = ref(false);
+const exporting = ref(false);
+async function exportExcel() {
+  if (exporting.value || !ready.value || loading.value || processing.value || !chosen.value.length) return;
+  exporting.value = true;
+  const items = chosen.value.map(row => ({ nomor_pinjam: row.Nomor, potongan_ke: row.PotonganKe }));
+  const params = new URLSearchParams({ bulan: String(bulan.value), tahun: String(tahun.value), search: search.value, export: 'xlsx', items: JSON.stringify(items) });
+  try {
+    await downloadFile(`/transaksi/pinjaman/pelunasan?${params}`, `Pelunasan-Pinjaman_${tahun.value}-${String(bulan.value).padStart(2, '0')}.xlsx`);
+  } catch (e) { toast.error(getErrorMessage(e)); }
+  finally { exporting.value = false; }
+}
 const canProcess = computed(() => auth.can('frmBayar', 'insert'));
 const periode = computed(() => `${bulanNames[bulan.value - 1]} ${tahun.value}`);
 let request = 0, firstActivation = true;
@@ -35,19 +47,19 @@ function eligible(row: PotonganRow) {
     && row.SisaBayar != null && Number.isFinite(Number(row.Potongan)) && Number(row.Potongan) > 0
     && Number(row.Potongan) <= Number(row.SisaBayar);
 }
-const available = computed(() => rows.value.filter(eligible));
-const chosen = computed(() => rows.value.filter(row => selected.value.has(row.Key) && eligible(row)));
+const chosen = computed(() => rows.value.filter(row => selected.value.has(row.Key)));
+const canProcessSelection = computed(() => canProcess.value && chosen.value.length > 0 && chosen.value.every(eligible));
 const amount = computed(() => chosen.value.reduce((sum, row) => sum + Number(row.Potongan), 0));
-const allSelected = computed(() => available.value.length > 0 && available.value.every(row => selected.value.has(row.Key)));
+const allSelected = computed(() => rows.value.length > 0 && rows.value.every(row => selected.value.has(row.Key)));
 function toggle(row: PotonganRow) {
-  if (!canProcess.value || processing.value || loading.value || !ready.value || !eligible(row)) return;
+  if (processing.value || loading.value || !ready.value) return;
   const next = new Set(selected.value);
   if (next.has(row.Key)) next.delete(row.Key); else next.add(row.Key);
   selected.value = next;
 }
 function selectAll() {
-  if (!canProcess.value || processing.value || loading.value || !ready.value) return;
-  selected.value = allSelected.value ? new Set() : new Set(available.value.map(row => row.Key));
+  if (processing.value || loading.value || !ready.value) return;
+  selected.value = allSelected.value ? new Set() : new Set(rows.value.map(row => row.Key));
 }
 async function load(target = 1) {
   const current = ++request;
@@ -83,9 +95,9 @@ function invalidate() {
   ++request; rows.value = []; selected.value = new Set(); ready.value = false;
   loading.value = false; total.value = 0; page.value = 1; lastPage.value = 1;
 }
-watch([bulan, tahun, search], invalidate);
+watch(search, invalidate);
 async function processSelected() {
-  if (!canProcess.value || loading.value || processing.value || !ready.value || !chosen.value.length) return;
+  if (!canProcessSelection.value || loading.value || processing.value || !ready.value) return;
   const items = chosen.value.map(row => ({ nomor_pinjam: row.Nomor, potongan_ke: row.PotonganKe }));
   const loans = new Set(items.map(item => item.nomor_pinjam)).size;
   if (!window.confirm(`Proses pelunasan ${periode.value} sebesar ${rupiah(amount.value)} untuk ${loans} pinjaman (${items.length} potongan)?\n\nSisa pinjaman akan berkurang dan sisa plafon perusahaan akan bertambah sesuai pembayaran yang berhasil diproses. Plafon maksimum tetap Rp30 juta.`)) return;
@@ -100,6 +112,7 @@ async function processSelected() {
 onMounted(() => load());
 onActivated(() => { if (firstActivation) { firstActivation = false; return; } if (!processing.value) load(page.value); });
 const liveSearch = useLiveSearch(() => load(1), { enabled: () => !processing.value, invalidate });
+watch([bulan, tahun], () => { void liveSearch.run(); });
 </script>
 
 <template>
@@ -115,22 +128,23 @@ const liveSearch = useLiveSearch(() => load(1), { enabled: () => !processing.val
         <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
       </span></label>
       <label class="search">Cari<input v-model="search" :disabled="processing" placeholder="NIK / nama / nomor pinjaman" @input="liveSearch.schedule" /></label>
-      <button type="submit" :disabled="loading || processing"><MsIcon name="refresh" :size="16" />Tampilkan / Refresh</button>
+      <button type="submit" :disabled="loading || processing"><MsIcon name="refresh" :size="16" />Refresh</button>
+      <button type="button" :disabled="exporting || !ready || loading || processing || !chosen.length" @click="exportExcel"><MsIcon name="download" :size="16" />{{ exporting ? 'Mengunduh…' : 'Export Excel Terpilih' }}</button>
     </form>
     <div class="selection-tools"><span>Dipilih: <strong>{{ chosen.length }}</strong> potongan · Total: <strong>{{ rupiah(amount) }}</strong></span>
-      <button v-if="canProcess" class="process-btn" type="button" :disabled="!ready || loading || processing || !chosen.length" @click="processSelected">{{ processing ? 'Memproses…' : 'Proses' }}</button>
+      <button v-if="canProcess" class="process-btn" type="button" :disabled="!ready || loading || processing || !canProcessSelection" @click="processSelected">{{ processing ? 'Memproses…' : 'Proses' }}</button>
     </div>
-    <p class="note">Pilihan berlaku untuk halaman ini. Hanya jadwal tersimpan yang dapat diproses; potongan yang sudah diproses tidak dapat dipilih lagi.</p>
-    <p v-if="loadError" role="alert">Daftar gagal dimuat. Klik Tampilkan / Refresh untuk mencoba lagi.</p>
+    <p class="note">Pilihan berlaku untuk halaman ini. Semua baris dapat dipilih untuk export. Proses hanya aktif jika seluruh pilihan belum diproses dan saldonya valid.</p>
+    <p v-if="loadError" role="alert">Daftar gagal dimuat. Klik Refresh untuk mencoba lagi.</p>
     <div class="table-scroll">
       <table><thead><tr>
-        <th class="check"><input type="checkbox" aria-label="Pilih semua potongan yang dapat diproses pada halaman ini" :checked="allSelected" :indeterminate="chosen.length > 0 && !allSelected" :disabled="!canProcess || !ready || loading || processing || !available.length" @change="selectAll" /></th>
+        <th class="check"><input type="checkbox" aria-label="Pilih semua potongan pada halaman ini" :checked="allSelected" :indeterminate="chosen.length > 0 && !allSelected" :disabled="!ready || loading || processing || !rows.length" @change="selectAll" /></th>
         <th>NIK</th><th>Nama Karyawan</th><th>Nomor Pinjaman</th><th class="money">Nominal Pinjaman</th><th class="money">Potongan</th><th class="money">Sudah Dibayar</th><th class="money">Sisa Pinjaman</th><th>Status Proses</th>
       </tr></thead><tbody>
         <tr v-if="loading"><td colspan="9" role="status">Memuat {{ periode }}…</td></tr>
-        <tr v-else-if="!rows.length"><td colspan="9">{{ ready ? 'Tidak ada jadwal tersimpan untuk periode ini.' : 'Pilih periode lalu klik Tampilkan.' }}</td></tr>
+        <tr v-else-if="!rows.length"><td colspan="9">{{ ready ? 'Tidak ada jadwal tersimpan untuk periode ini.' : 'Menunggu data periode yang dipilih.' }}</td></tr>
         <tr v-for="row in rows" v-else :key="row.Key" :class="{ processed: row.DiprosesPada != null }">
-          <td class="check"><input type="checkbox" :aria-label="`Pilih ${row.Nomor} potongan ke-${row.PotonganKe}`" :checked="selected.has(row.Key)" :disabled="!canProcess || processing || !ready || !eligible(row)" @change="toggle(row)" /></td>
+          <td class="check"><input type="checkbox" :aria-label="`Pilih ${row.Nomor} potongan ke-${row.PotonganKe}`" :checked="selected.has(row.Key)" :disabled="loading || processing || !ready" @change="toggle(row)" /></td>
           <td class="nowrap">{{ row.Nik }}</td><td>{{ row.Nama || '—' }}</td><td class="nowrap">{{ row.Nomor }}<small>Potongan ke-{{ row.PotonganKe }}</small></td>
           <td class="money">{{ rupiah(row.Pinjam) }}</td><td class="money">{{ rupiah(row.Potongan) }}</td><td class="money">{{ rupiah(row.Bayar) }}</td><td class="money">{{ rupiah(row.SisaBayar) }}</td>
           <td><span class="status">{{ row.StatusProses }}</span><small v-if="!eligible(row) && row.DiprosesPada == null">Saldo tidak valid / tidak mencukupi</small><small v-if="row.DiprosesPada">{{ row.DiprosesPada.replace('T', ' ').slice(0, 19) }}</small></td>

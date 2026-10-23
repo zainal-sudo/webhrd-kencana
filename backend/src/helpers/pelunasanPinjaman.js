@@ -82,8 +82,26 @@ export function queryPelunasan(query) {
         where = ' WHERE (q.Nomor LIKE ? OR q.Nik LIKE ? OR q.Nama LIKE ?)'
         params.push(...Array(3).fill(`%${query.search}%`))
     }
+    let selectedCount
+    if (query.export === 'xlsx') {
+        let items
+        try { items = JSON.parse(query.items) } catch { throw gagal('Pilihan export tidak valid.') }
+        if (!Array.isArray(items) || !items.length || items.length > 100) throw gagal('Pilih 1–100 potongan untuk diekspor.')
+        const seen = new Set()
+        for (const item of items) {
+            if (typeof item?.nomor_pinjam !== 'string' || !item.nomor_pinjam || item.nomor_pinjam.length > 20
+                || ![1, 2].includes(item.potongan_ke)) throw gagal('Identitas potongan export tidak valid.')
+            const key = JSON.stringify([item.nomor_pinjam, item.potongan_ke])
+            if (seen.has(key)) throw gagal('Potongan export tidak boleh dipilih dua kali.')
+            seen.add(key)
+            params.push(item.nomor_pinjam, item.potongan_ke)
+        }
+        where += `${where ? ' AND' : ' WHERE'} (${items.map(() => '(q.Nomor = ? AND q.PotonganKe = ?)').join(' OR ')})`
+        selectedCount = items.length
+    }
     const from = ` FROM (${union}) q${where}`
-    return { periode, page, per_page, params,
-        list: `SELECT q.*${from} ORDER BY q.Nik, q.Nomor, q.PotonganKe LIMIT ? OFFSET ?`,
+    const all = `SELECT q.*${from} ORDER BY q.Nik, q.Nomor, q.PotonganKe`
+    return { periode, page, per_page, params, selectedCount,
+        all, list: `${all} LIMIT ? OFFSET ?`,
         count: `SELECT COUNT(*) AS c${from}` }
 }
