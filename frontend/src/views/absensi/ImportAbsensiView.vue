@@ -505,6 +505,19 @@ table.mini.mt {
 .pilihan-pabrik {
   margin-bottom: 8px;
 }
+.pilihan-pabrik .btn-mini {
+  border-radius: 4px;
+  transition: background-color 150ms, border-color 150ms, box-shadow 150ms;
+}
+.pilihan-pabrik .btn-mini:not(:disabled):hover {
+  background: var(--ds-primary-light, #e8edf7);
+  border-color: var(--ds-primary, #3b5998);
+  box-shadow: 0 2px 4px rgb(59 89 152 / 15%);
+}
+.pilihan-pabrik .btn-mini:focus-visible {
+  outline: 2px solid var(--ds-primary, #3b5998);
+  outline-offset: 2px;
+}
 .ket {
   font-size: 11px;
   color: #6b7a90;
