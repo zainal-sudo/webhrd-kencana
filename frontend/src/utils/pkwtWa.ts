@@ -79,10 +79,12 @@ Status: ${kosong(row.Status_PKWT)}
 Kontrak berakhir: ${formatTglBerakhir(row.Tgl_Berakhir)} (${sisaHariPesan(row.Sisa_Hari)})
 
 Mohon segera lakukan evaluasi dan penilaian kinerja karyawan melalui metode berikut:
-1. ${linkPenilaian}
+1. Link penilaian:
+${linkPenilaian}
+
 2. Form penilaian prestasi kerja (yang akan dikirimkan HR pada tanggal ${formatHPlus3(row.Tgl_Berakhir)})
 
-☝️ Silahkan pilih salah satu form penilaian di atas. ☝️
+Silahkan pilih salah satu form penilaian di atas.
 
 Ketentuan:
 1. Apabila menggunakan link (pilihan no 1) hasil dikirimkan ke Karyawan Ybs untuk di tandatangani, lalu di kirim balik ke atasan/ leader

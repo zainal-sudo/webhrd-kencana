@@ -81,8 +81,10 @@ test('Card, pencarian dan filter kolom dapat digabung; pilihan kolom tetap menca
  assert.equal(Object.values(state.ringkas.value).reduce((a,b)=>a+b,0),0);
 });
 
-test('Wording pesan PKWT sama persis dengan existing selain URL nomor 1',()=>{
- const expected=fs.readFileSync(path.join(__dirname,'fixtures/pkwt-wa-existing.txt'),'utf8').replace('{{LINK_PENILAIAN}}',linkPenilaian);
+test('Wording pesan PKWT tetap sama selain penempatan URL dan penghapusan emoji instruksi',()=>{
+ const expected=fs.readFileSync(path.join(__dirname,'fixtures/pkwt-wa-existing.txt'),'utf8')
+  .replace('1. {{LINK_PENILAIAN}}',`1. Link penilaian:\n${linkPenilaian}\n`)
+  .replace('☝️ Silahkan pilih salah satu form penilaian di atas. ☝️','Silahkan pilih salah satu form penilaian di atas.');
  assert.equal(helper.buatPesanWa(row,linkPenilaian),expected);
  assert.doesNotMatch(helper.buatPesanWa(row,linkPenilaian),/netlify/);
 });
@@ -156,7 +158,7 @@ test('Pesan WA berisi data karyawan + link penilaian, tanpa pengiriman daring',(
  assert.match(pesan,/Bagian: Produksi/);
  assert.match(pesan,/Status: PKWT 2/);
  assert.match(pesan,/Kontrak berakhir: 10\/11\/2026 \(20 hari lagi\)/);
- assert.ok(pesan.includes('1. '+linkPenilaian));
+ assert.ok(pesan.includes(`1. Link penilaian:\n${linkPenilaian}\n\n2. Form`));
  assert.match(pesan,/pada tanggal 13\/11\/2026\)/);
  assert.match(pesan,/HR Departemen/);
  // Pesan WA TIDAK PERNAH memuat nomor penerima — HR memilih sendiri di WhatsApp.
@@ -172,7 +174,30 @@ test('Kirim WA membuka wa.me tanpa nomor (hanya ?text= pesan terisi)',()=>{
  assert.equal(url,`https://wa.me/?text=${encodeURIComponent(helper.buatPesanWa(row,linkPenilaian))}`);
  const text=decodeURIComponent(url.split('?text=')[1]);
  assert.equal(text,helper.buatPesanWa(row,linkPenilaian));
+ assert.equal(text.split(/\r?\n/).find(line=>line.includes('Silahkan')),'Silahkan pilih salah satu form penilaian di atas.');
+ assert.doesNotMatch(text,/\uFFFD|\u261D|\uFE0F/);
  assert.ok(!/%2B6|\+62|phone/.test(url));
+});
+
+test('URL IP dengan port tetap utuh pada baris tersendiri setelah decoding pesan WhatsApp',()=>{
+ for(const type of ['tanpa-bawahan','dengan-bawahan']) {
+  const token='a'.repeat(64);
+  const link=`http://103.94.238.252:96/penilaian/${type}?t=${token}`;
+  const url=helper.kirimWa(row,link);
+  const decoded=new URL(url).searchParams.get('text');
+  assert.equal(decoded,helper.buatPesanWa(row,link));
+  const lines=decoded.split(/\r?\n/);
+  const index=lines.indexOf(link);
+  assert.ok(index>0);
+  assert.equal(lines[index-1],'1. Link penilaian:');
+  assert.equal(lines[index+1],'');
+  assert.match(lines[index+2],/^2\. Form penilaian/);
+  assert.doesNotMatch(lines[index],/\s/);
+  const restored=new URL(lines[index]);
+  assert.equal(restored.host,'103.94.238.252:96');
+  assert.equal(restored.pathname,`/penilaian/${type}`);
+  assert.equal(restored.searchParams.get('t'),token);
+ }
 });
 
 test('Tombol Eksekusi + route + view terpasang tanpa tab Keputusan atau upload Excel',()=>{

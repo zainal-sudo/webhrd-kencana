@@ -16,6 +16,57 @@ const baseRows = () => [
   { Key: '["PJ.2610.0002",2]', Nomor: 'PJ.2610.0002', Nik: '002', Nama: 'Budi', Pinjam: 400000, Bayar: 200000, SisaBayar: 200000, PotonganKe: 2, Potongan: 200000, DiprosesPada: '2026-11-09 10:00:00', StatusProses: 'Sudah Diproses' },
   { Key: '["LEGACY",1]', Nomor: 'LEGACY', Nik: '003', Nama: null, Pinjam: 400000, Bayar: null, SisaBayar: null, PotonganKe: 1, Potongan: 200000, DiprosesPada: null, StatusProses: 'Belum Diproses' },
 ];
+
+test('Excel download uses current period and selected slots without pagination; no selection cannot export', async () => {
+  const f = fixture();
+  try {
+    await f.exportExcel(); assert.equal(f.calls.length, 0);
+    f.bulan.value = 11; f.tahun.value = 2026; f.search.value = 'Ani & Budi';
+    await settle(); await f.mount();
+    await f.exportExcel();
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 0);
+    for (const flag of [f.loading, f.processing]) {
+      flag.value = true; await f.exportExcel(); flag.value = false;
+    }
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 0);
+    await f.load();
+    f.selectAll();
+    await f.exportExcel();
+    const call = f.calls.find(c => c.method === 'download');
+    const url = new URL(call.url, 'http://localhost');
+    assert.equal(url.pathname, '/transaksi/pinjaman/pelunasan');
+    const params = Object.fromEntries(url.searchParams);
+    assert.deepEqual(JSON.parse(params.items), baseRows().map(row => ({ nomor_pinjam: row.Nomor, potongan_ke: row.PotonganKe })));
+    delete params.items;
+    assert.deepEqual(params, { bulan: '11', tahun: '2026', search: 'Ani & Budi', export: 'xlsx' });
+    assert.equal(call.filename, 'Pelunasan-Pinjaman_2026-11.xlsx');
+    assert.equal(f.exporting.value, false);
+    assert.match(await f.render(), /Export Excel Terpilih/);
+    assert.equal(f.calls.some(c => c.method === 'post'), false);
+  } finally { f.dispose(); }
+});
+
+test('Excel download blocks duplicate clicks and restores button after failure for retry', async () => {
+  let release;
+  const settings = { downloadFail: true, downloadDeferred: new Promise(resolve => { release = resolve; }) };
+  const f = fixture(settings);
+  try {
+    await f.mount(); f.selectAll();
+    const selected = [...f.selected.value];
+    const pending = f.exportExcel();
+    assert.equal(f.exporting.value, true);
+    await f.exportExcel();
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 1);
+    release(); await pending;
+    assert.equal(f.exporting.value, false);
+    assert.ok(f.messages.includes('download failed'));
+    assert.deepEqual([...f.selected.value], selected);
+    settings.downloadFail = false;
+    await f.exportExcel();
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 2);
+    assert.equal(f.exporting.value, false);
+  } finally { f.dispose(); }
+});
 function fixture(settings = {}) {
   const mounted = [], activated = [], stops = [], calls = [], messages = [];
   let failGet = false, confirm = true;
@@ -25,6 +76,7 @@ function fixture(settings = {}) {
     async get(url, config) {
       calls.push({ method: 'get', url, config });
       if (failGet) throw Error('load failed');
+      if (typeof settings.deferredGet === 'function') return await settings.deferredGet(config);
       if (settings.deferredGet) return await settings.deferredGet;
       return { data: { data: dataRows, pagination: { page: config.params.page, last_page: settings.lastPage ?? 2, total: settings.total ?? dataRows.length + 25 } } };
     },
@@ -46,6 +98,11 @@ function fixture(settings = {}) {
       if (name === 'vue-toastification') return { useToast: () => ({ error: e => messages.push(e), success: e => messages.push(e) }) };
       if (name === '@/stores/authStore') return { useAuthStore: () => ({ can: (_form, action) => action === 'insert' && !settings.denied }) };
       if (name === '@/api/axios') return { api, getErrorMessage: e => e.message };
+      if (name === '@/api') return { downloadFile: async (url, filename) => {
+        calls.push({ method: 'download', url, filename });
+        if (settings.downloadDeferred) await settings.downloadDeferred;
+        if (settings.downloadFail) throw Error('download failed');
+      } };
       if (name === '@/components/MsIcon.vue') return { default: { render: () => null } };
       if (name === '@/utils/pinjaman') return evaluate(fs.readFileSync(path.join(root, 'utils/pinjaman.ts'), 'utf8'));
       if (name === '@/composables/useLiveSearch') return evaluate(fs.readFileSync(path.join(root, 'composables/useLiveSearch.ts'), 'utf8'));
@@ -59,11 +116,11 @@ function fixture(settings = {}) {
       state.total.value = settings.total ?? dataRows.length;
     };
     vm.runInNewContext(ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-      { module, exports: module.exports, require: requireModule, capture, setTimeout, clearTimeout, window: { confirm: message => { calls.push({ method: 'confirm', message }); return confirm; } } });
+      { module, exports: module.exports, require: requireModule, capture, setTimeout, clearTimeout, URLSearchParams, window: { confirm: message => { calls.push({ method: 'confirm', message }); return confirm; } } });
     return module.exports;
   };
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
-  const state = evaluate(script + '\nexport { load, processSelected, selectAll, toggle, rows, selected, chosen, amount, eligible, bulan, tahun, search, ready, loadError, loading, processing, liveSearch, page, lastPage, perPage, pageInput, visiblePages, goToPage, jumpToPage, changePerPage };');
+  const state = evaluate(script + '\nexport { exportExcel, exporting, load, processSelected, selectAll, toggle, rows, selected, chosen, amount, eligible, bulan, tahun, search, ready, loadError, loading, processing, liveSearch, page, lastPage, perPage, pageInput, visiblePages, goToPage, jumpToPage, changePerPage };');
   return { ...state, calls, messages, cancel() { confirm = false; }, fail() { failGet = true; },
     async mount() { for (const fn of mounted) await fn(); }, async activate() { for (const fn of activated) await fn(); },
     async render() {
@@ -73,33 +130,68 @@ function fixture(settings = {}) {
     }, dispose() { stops.forEach(stop => stop()); } };
 }
 
-test('Select All only chooses valid unpaid stored slots; unique identity and payment total', async () => {
+test('Select All includes processed/invalid slots for export and toggles each row independently', async () => {
   const f = fixture();
   try {
     await f.mount(); f.selectAll();
-    assert.equal(f.chosen.value.length, 1); assert.equal(f.amount.value, 200000);
-    assert.equal(f.selected.value.has(f.rows.value[1].Key), false);
-    f.toggle(f.rows.value[1]); assert.equal(f.chosen.value.length, 1);
+    assert.equal(f.chosen.value.length, 3); assert.equal(f.amount.value, 600000);
+    assert.equal(f.selected.value.has(f.rows.value[1].Key), true);
     f.selectAll(); assert.equal(f.chosen.value.length, 0);
+    f.toggle(f.rows.value[1]); assert.equal(f.chosen.value.length, 1);
+    f.toggle(f.rows.value[1]); assert.equal(f.chosen.value.length, 0);
   } finally { f.dispose(); }
 });
 test('Process confirmation, identity-only payload, success refresh clears selection and disables processed slot', async () => {
   const f = fixture();
   try {
-    f.bulan.value = 11; f.tahun.value = 2026; await settle(); await f.mount(); f.selectAll();
+    f.bulan.value = 11; f.tahun.value = 2026; await settle(); await f.mount(); f.toggle(f.rows.value[0]);
+    const readsBeforeProcess = f.calls.filter(c => c.method === 'get').length;
     await f.processSelected();
     const post = f.calls.find(c => c.method === 'post');
     assert.deepEqual(JSON.parse(JSON.stringify(post.body)), { bulan: 11, tahun: 2026, items: [{ nomor_pinjam: 'PJ.2610.0001', potongan_ke: 1 }] });
     assert.match(f.calls.find(c => c.method === 'confirm').message, /November 2026.*Rp200.000/);
     assert.equal(f.selected.value.size, 0); assert.equal(f.eligible(f.rows.value[0]), false);
-    assert.equal(f.calls.filter(c => c.method === 'get').length, 2);
+    assert.equal(f.calls.filter(c => c.method === 'get').length, readsBeforeProcess + 1);
   } finally { f.dispose(); }
 });
+test('Processed, invalid or mixed selections can export but cannot confirm or POST', async () => {
+  for (const indices of [[1], [2], [0, 1], [0, 2]]) {
+    const f = fixture();
+    try {
+      await f.mount();
+      for (const index of indices) f.toggle(f.rows.value[index]);
+      await f.processSelected();
+      assert.equal(f.calls.some(c => c.method === 'post' || c.method === 'confirm'), false);
+      await f.exportExcel();
+      const call = f.calls.find(c => c.method === 'download');
+      const items = JSON.parse(new URL(call.url, 'http://localhost').searchParams.get('items'));
+      assert.deepEqual(items, indices.map(i => ({ nomor_pinjam: f.rows.value[i].Nomor, potongan_ke: f.rows.value[i].PotonganKe })));
+    } finally { f.dispose(); }
+  }
+  const f = fixture({ selected: ['["PJ.2610.0002",2]'] });
+  try {
+    const html = await f.render();
+    assert.match(html, /class="process-btn"[^>]*disabled/);
+    assert.match(html, /aria-label="Pilih PJ\.2610\.0002 potongan ke-2"[^>]*checked/);
+    assert.match(html, /<tr class="processed">/);
+  } finally { f.dispose(); }
+});
+
+test('View-only users can select and export processed rows but cannot POST', async () => {
+  const f = fixture({ denied: true });
+  try {
+    await f.mount(); f.toggle(f.rows.value[1]);
+    await f.processSelected(); await f.exportExcel();
+    assert.equal(f.calls.some(c => c.method === 'post' || c.method === 'confirm'), false);
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 1);
+  } finally { f.dispose(); }
+});
+
 test('Cancel/missing Insert/no selection cannot POST', async () => {
   for (const setting of [{ denied: true }, { cancel: true }, { empty: true }]) {
     const f = fixture(setting);
     try {
-      await f.mount(); if (!setting.empty) f.selectAll(); if (setting.cancel) f.cancel();
+      await f.mount(); if (!setting.empty) f.toggle(f.rows.value[0]); if (setting.cancel) f.cancel();
       await f.processSelected(); assert.equal(f.calls.filter(c => c.method === 'post').length, 0);
     } finally { f.dispose(); }
   }
@@ -107,11 +199,12 @@ test('Cancel/missing Insert/no selection cannot POST', async () => {
 test('Conflict reloads list, failed list cannot process, period/search changes invalidate old selections', async () => {
   const f = fixture({ postFail: true });
   try {
-    await f.mount(); f.selectAll(); await f.processSelected();
+    await f.mount(); f.toggle(f.rows.value[0]); await f.processSelected();
     assert.ok(f.messages.some(message => message.includes('batch dibatalkan')));
     assert.equal(f.selected.value.size, 0);
     f.selectAll(); f.bulan.value = 12; await settle();
-    assert.equal(f.ready.value, false); assert.equal(f.rows.value.length, 0);
+    assert.equal(f.ready.value, true); assert.equal(f.selected.value.size, 0);
+    assert.equal(f.calls.at(-1).config.params.bulan, 12);
     await f.processSelected(); assert.equal(f.calls.filter(c => c.method === 'post').length, 1);
     await f.load(); f.selectAll(); f.search.value = 'Riri'; await settle();
     assert.equal(f.selected.value.size, 0);
@@ -122,18 +215,46 @@ test('Pending POST blocks duplicate clicks and late list response after period c
   let resolve;
   const f = fixture({ postDeferred: new Promise(r => { resolve = r; }) });
   try {
-    await f.mount(); f.selectAll(); const pending = f.processSelected();
+    await f.mount(); f.toggle(f.rows.value[0]); const pending = f.processSelected();
     await f.processSelected(); assert.equal(f.calls.filter(c => c.method === 'post').length, 1);
     resolve(); await pending;
   } finally { f.dispose(); }
-  let complete;
-  const late = fixture({ deferredGet: new Promise(r => { complete = r; }) });
+  const pendingReads = [];
+  const late = fixture({ deferredGet: config => new Promise(resolve => { pendingReads.push({ resolve, config }); }) });
   try {
     const pending = late.load(); late.bulan.value = late.bulan.value === 1 ? 2 : 1; await settle();
-    complete({ data: { data: baseRows(), pagination: { page: 1, last_page: 1, total: 3 } } }); await pending;
+    assert.equal(pendingReads.length, 2);
+    pendingReads[0].resolve({ data: { data: baseRows(), pagination: { page: 1, last_page: 1, total: 3 } } }); await pending;
     assert.equal(late.rows.value.length, 0); assert.equal(late.ready.value, false);
+    pendingReads[1].resolve({ data: { data: [baseRows()[1]], pagination: { page: 1, last_page: 1, total: 1 } } }); await settle();
+    assert.equal(late.ready.value, true); assert.equal(late.rows.value.length, 1);
+    assert.equal(late.rows.value[0].Nama, 'Budi');
   } finally { late.dispose(); }
 });
+test('Initial entry and month/year changes automatically load page 1; Refresh remains available', async () => {
+  const f = fixture();
+  try {
+    await f.mount();
+    assert.equal(f.calls.filter(c => c.method === 'get').length, 1);
+    assert.equal(f.ready.value, true);
+    f.selectAll();
+    f.bulan.value = f.bulan.value === 12 ? 1 : f.bulan.value + 1;
+    await settle();
+    assert.equal(f.calls.at(-1).config.params.bulan, f.bulan.value);
+    assert.equal(f.calls.at(-1).config.params.page, 1);
+    assert.equal(f.selected.value.size, 0);
+    f.tahun.value += 1; await settle();
+    assert.equal(f.calls.at(-1).config.params.tahun, f.tahun.value);
+    assert.equal(f.calls.filter(c => c.method === 'get').length, 3);
+    await f.liveSearch.run();
+    assert.equal(f.calls.filter(c => c.method === 'get').length, 4);
+    const html = await f.render();
+    assert.match(html, />Refresh<\/button>/);
+    assert.ok(!html.includes('Tampilkan'));
+    assert.equal(f.calls.some(c => c.method === 'post'), false);
+  } finally { f.dispose(); }
+});
+
 test('Pagination/reactivation reload current period and clear selected checkboxes', async () => {
   const f = fixture();
   try {
@@ -142,15 +263,17 @@ test('Pagination/reactivation reload current period and clear selected checkboxe
     f.selectAll(); await f.activate(); assert.equal(f.selected.value.size, 0);
   } finally { f.dispose(); }
 });
-test('Actual page renders processed/invalid rows disabled, permission hides Proses; theme and responsive/sticky CSS', async () => {
+test('Actual page keeps processed/invalid rows selectable, status colors and permission hides Proses', async () => {
   const f = fixture({ selected: ['["PJ.2610.0001",1]'] });
   try {
     const html = await f.render();
     assert.ok(html.includes('Proses Pelunasan Pinjaman'));
     assert.ok(html.includes('Sudah Diproses'));
     assert.ok(html.includes('Saldo tidak valid'));
-    const disabledRows = html.match(/<input[^>]+aria-label="Pilih (PJ\.2610\.0002|LEGACY)[^"]*"[^>]*>/g);
-    assert.equal(disabledRows.length, 2); assert.ok(disabledRows.every(input => input.includes('disabled')));
+    const exportRows = html.match(/<input[^>]+aria-label="Pilih (PJ\.2610\.0002|LEGACY)[^"]*"[^>]*>/g);
+    assert.equal(exportRows.length, 2); assert.ok(exportRows.every(input => !input.includes('disabled')));
+    assert.match(html, /<tr class="processed">/);
+    assert.match(source, /\.processed\s*\{\s*background: var\(--ds-surface\)/);
     assert.ok(!html.includes('NaN'));
     assert.match(source, /position: sticky; top: 0/);
     assert.match(source, /max-width: 600px/);
@@ -164,7 +287,7 @@ test('Actual page renders processed/invalid rows disabled, permission hides Pros
 test('Live typing automatically GET-loads page 1 and clears payment selection without POST', async () => {
   const f = fixture();
   try {
-    await f.mount(); f.selectAll(); assert.equal(f.selected.value.size, 1);
+    await f.mount(); f.selectAll(); assert.equal(f.selected.value.size, 3);
     const initial = f.calls.length;
     f.search.value = 'Ri'; f.liveSearch.schedule();
     f.search.value = 'Riri'; f.liveSearch.schedule();

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from "vue";
+import { ref, computed, onMounted, onActivated, type ObjectDirective } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -166,8 +166,27 @@ const panels: Panel[] = [
 
 const peringatan = ref<Peringatan | null>(null);
 const peringatanLoading = ref(false);
-/** Panel yang dibuka penuh; bawaan hanya 8 baris pertama. */
+/** Panel yang dibuka penuh; preview PKWT mengikuti ruang card. */
 const expanded = ref<Record<string, boolean>>({});
+const pkwtPreviewLimit = ref(8);
+const previewObservers = new WeakMap<HTMLElement, ResizeObserver>();
+const vFitPkwtPreview: ObjectDirective<HTMLElement, boolean> = {
+  mounted(element, binding) {
+    if (!binding.value) return;
+    const observer = new ResizeObserver(() => {
+      const header = element.querySelector("thead");
+      const rowHeight = parseFloat(getComputedStyle(element).getPropertyValue("--preview-row-height"));
+      if (!header || !rowHeight || !element.clientHeight) return;
+      pkwtPreviewLimit.value = Math.max(1, Math.floor((element.clientHeight - header.getBoundingClientRect().height) / rowHeight));
+    });
+    observer.observe(element);
+    previewObservers.set(element, observer);
+  },
+  unmounted(element) {
+    previewObservers.get(element)?.disconnect();
+    previewObservers.delete(element);
+  },
+};
 /** Panel yang sedang mengunduh Excel. */
 const exporting = ref<Record<string, boolean>>({});
 
@@ -187,7 +206,7 @@ function chipClass(p: Panel): string {
 
 function barisPanel(p: Panel): Record<string, any>[] {
   const rows = bagian(p.key).rows;
-  return expanded.value[p.key] ? rows : rows.slice(0, 8);
+  return expanded.value[p.key] ? rows : rows.slice(0, p.key === "pkwt_habis" ? pkwtPreviewLimit.value : 8);
 }
 
 function selTanggal(p: Panel): string {
@@ -377,7 +396,7 @@ onActivated(() => {
       Memuat daftar peringatan...
     </div>
     <div v-else class="alert-grid">
-      <section v-for="p in panels" :key="p.key" class="task-card alert-card" :class="accentClass(p)">
+      <section v-for="p in panels" :key="p.key" class="task-card alert-card" :class="[accentClass(p), { 'pkwt-card': p.key === 'pkwt_habis', 'is-compact': !expanded[p.key] }]">
         <div class="task-top">
           <div class="task-icon-wrap" :class="chipClass(p)">
             <MsIcon :name="p.icon" :size="20" />
@@ -404,8 +423,16 @@ onActivated(() => {
           <MsIcon name="check_circle" :size="16" />
           Tidak ada data — aman.
         </div>
-        <div v-else class="alert-table-wrap">
+        <div v-else v-fit-pkwt-preview="p.key === 'pkwt_habis'" class="alert-table-wrap">
           <table class="alert-table">
+            <colgroup v-if="p.key === 'pkwt_habis'">
+              <col class="pkwt-no">
+              <col class="pkwt-nik">
+              <col>
+              <col class="pkwt-jabatan">
+              <col class="pkwt-status">
+              <col class="pkwt-berakhir">
+            </colgroup>
             <thead>
               <tr>
                 <th class="num-col">No</th>
@@ -415,7 +442,7 @@ onActivated(() => {
             <tbody>
               <tr v-for="(row, i) in barisPanel(p)" :key="`${p.key}-${i}`">
                 <td class="num-col">{{ i + 1 }}</td>
-                <td v-for="c in p.columns" :key="c.key">{{ cellText(row, c) }}</td>
+                <td v-for="c in p.columns" :key="c.key" :title="cellText(row, c)">{{ cellText(row, c) }}</td>
               </tr>
             </tbody>
           </table>
@@ -449,7 +476,7 @@ onActivated(() => {
             <span>Eksekusi</span>
           </button>
           <button
-            v-if="bagian(p.key).rows.length > 8"
+            v-if="expanded[p.key] || bagian(p.key).rows.length > (p.key === 'pkwt_habis' ? pkwtPreviewLimit : 8)"
             class="link-btn"
             @click="expanded[p.key] = !expanded[p.key]"
           >
@@ -781,13 +808,54 @@ onActivated(() => {
 .alert-table .num-col {
   text-align: center;
   width: 36px;
+}
+.alert-table td.num-col {
   color: #6b7a90;
+}
+.pkwt-card .alert-table {
+  table-layout: fixed;
+}
+.pkwt-card {
+  --preview-row-height: 26px;
+}
+.pkwt-card.is-compact .alert-table-wrap {
+  position: relative;
+  flex: 1 0 264px;
+  max-height: none;
+  overflow: hidden;
+}
+.pkwt-card.is-compact .alert-table {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  width: calc(100% - 32px);
+  height: 100%;
+}
+.pkwt-card.is-compact .alert-table thead {
+  height: 27px;
+}
+.pkwt-card.is-compact .alert-table td {
+  box-sizing: border-box;
+  height: var(--preview-row-height);
+  line-height: 16px;
+}
+.pkwt-card .pkwt-no { width: 28px; }
+.pkwt-card .pkwt-nik { width: 84px; }
+.pkwt-card .pkwt-jabatan { width: 76px; }
+.pkwt-card .pkwt-status { width: 54px; }
+.pkwt-card .pkwt-berakhir { width: 82px; }
+.pkwt-card .alert-table th,
+.pkwt-card .alert-table td {
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .alert-foot {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin: 0 -16px;
+  margin: auto -16px 0;
   padding: 8px 12px;
   border-top: 1px solid #e6eaf0;
   background: #f8fafc;

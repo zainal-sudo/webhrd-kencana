@@ -30,6 +30,7 @@ export async function mountLegacyForm(host: HTMLElement, type: PenilaianFormType
   const body = document.createElement("div");
   body.className = "legacy-body";
   body.innerHTML = (source.default.match(/<body[^>]*>([\s\S]*?)<\/body>/)?.[1] || "").replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "");
+  body.querySelectorAll(".app-footer").forEach((footer) => footer.remove());
   shadow.replaceChildren(style, body);
   const localDocument: LegacyDocument = {
     getElementById: (id) => shadow.getElementById(id),

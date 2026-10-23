@@ -121,7 +121,8 @@ test('Pinjaman renders auto-period in toolbar, defaults to checked all dates, no
   assert.ok(closed.html.indexOf('>TGL<') < closed.html.indexOf('>NO<'));
   assert.doesNotMatch(closed.teleports.body || '', /loan-export-title/);
   const source = fs.readFileSync(path.join(root, 'views/transaksi/PinjamanView.vue'), 'utf8');
-  assert.equal((source.match(/@change="applyPeriod"/g) || []).length, 2);
+  assert.match(source, /@change="applyPeriod\('start'\)"/);
+  assert.match(source, /@change="applyPeriod\('end'\)"/);
   assert.match(source, /MsIcon v-if="!appliedPeriod" name="check"/);
   assert.match(source, /\.all-dates-button\.active[^}]*--ds-success/);
   assert.match(source, /\.all-dates-button[^}]*border-radius: 999px/);
@@ -131,6 +132,10 @@ test('Pinjaman renders auto-period in toolbar, defaults to checked all dates, no
   const filtered = await renderer({ period: { start_date: '2026-10-01', end_date: '2026-10-09' } })('views/transaksi/PinjamanView.vue');
   assert.match(filtered.html, /class="all-dates-button" aria-pressed="false"/);
   assert.doesNotMatch(filtered.html, /class="export-button" disabled/);
+  const pickers = filtered.html.match(/<input[^>]*type="date"[^>]*>/g);
+  assert.equal(pickers.length, 2);
+  for (const picker of pickers) assert.doesNotMatch(picker, /\s(?:min|max)=/);
+  assert.match(filtered.html, /Tidak ada data ditemukan/);
 });
 
 test('Pinjaman has compact rounded summary cards and a single bordered period group', async () => {
