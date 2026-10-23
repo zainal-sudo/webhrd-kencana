@@ -90,7 +90,8 @@ async function unggah() {
 
   mengunggah.value = true;
   try {
-    const { data } = await api.post("/absensi/staging", fd);
+    // Berkas .mdb besar butuh waktu baca yang lama; timeout sengaja dipanjangkan.
+    const { data } = await api.post("/absensi/staging", fd, { timeout: 10 * 60 * 1000 });
     toast.success(data.message || "Data masuk ke staging");
     namaFile.value = "";
     fileBody.value = null;
@@ -183,7 +184,7 @@ async function bersihkan() {
           <legend>Tahap 1 — Ambil Data Mesin Absensi</legend>
           <p class="note">
             Daftar di bawah adalah folder mesin absensi tiap pabrik (dari Master Pabrik) sebagai panduan
-            saat mengambil berkas ekspor. Unggah hasil ekspor (Excel .xls/.xlsx atau CSV) yang kolomnya memuat
+            saat mengambil berkas ekspor. Unggah berkas Access <code>.mdb</code> atau hasil ekspor (Excel .xls/.xlsx atau CSV) yang kolomnya memuat
             <strong>NIK karyawan</strong> (<code>kar_Nik</code>), tanggal, jam scan, dan tipe
             <code>I</code>/<code>O</code>; isinya masuk ke tabel staging <code>tabsensi2</code>. Pada tahap
             proses, NIK dipetakan ke Kode Absensi sesuai Master Karyawan.
@@ -216,7 +217,7 @@ async function bersihkan() {
           </table>
 
           <div class="upload-row">
-            <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" @change="pilihFile" />
+             <input ref="fileInput" type="file" accept=".mdb,.xlsx,.xls,.csv" @change="pilihFile" />
             <span class="fname">{{ namaFile || "Belum ada berkas dipilih" }}</span>
             <button class="btn-mini primary" type="button" :disabled="mengunggah" @click="unggah">
               {{ mengunggah ? "Mengunggah..." : "Unggah ke Staging" }}

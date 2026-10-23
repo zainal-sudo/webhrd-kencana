@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
+import MDBReader from 'mdb-reader'
 
 export const HEADER_NIK = ['nik', 'kar_nik', 'kode', 'kode_absensi', 'code', 'userid', 'user id', 'badge']
 export const HEADER_TANGGAL = ['tanggal', 'tgl', 'date', 'tanggal scan', 'tanggal_absen']
@@ -55,6 +56,65 @@ export async function bacaBerkasAbsensi(buffer, namaBerkas) {
     const sheets = []
     if (/\.(csv|txt)$/i.test(namaBerkas)) {
         sheets.push(csvKeBaris(buffer.toString('utf8')))
+    } else if (/\.mdb$/i.test(namaBerkas)) {
+        const reader = new MDBReader(buffer)
+        const tableNames = reader.getTableNames()
+        const tableName = tableNames.find((t) => /checkinout/i.test(t)) || tableNames[0]
+        if (!tableName) throw new Error('Tidak ditemukan tabel di dalam berkas MDB')
+        const table = reader.getTable(tableName)
+        const tableData = table.getData()
+        const columns = table.getColumnNames()
+        
+        // Cari indeks kolom secara case-insensitive (NIK/USERID, CHECKTIME/TANGGAL, CHECKTYPE/TIPE)
+        const findCol = (keywords) => columns.findIndex((c) => keywords.some((k) => String(c).trim().toLowerCase() === k))
+        
+        const idxNik = findCol(['nik', 'userid', 'user id', 'code', 'badgenumber'])
+        const idxTime = findCol(['checktime', 'tanggal', 'tgl', 'datetime', 'time'])
+        const idxType = findCol(['checktype', 'tipe', 'status', 'type'])
+        
+        const rows = [
+            ['NIK', 'Tanggal', 'Jam', 'Tipe'],
+            ...tableData.map((row) => {
+                const nikVal = idxNik !== -1 ? row[columns[idxNik]] : row[columns[0]]
+                const timeVal = idxTime !== -1 ? row[columns[idxTime]] : row[columns[1]]
+                const typeVal = idxType !== -1 ? row[columns[idxType]] : (row[columns[3]] ?? 'I')
+                
+                let tglStr = ''
+                let jamStr = '00:00:00'
+                
+                if (timeVal instanceof Date) {
+                    const pad = (n) => String(n).padStart(2, '0')
+                    tglStr = `${timeVal.getUTCFullYear()}-${pad(timeVal.getUTCMonth() + 1)}-${pad(timeVal.getUTCDate())}`
+                    jamStr = `${pad(timeVal.getUTCHours())}:${pad(timeVal.getUTCMinutes())}:${pad(timeVal.getUTCSeconds())}`
+                } else if (typeof timeVal === 'string') {
+                    const trimmed = timeVal.trim()
+                    if (trimmed.includes(' ')) {
+                        const [dPart, tPart] = trimmed.split(/\s+/)
+                        tglStr = dPart
+                        jamStr = tPart
+                    } else if (trimmed.includes('T')) {
+                        const [dPart, tPart] = trimmed.split('T')
+                        tglStr = dPart
+                        jamStr = tPart.slice(0, 8)
+                    } else {
+                        tglStr = trimmed
+                    }
+                } else if (timeVal != null) {
+                    const s = String(timeVal).trim()
+                    if (s.includes(' ')) {
+                        const [dPart, tPart] = s.split(/\s+/)
+                        tglStr = dPart
+                        jamStr = tPart
+                    } else {
+                        tglStr = s.slice(0, 10)
+                        if (s.length > 10) jamStr = s.slice(11, 19)
+                    }
+                }
+                
+                return [nikVal, tglStr, jamStr, typeVal]
+            }),
+        ]
+        sheets.push(rows)
     } else if (/\.xls$/i.test(namaBerkas)) {
         const wb = XLSX.read(buffer, { type: 'buffer' })
         for (const nama of wb.SheetNames) {
@@ -71,7 +131,7 @@ export async function bacaBerkasAbsensi(buffer, namaBerkas) {
             sheets.push(rows)
         })
     } else {
-        throw new Error('Format berkas tidak didukung. Gunakan Excel .xls, .xlsx, atau CSV.')
+        throw new Error('Format berkas tidak didukung. Gunakan Access .mdb, Excel .xls, .xlsx, atau CSV.')
     }
 
     const semua = []
