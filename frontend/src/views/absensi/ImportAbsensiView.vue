@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
 import DateInput from "@/components/fields/DateInput.vue";
@@ -12,7 +12,7 @@ import { todaySql, formatTanggal } from "@/utils/format";
  * Dua tahap, sama seperti program Delphi:
  *  1. Tarik hasil ekspor mesin absensi (Excel/CSV) ke tabel staging
  *     `tabsensi2`. Program Delphi membaca `absensi.mdb` langsung dari folder
- *     tiap mesin; karena Node tidak bisa membaca MDB, berkasnya diunggah.
+ *     tiap mesin. MDB unggahan diekstrak per periode menjadi Excel sementara.
  *  2. "Proses" menyalin staging ke `tabsensi` untuk periode terpilih sekaligus
  *     membuat baris kosong bagi karyawan aktif yang tidak scan.
  */
@@ -68,8 +68,10 @@ function pilihSemua(v: boolean) {
 const fileInput = ref<HTMLInputElement | null>(null);
 const namaFile = ref("");
 const fileBody = ref<File | null>(null);
+const berkasMdb = computed(() => /\.mdb$/i.test(fileBody.value?.name || ""));
 
 function pilihFile(ev: Event) {
+  if (mengunggah.value) return;
   const el = ev.target as HTMLInputElement;
   const f = el.files?.[0] ?? null;
   fileBody.value = f;
@@ -77,9 +79,17 @@ function pilihFile(ev: Event) {
 }
 
 async function unggah() {
+  if (mengunggah.value || memproses.value) return;
   if (!fileBody.value) {
     toast.error("Pilih berkas hasil ekspor mesin absensi terlebih dahulu");
     return;
+  }
+  if (berkasMdb.value) {
+    const valid = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !!formatTanggal(value);
+    if (!valid(periode.start) || !valid(periode.end) || periode.start > periode.end) {
+      toast.error("Isi tanggal awal dan akhir yang valid; tanggal awal tidak boleh melebihi tanggal akhir.");
+      return;
+    }
   }
   const path = pabrik.value.find((p) => p.pilih)?.Path ?? "";
   const fd = new FormData();
@@ -165,9 +175,9 @@ async function bersihkan() {
       <div class="tb-right">
         <div class="periode">
           <label>Dari</label>
-          <DateInput v-model="periode.start" aria-label="Tanggal awal" @change="muatStaging" />
+          <DateInput v-model="periode.start" :disabled="mengunggah" aria-label="Tanggal awal" @change="muatStaging" />
           <label>Sampai</label>
-          <DateInput v-model="periode.end" aria-label="Tanggal akhir" @change="muatStaging" />
+          <DateInput v-model="periode.end" :disabled="mengunggah" aria-label="Tanggal akhir" @change="muatStaging" />
         </div>
         <button class="tool-btn ghost" title="Muat ulang" @click="muatStaging">
           <MsIcon name="refresh" :size="15" />
@@ -190,6 +200,8 @@ async function bersihkan() {
             proses, NIK dipetakan ke Kode Absensi sesuai Master Karyawan.
             Jika berkas memakai header, kolom dipetakan berdasarkan namanya. Tanpa header, gunakan
             urutan NIK, tanggal, jam scan, tipe I/O. Simpan NIK sebagai teks agar angkanya tidak berubah.
+            Untuk MDB, sistem membaca data bertahap dan membuat Excel sementara hanya untuk periode
+            terpilih, lalu otomatis mengimpornya ke staging. Tidak perlu mengunduh atau mengunggah ulang Excel.
           </p>
 
           <table class="mini">
@@ -206,7 +218,7 @@ async function bersihkan() {
               <tr v-for="(p, i) in pabrik" :key="p.Kode">
                 <td class="ctr">{{ i + 1 }}</td>
                 <td class="ctr">
-                  <input v-model="p.pilih" type="checkbox" />
+                  <input v-model="p.pilih" type="checkbox" :disabled="mengunggah" />
                 </td>
                 <td>{{ p.Kode }}</td>
                 <td>{{ p.Nama }}</td>
@@ -217,10 +229,10 @@ async function bersihkan() {
           </table>
 
           <div class="upload-row">
-             <input ref="fileInput" type="file" accept=".mdb,.xlsx,.xls,.csv" @change="pilihFile" />
+             <input ref="fileInput" type="file" accept=".mdb,.xlsx,.xls,.csv" :disabled="mengunggah" @change="pilihFile" />
             <span class="fname">{{ namaFile || "Belum ada berkas dipilih" }}</span>
-            <button class="btn-mini primary" type="button" :disabled="mengunggah" @click="unggah">
-              {{ mengunggah ? "Mengunggah..." : "Unggah ke Staging" }}
+            <button class="btn-mini primary" type="button" :disabled="mengunggah || memproses" @click="unggah">
+              {{ mengunggah ? (berkasMdb ? "Mengekstrak dan mengimpor..." : "Mengunggah...") : "Unggah ke Staging" }}
             </button>
           </div>
         </fieldset>
@@ -256,7 +268,7 @@ async function bersihkan() {
                 <td>{{ formatTanggal(d.tanggal) }}</td>
                 <td class="ctr">{{ d.jml }}</td>
                 <td>
-                  <button class="btn-mini" type="button" :disabled="memproses" @click="prosesSatuTanggal(d.tanggal)">
+                  <button class="btn-mini" type="button" :disabled="memproses || mengunggah" @click="prosesSatuTanggal(d.tanggal)">
                     Proses tanggal ini
                   </button>
                 </td>
@@ -275,10 +287,10 @@ async function bersihkan() {
             Proses berlaku untuk seluruh periode, bukan hanya pabrik yang dicentang.
           </p>
           <div class="aksi-row">
-            <button class="btn-mini primary" type="button" :disabled="memproses" @click="proses">
+            <button class="btn-mini primary" type="button" :disabled="memproses || mengunggah" @click="proses">
               {{ memproses ? "Memproses..." : "Proses Absensi" }}
             </button>
-            <button class="btn-mini danger" type="button" :disabled="memproses" @click="bersihkan">
+            <button class="btn-mini danger" type="button" :disabled="memproses || mengunggah" @click="bersihkan">
               Bersihkan Staging Periode Ini
             </button>
           </div>
