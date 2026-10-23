@@ -1144,10 +1144,11 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
         for (const [alias] of AP_STATIC) AP_COLUMNS[alias] = `t.\`${alias}\``
         for (const h of tanggalPeriode(start, end)) AP_COLUMNS[h.dd] = `t.\`${h.dd}\``
 
-        let where = ''
+        // Filter kolom selalu menambahkan AND, termasuk saat search kosong.
+        let where = ' WHERE 1=1'
         let params = []
         if (req.query.search) {
-            where += ' WHERE (t.`Nik` LIKE ? OR t.`Nama` LIKE ? OR t.`Bagian` LIKE ? OR t.`Pabrik` LIKE ?)'
+            where += ' AND (t.`Nik` LIKE ? OR t.`Nama` LIKE ? OR t.`Bagian` LIKE ? OR t.`Pabrik` LIKE ?)'
             params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
         }
 
