@@ -37,7 +37,7 @@ function buatIjin(row: Record<string, any>) {
     tanggal: String(row.Tanggal || "").slice(0, 10),
     jenis_id: "1",
   };
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: `Ijin ${row.Nik}`,
     path: "/transaksi/ijin/form",
     query,

@@ -7,6 +7,7 @@ import FText from "@/components/fields/FText.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
 const route = useRoute();
 const toast = useToast();
 const auth = useAuthStore();
@@ -18,6 +19,7 @@ const values = reactive({ user_kode: "", user_nama: "", user_akses: "", user_pas
 const errors = reactive<Record<string, string>>({});
 const pabriks = ref<{ Kode: string; Nama: string }[]>([]);
 const loading = ref(true), ready = ref(false), saving = ref(false);
+useDraftSnapshot(() => values, { ready: () => ready.value && canSave.value, busy: () => saving.value });
 onMounted(async () => {
   try {
     try { const { data } = await api.get("/master/lookup"); pabriks.value = data.data.pabrik || []; }

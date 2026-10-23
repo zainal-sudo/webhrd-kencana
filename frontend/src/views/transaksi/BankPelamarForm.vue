@@ -19,7 +19,8 @@ import { todaySql } from "@/utils/format";
  * index combo 0–8. Grid pengalaman + nilai tes (dari master alat tes aktif)
  * ditimpa ulang setiap simpan seperti Delphi.
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 
 const nomorEdit = computed(() => String(route.query.id ?? ""));
@@ -134,7 +135,9 @@ async function simpan(): Promise<string> {
     pengalaman: pengalaman.value,
     tes: tes.value,
   };
+  // Nomor pada form tambah hanya preview; nomor final dibuat oleh backend.
   if (isEdit.value) body.nomor = nomorEdit.value;
+  else delete body.nomor;
   const { data } = isEdit.value
     ? await api.put("/transaksi/bank-pelamar", body)
     : await api.post("/transaksi/bank-pelamar", body);

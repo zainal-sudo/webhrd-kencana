@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const { parse, compileScript } = require('@vue/compiler-sfc');
@@ -255,12 +255,12 @@ test('Initial entry and month/year changes automatically load page 1; Refresh re
   } finally { f.dispose(); }
 });
 
-test('Pagination/reactivation reload current period and clear selected checkboxes', async () => {
+test('Pagination clears selection; reactivation preserves an unfinished selection', async () => {
   const f = fixture();
   try {
     await f.mount(); await f.activate(); f.selectAll(); await f.load(2);
     assert.equal(f.calls.at(-1).config.params.page, 2); assert.equal(f.selected.value.size, 0);
-    f.selectAll(); await f.activate(); assert.equal(f.selected.value.size, 0);
+    f.selectAll(); const count=f.selected.value.size; await f.activate(); assert.equal(f.selected.value.size, count);
   } finally { f.dispose(); }
 });
 test('Actual page keeps processed/invalid rows selectable, status colors and permission hides Proses', async () => {

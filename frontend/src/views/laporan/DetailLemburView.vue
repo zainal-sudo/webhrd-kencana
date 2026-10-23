@@ -39,7 +39,7 @@ const columns: BrowseColumn[] = [
 ];
 
 function editAbsensi(row: Record<string, any>) {
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: `Absensi ${row.Kode}`,
     path: "/absensi/form",
     query: {

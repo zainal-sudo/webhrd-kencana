@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const root = path.join(__dirname, '../src');
@@ -66,7 +66,7 @@ for (const name of ['SettingGaji', 'ProsesGaji']) {
     } finally { f.dispose(); }
   });
 
-  test(`${name}: unsaved edits survive canceled confirmation and failed refresh; busy save skips refresh`, async () => {
+  test(`${name}: return preserves drafts without reloading; explicit reload failure preserves edits and busy save skips refresh`, async () => {
     const f = fixture(name);
     try {
       await f.lifecycle('mounted'); await f.lifecycle('activated');
@@ -76,12 +76,12 @@ for (const name of ['SettingGaji', 'ProsesGaji']) {
       await f.lifecycle('activated');
       assert.equal(f.calls.length, count); assert.equal(f.rows.value[0].nama, 'Draft'); assert.equal(f.edited.value, true);
       f.confirm(true); f.response(async () => { throw Error('network'); });
-      await f.lifecycle('activated');
+      await f.muat();
       assert.equal(f.rows.value[0].nama, 'Draft'); assert.equal(f.edited.value, true);
       f.menyimpan.value = true;
       const before = f.calls.length; await f.lifecycle('activated'); assert.equal(f.calls.length, before);
       f.menyimpan.value = false; f.response(async () => [{ nik: '001', nama: 'Saved' }]);
-      await f.lifecycle('activated');
+      await f.muat();
       assert.equal(f.rows.value[0].nama, 'Saved'); assert.equal(f.edited.value, false);
     } finally { f.dispose(); }
   });

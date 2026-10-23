@@ -5,6 +5,7 @@ import MsIcon from "@/components/MsIcon.vue";
 import DateInput from "@/components/fields/DateInput.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { todaySql, formatTanggal } from "@/utils/format";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 /**
  * Import Absensi — padanan `ufrmImportAbsensi`.
@@ -70,6 +71,12 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const namaFile = ref("");
 const fileBody = ref<File | null>(null);
 const berkasMdb = computed(() => /\.mdb$/i.test(fileBody.value?.name || ""));
+useUnsavedChanges({
+  dirty: () => !!fileBody.value,
+  state: () => ({ file: fileBody.value ? [fileBody.value.name, fileBody.value.size, fileBody.value.lastModified] : null,
+    periode: { ...periode }, pabrik: pabrik.value.filter(p => p.pilih).map(p => p.Kode) }),
+  busy: () => mengunggah.value || memproses.value,
+});
 
 function pilihFile(ev: Event) {
   if (mengunggah.value) return;

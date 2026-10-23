@@ -7,6 +7,7 @@ import { downloadFile } from '@/api';
 import { useAuthStore } from '@/stores/authStore';
 import { rupiah } from '@/utils/pinjaman';
 import { useLiveSearch } from '@/composables/useLiveSearch';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 
 interface PotonganRow {
   Key: string; Nomor: string; Nik: string; Nama: string | null;
@@ -40,6 +41,8 @@ async function exportExcel() {
   finally { exporting.value = false; }
 }
 const canProcess = computed(() => auth.can('frmBayar', 'insert'));
+useUnsavedChanges({ dirty: () => canProcess.value && selected.value.size > 0,
+  state: () => ({ selected: [...selected.value].sort(), bulan: bulan.value, tahun: tahun.value }), busy: () => processing.value });
 const periode = computed(() => `${bulanNames[bulan.value - 1]} ${tahun.value}`);
 let request = 0, firstActivation = true;
 function eligible(row: PotonganRow) {
@@ -110,7 +113,7 @@ async function processSelected() {
   finally { processing.value = false; }
 }
 onMounted(() => load());
-onActivated(() => { if (firstActivation) { firstActivation = false; return; } if (!processing.value) load(page.value); });
+onActivated(() => { if (firstActivation) { firstActivation = false; return; } if (!processing.value && !selected.value.size) load(page.value); });
 const liveSearch = useLiveSearch(() => load(1), { enabled: () => !processing.value, invalidate });
 watch([bulan, tahun], () => { void liveSearch.run(); });
 </script>

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const { parse, compileScript } = require('@vue/compiler-sfc');
@@ -22,8 +22,8 @@ function fixture(kind = 'simple', settings = {}) {
   const route = { path: kind === 'employee' ? '/master/karyawan/form' : '/master/jabatan/form',
     meta: { form: moduleName }, query: settings.edit ? { id: '001' } : {} };
   const auth = { can: (_module, action) => action === 'insert' ? settings.insert !== false : settings.editAllowed !== false };
-  const tabs = { activeTabId: 'source-form', closeTab: id => navigations.push(['close', id]) };
-  const router = { push: target => navigations.push(['push', target]), replace: async target => {
+  const tabs = { tabs: [{id:'source-form',closable:true,path:'/master/jabatan/form'}], activeTabId: 'source-form', closeTab: id => navigations.push(['close', id]) };
+  const router = { push: target => { navigations.push(['push', target]); }, replace: async target => {
     navigations.push(['replace', target]); tabs.activeTabId = 'new-form';
   } };
   const api = { get: async url => {

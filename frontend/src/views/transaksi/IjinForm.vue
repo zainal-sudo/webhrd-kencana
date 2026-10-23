@@ -31,7 +31,8 @@ import { normJam, assertClockTime } from "@/utils/jam";
  * - NIK+tanggal yang sudah ada pada mode 1 hari meminta konfirmasi LANJUT.
  * - Otorisasi mulai hari kerja ke-4 inklusif, tidak termasuk Minggu/tharilibur.
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/ijin/karyawan");
 

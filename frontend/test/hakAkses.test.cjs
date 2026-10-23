@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const vm=require('node:vm');
+const vm=require('./helpers/frontendVm.cjs');
 const ts=require('typescript');
 const vue=require('vue');
 const root=path.join(__dirname,'../src');
@@ -63,13 +63,13 @@ test('Late user response cannot overwrite a newer selection',async()=>{
  assert.equal(f.loadedKode.value,'U2');assert.equal(f.tabs.tabs[1].title,'Other tab');assert.equal(f.items.value[0].men_id,2);assert.equal(f.canSave.value,true);
  }finally{f.dispose();}
 });
-test('Declining discard restores selected user; route leave guard protects unsaved changes but allows logout',async()=>{
- const f=fixture({confirm:false});try{await f.mount();f.toggle(f.items.value[0],'edit',true);f.kodeAktif.value='U2';await f.gantiUser();assert.equal(f.kodeAktif.value,'U1');assert.equal(f.loadedKode.value,'U1');assert.equal(f.guards[0](),false);f.auth.isAuthenticated=false;assert.equal(f.guards[0](),true);
+test('Declining user replacement retains edits; navigation uses the shared guard',async()=>{
+ const f=fixture({confirm:false});try{await f.mount();f.toggle(f.items.value[0],'edit',true);f.kodeAktif.value='U2';await f.gantiUser();assert.equal(f.kodeAktif.value,'U1');assert.equal(f.loadedKode.value,'U1');assert.equal(f.guards.length,0);assert.equal(f.dirty.value,true);
  }finally{f.dispose();}
 });
-test('Save failure reloads actual partial state and shows error rather than claiming rollback',async()=>{
+test('Save failure retains the draft and requires reload when backend reports possible partial writes',async()=>{
  const f=fixture({put:async(_url,_body,server)=>{server.U1=[wire(1,'Y','N','Y')];throw{response:{data:{message:'Sebagian perubahan mungkin tersimpan',reload_required:true}}};}});
- try{await f.mount();f.toggle(f.items.value[0],'insert',true);await f.simpan();assert.equal(f.items.value[0].edit,true);assert.equal(f.items.value[0].insert,false);assert.equal(f.dirty.value,false);assert.match(f.loadError.value,/Sebagian perubahan/);assert.equal(f.canSave.value,true);
+ try{await f.mount();f.toggle(f.items.value[0],'insert',true);await f.simpan();assert.equal(f.items.value[0].edit,false);assert.equal(f.items.value[0].insert,true);assert.equal(f.dirty.value,true);assert.match(f.loadError.value,/Sebagian perubahan/);assert.equal(f.canSave.value,false);
  }finally{f.dispose();}
 });
 test('Saving own rights refreshes profile/sidebar and leaves page if view permission was revoked',async()=>{

@@ -7,6 +7,7 @@ import MsIcon from "@/components/MsIcon.vue";
 import { useAuthStore } from "@/stores/authStore";
 import type { BrowseColumn } from "@/types";
 import { api, getErrorMessage } from "@/api/axios";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const toast = useToast();
 const auth = useAuthStore();
@@ -25,6 +26,8 @@ const dialogReset = ref(false);
 const target = ref<any>(null);
 const passwordBaru = ref("");
 const menyimpan = ref(false);
+useUnsavedChanges({ dirty: () => dialogReset.value && !!passwordBaru.value,
+  state: () => ({ target: target.value?.Kode, password: passwordBaru.value }), busy: () => menyimpan.value });
 
 function bukaReset(row: any) {
   if (!canEdit.value || menyimpan.value) return;

@@ -6,6 +6,7 @@ import BaseBrowse from "@/components/BaseBrowse.vue";
 import { reportRowKey } from "@/utils/reportRowKey";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import type { BrowseColumn } from "@/types";
 import { api, getErrorMessage } from "@/api/axios";
 import { firstDayOfMonth } from "@/utils/format";
@@ -42,11 +43,12 @@ const columns: BrowseColumn[] = [
 const browse = ref<InstanceType<typeof BaseBrowse> | null>(null);
 const filterProses = ref<Record<string, any> | null>(null);
 const memproses = ref<string | null>(null);
+useUnsavedChanges({ dirty: () => false, state: () => null, busy: () => !!memproses.value });
 const dialog = ref(false);
 const aksi = ref<"alpha" | "jadwal-libur" | null>(null);
 
 function bukaTab(title: string, path: string, query?: Record<string, string>) {
-  tabsStore.openTab({ title, path, query, icon: "mdi mdi-open-in-new", closable: true });
+  tabsStore.stageTab({ title, path, query, icon: "mdi mdi-open-in-new", closable: true });
   router.push({ path, query });
 }
 

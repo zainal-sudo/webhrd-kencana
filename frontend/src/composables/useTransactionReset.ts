@@ -1,6 +1,7 @@
 import { computed, isRef, nextTick, ref, shallowRef, toRaw, unref, watch } from "vue";
 import type { AxiosInstance } from "axios";
 import { sameFormState } from "@/utils/formSnapshot";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 type Targets = Record<string, any>;
 const clone = (value: any): any => JSON.parse(JSON.stringify(toRaw(value)));
@@ -17,11 +18,17 @@ export function useTransactionReset(targets: Targets, options: {
   const snapshot = shallowRef<Targets | null>(null);
   const dirty = computed(() => !!snapshot.value && !sameFormState(
     Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, unref(value)])), snapshot.value));
+  const draft = useUnsavedChanges({
+    enabled: () => ready.value,
+    dirty: () => ready.value && dirty.value,
+    state: () => Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, unref(value)])),
+  });
   const disabled = computed(() => !ready.value || !dirty.value || restoring.value || pending.value > 0 || !!options.blocked?.());
 
   function capture() {
     snapshot.value = Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, clone(unref(value))]));
     ready.value = true;
+    draft.rebase();
   }
   function invalidate() {
     snapshot.value = null;
@@ -66,6 +73,7 @@ export function useTransactionReset(targets: Targets, options: {
         const value = Reflect.get(target, key, receiver);
         if (!["get", "post", "put", "delete", "patch"].includes(String(key)) || typeof value !== "function") return value;
         return async (...args: any[]) => {
+          if (["post", "put", "patch"].includes(String(key))) draft.checkpointSave();
           pending.value++;
           try { return await value.apply(target, args); }
           finally { pending.value--; }

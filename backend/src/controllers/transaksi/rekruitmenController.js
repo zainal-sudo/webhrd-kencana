@@ -209,6 +209,7 @@ export const getRekruitmen = async (req, res, next) => {
 
 /**
  * Simpan (ufrmRekruitmen.simpandata).
+ * POST membuat nomor baru; PUT wajib memakai nomor data yang sudah tersimpan.
  * Body: { nomor? (mode ubah), tanggal, nama, jenkel 1/0, alamat, telp,
  *   identitas, tempat_lahir, tgl_lahir, ibu_kandung, email, status 0-8,
  *   posisi, status_kawin, warganegara, gol_darah, agama, keterangan,
@@ -252,9 +253,12 @@ export const saveRekruitmen = async (req, res, next) => {
             .filter((t) => String(t?.nama || '').trim() !== '' && Number.isInteger(parseInt(t?.id, 10)))
             .map((t) => [String(t.hasil || ''), parseInt(t.id, 10)])
 
+        const isEdit = req.method === 'PUT'
+        let nomor = isEdit ? String(b.nomor || '').trim() : ''
+        if (isEdit && !nomor) return error(res, 'Nomor wajib diisi untuk mengubah pelamar', 400)
+
         await conn.beginTransaction()
-        let nomor = String(b.nomor || '').trim()
-        if (nomor) {
+        if (isEdit) {
             const [ada] = await conn.query('SELECT rkt_nomor FROM trekruitmen WHERE rkt_nomor = ?', [nomor])
             if (ada.length === 0) {
                 await conn.rollback()

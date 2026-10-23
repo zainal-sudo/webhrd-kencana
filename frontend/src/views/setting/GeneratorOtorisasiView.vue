@@ -6,6 +6,7 @@ import FSelect from "@/components/fields/FSelect.vue";
 import CopyCodeButton from "@/components/CopyCodeButton.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
 
 /**
  * Generator Otorisasi — padanan aplikasi pembuat angka balasan Delphi.
@@ -28,6 +29,7 @@ const pilihan = computed(() => MODUL_OPTIONS.filter((m) => auth.can(m.form, "edi
 const modul = ref("");
 const tantangan = ref("");
 const memproses = ref(false);
+const draft = useDraftSnapshot(() => ({ modul: modul.value, tantangan: tantangan.value }), { busy: () => memproses.value });
 const hasil = ref<{ respons: string; pemberi: string; modul: string } | null>(null);
 
 async function generate() {
@@ -41,6 +43,7 @@ async function generate() {
     return;
   }
   memproses.value = true;
+  const finishDraftSave = draft.beginSave();
   try {
     const { data } = await api.post("/otorisasi/generasi", {
       modul: modul.value,
@@ -52,9 +55,11 @@ async function generate() {
       modul: String(data.data?.modul || modul.value),
     };
     if (!hasil.value.respons) toast.error("Server tidak mengembalikan angka balasan");
+    else finishDraftSave(true);
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal membuat angka balasan"));
   } finally {
+    finishDraftSave(false);
     memproses.value = false;
   }
 }

@@ -11,6 +11,7 @@ import { formatTanggal, formatTanggalWaktu, todaySql } from "@/utils/format";
 import { fotoUrl } from "@/utils/foto";
 import type { BrowseColumn } from "@/types";
 import { columnFilterParams } from "@/utils/columnFilter";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const props = withDefaults(
   defineProps<{
@@ -261,6 +262,8 @@ function applyFilterSet(col: BrowseColumn, values: string[]) {
 }
 
 const deleteDialog = ref(false);
+const deleting = ref(false);
+useUnsavedChanges({ dirty: () => false, state: () => null, busy: () => deleting.value });
 const deletingKey = ref<string | null>(null);
 const deletingLabel = ref("");
 const expandedKeys = ref(new Set<string | number>());
@@ -429,7 +432,7 @@ function addNew() {
     : typeof routeTitle === "string" && routeTitle.trim()
       ? routeTitle
       : `Tambah ${label && !/^Tambah$/i.test(label) ? label : props.moduleTitle}`;
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title,
     path: props.addFormPath,
     icon: "mdi mdi-plus-box-outline",
@@ -442,7 +445,7 @@ function editRow(row: Record<string, any>) {
   if (!props.editFormPath) return;
   const id = row[props.primaryKey];
   const query = { id };
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: props.editTabTitle?.(row) || `Edit ${id}`,
     path: props.editFormPath,
     query,
@@ -460,15 +463,16 @@ function confirmDelete(row: Record<string, any>) {
 }
 
 async function doDelete() {
-  if (!deletingKey.value) return;
+  if (!deletingKey.value || deleting.value) return;
+  deleting.value = true;
   try {
-    await api.delete(`${props.endpoint}/${deletingKey.value}`);
+    await api.delete(`${props.endpoint}/${encodeURIComponent(deletingKey.value)}`);
     toast.success("Data berhasil dihapus");
     deleteDialog.value = false;
     refreshAfterDelete();
   } catch (e: any) {
     toast.error(getErrorMessage(e));
-  }
+  } finally { deleting.value = false; }
 }
 
 /** Optional module-specific delete confirmation can reuse the standard refresh. */

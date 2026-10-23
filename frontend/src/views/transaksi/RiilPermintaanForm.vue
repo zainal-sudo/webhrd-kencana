@@ -18,7 +18,8 @@ import { todaySql, formatTanggal } from "@/utils/format";
  * permintaan yang belum penuh (jumlah > realisasi) -> info permintaan
  * terisi otomatis; simpan hanya menulis tanggal, jumlah & keterangan nama.
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 
 const nomorEdit = computed(() => String(route.query.id ?? ""));

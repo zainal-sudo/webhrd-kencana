@@ -111,3 +111,16 @@ export async function simpanScanStaging(db, b) {
         )
     }
 }
+
+/** Reduce redundant upserts, retaining exactly the same MIN/MAX and empty-scan rules. */
+export function ringkasScanStaging(rows) {
+    const groups = new Map()
+    for (const row of rows) {
+        const key = JSON.stringify([row.nik, row.tanggal, row.keluar])
+        const jam = row.jam || '00:00:00'
+        const current = groups.get(key)
+        if (!current) groups.set(key, { ...row, jam })
+        else if (jam !== '00:00:00' && (current.jam === '00:00:00' || (row.keluar ? jam > current.jam : jam < current.jam))) current.jam = jam
+    }
+    return [...groups.values()]
+}

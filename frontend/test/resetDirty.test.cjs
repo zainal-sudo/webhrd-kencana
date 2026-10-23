@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const { parse, compileScript } = require('@vue/compiler-sfc');
@@ -70,7 +70,7 @@ function employeeFixture() {
     abort() { this.aborted = true; this.onabort?.(); }
   }
   return { readers, ...compile(block + upload + '\nexport { values, anak, pendidikan, pengalaman, keahlian, jadwalTerpilih, pkwt, fotoBase64, fotoInput, fotoPending, resetDirty, resetSnapshot, captureForm, resetForm, onPilihFoto };', {},
-    { ...vue, ...snapshot, isEdit: vue.ref(false), memuat: vue.ref(false), todaySql: () => '2026-10-14',
+    { ...vue, ...snapshot, useUnsavedChanges: () => ({rebase(){}}), isEdit: vue.ref(false), memuat: vue.ref(false), todaySql: () => '2026-10-14',
       jadwalMenu: vue.ref(false), cariJadwal: vue.ref(''), window: { confirm: () => true }, FileReader: Reader, toast: { error() {} },
       auth: { user: { user_kode: 'hrd' } } }) };
 }

@@ -5,6 +5,8 @@ import { addDays, agendaAudience, agendaDateLabel, agendaEditedAt, agendaTimeErr
 import type { Agenda, AgendaStatus, AgendaUser } from "@/utils/agenda";
 import MsIcon from "@/components/MsIcon.vue";
 import FTime from "@/components/fields/FTime.vue";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
+import { APPLICATION_DRAFT, confirmDraftDiscard, formState } from "@/utils/unsavedChanges";
 
 const props = defineProps<{ username: string; refreshKey: number }>();
 const emit = defineEmits<{ close: []; changed: [] }>();
@@ -21,6 +23,11 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined;
 const draft = reactive({ title: "", notes: "", date: selected.value, start_time: "", end_time: "",
   visibility: "private" as "private" | "shared", status: "OPEN" as AgendaStatus, recipients: [] as string[] });
 const statuses: AgendaStatus[] = ["OPEN", "SELESAI", "BATAL"];
+const initialDraft = ref(formState(draft));
+const draftGuard = useUnsavedChanges({ global: true, title: "Agenda", state: () => draft,
+  dirty: () => editor.value && !detailLoading.value && formState(draft) !== initialDraft.value, busy: () => busy.value });
+function closeCalendar() { if (confirmDraftDiscard([APPLICATION_DRAFT])) emit("close"); }
+function requestCloseEditor() { if (confirmDraftDiscard([APPLICATION_DRAFT])) closeEditor(); }
 const recipientPanel = ref<HTMLElement | null>(null), recipientSearchInput = ref<HTMLInputElement | null>(null);
 const notesInput = ref<HTMLTextAreaElement | null>(null);
 function resizeNotes() {
@@ -158,11 +165,13 @@ function closeEditor() { detailRequest++; resetRecipientSearch(); editor.value =
 function newAgenda() {
   closeEditor(); Object.assign(draft, { title: "", notes: "", date: selected.value, start_time: "", end_time: "", visibility: "private", status: "OPEN", recipients: [] });
   editor.value = true;
+  initialDraft.value = formState(draft); draftGuard.rebase();
   void resetPaneScroll();
 }
 function assign(row: Agenda) {
   document.value = row;
   Object.assign(draft, { title: row.title, notes: row.notes, date: row.date, start_time: row.start_time || "", end_time: row.end_time || "", visibility: row.visibility, status: row.status, recipients: [...row.recipients] });
+  initialDraft.value = formState(draft); draftGuard.rebase();
 }
 async function editAgenda(id: number) {
   resetRecipientSearch();
@@ -238,9 +247,9 @@ onUnmounted(() => { disposed = true; loadRequest++; detailRequest++; userRequest
 </script>
 
 <template>
-  <v-dialog :model-value="true" max-width="960" :persistent="busy" aria-labelledby="agenda-title" @update:model-value="!$event && emit('close')">
+  <v-dialog :model-value="true" max-width="960" :persistent="busy" aria-labelledby="agenda-title" @update:model-value="!$event && closeCalendar()">
     <section class="agenda-dialog">
-      <header class="agenda-heading"><h2 id="agenda-title"><MsIcon name="calendar_month" :size="20" />Kalender Agenda</h2><button type="button" aria-label="Tutup kalender agenda" :disabled="busy" @click="emit('close')"><MsIcon name="close" :size="20" /></button></header>
+      <header class="agenda-heading"><h2 id="agenda-title"><MsIcon name="calendar_month" :size="20" />Kalender Agenda</h2><button type="button" aria-label="Tutup kalender agenda" :disabled="busy" @click="closeCalendar"><MsIcon name="close" :size="20" /></button></header>
       <div ref="agendaLayout" class="agenda-layout">
         <section ref="calendarPane" class="calendar-pane" aria-label="Kalender">
           <div class="calendar-toolbar">
@@ -267,7 +276,7 @@ onUnmounted(() => { disposed = true; loadRequest++; detailRequest++; userRequest
         </section>
         <section ref="agendaPane" class="agenda-pane" :class="{ 'is-editing': editor }" aria-label="Agenda tanggal terpilih">
           <div v-if="!editor" class="daily-heading"><h3>{{ agendaDateLabel(selected) }}</h3><button type="button" class="primary" :disabled="busy || loading" @click="newAgenda"><MsIcon name="add" :size="16" />Tambah</button></div>
-          <div v-if="editor" class="form-heading"><button type="button" class="agenda-back" aria-label="Kembali ke daftar agenda" title="Kembali ke daftar agenda" :disabled="busy" @click="closeEditor"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></button><h4>{{ document || detailLoading ? 'Edit agenda' : 'Tambah agenda' }}</h4></div>
+          <div v-if="editor" class="form-heading"><button type="button" class="agenda-back" aria-label="Kembali ke daftar agenda" title="Kembali ke daftar agenda" :disabled="busy" @click="requestCloseEditor"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></button><h4>{{ document || detailLoading ? 'Edit agenda' : 'Tambah agenda' }}</h4></div>
           <p v-if="detailLoading" role="status" class="agenda-state">Memuat detail agenda…</p>
           <form v-else-if="editor" class="agenda-form" @submit.prevent="save">
             <div v-if="document" class="agenda-meta"><span>Dibuat oleh {{ document.creator.toUpperCase() }}<template v-if="document.visibility === 'shared'"> · Bersama {{ agendaAudience(document) }}</template></span><span v-if="document.updated_by">Terakhir diedit oleh {{ document.updated_by.toUpperCase() }}<template v-if="agendaEditedAt(document.updated_at)"> · {{ agendaEditedAt(document.updated_at) }}</template></span></div>

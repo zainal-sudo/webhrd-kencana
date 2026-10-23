@@ -27,7 +27,7 @@ const columns: BrowseColumn[] = [
 
 function bukaPerNik() {
   const path = "/transaksi/lembur-v2/form";
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: "Tambah Lembur Per NIK",
     path,
     icon: "mdi mdi-plus-box-outline",

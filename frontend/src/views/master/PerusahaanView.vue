@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
 
 interface CompanyField {
   key: string;
@@ -58,6 +59,7 @@ const siap = ref(false);
 const dataBaru = ref(false);
 const canSave = computed(() => auth.can("frmPerusahaan", dataBaru.value ? "insert" : "edit"));
 const fieldsDisabled = computed(() => memuat.value || menyimpan.value || !siap.value || !canSave.value);
+const draft = useDraftSnapshot(() => values, { busy: () => menyimpan.value });
 
 async function muat() {
   if (menyimpan.value) return;
@@ -66,6 +68,7 @@ async function muat() {
   try {
     const { data } = await api.get("/master/perusahaan");
     Object.assign(values, data.data);
+    draft.capture();
     dataBaru.value = false;
     siap.value = true;
   } catch (e: any) {
@@ -87,15 +90,18 @@ async function simpan() {
     return;
   }
   menyimpan.value = true;
+  const finishDraftSave = draft.beginSave();
   try {
     const payload = { ...values };
     if (dataBaru.value) await api.post("/master/perusahaan", payload);
     else await api.put("/master/perusahaan", payload);
+    finishDraftSave(true);
     dataBaru.value = false;
     toast.success("Identitas perusahaan berhasil disimpan.", { timeout: 5000 });
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan identitas perusahaan."));
   } finally {
+    finishDraftSave(false);
     menyimpan.value = false;
   }
 }

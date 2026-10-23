@@ -23,7 +23,8 @@ import type { LookupItem } from "@/types";
  * Melapor. Bagian bawah: Pabrik/Jabatan/Departemen Baru (dropdown),
  * Bagian Baru (+lookup bagian unik), Alasan (Mutasi/Demosi/Promosi/Rotasi).
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/mutasi/karyawan");
 

@@ -15,6 +15,7 @@ import { todaySql, formatTanggal } from "@/utils/format";
 import { useLiveSearch } from "@/composables/useLiveSearch";
 import { useAuthStore } from "@/stores/authStore";
 import { sameFormState } from "@/utils/formSnapshot";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import {
   OPSI_AGAMA,
   OPSI_BPJS,
@@ -26,7 +27,8 @@ import {
   OPSI_WARGA_NEGARA,
 } from "@/config/masterSimple";
 
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const auth = useAuthStore();
 
@@ -148,6 +150,8 @@ const resetSnapshot = shallowRef<FormSnapshot | null>(isEdit.value ? null : capt
 const resetDirty = computed(() => !!resetSnapshot.value && (
   !sameFormState(captureForm(), resetSnapshot.value) || fotoPending.value
 ));
+const draft = useUnsavedChanges({ dirty: () => resetDirty.value, state: captureForm, busy: () => fotoPending.value });
+watch(resetSnapshot, () => draft.rebase());
 
 function resetForm(): boolean {
   const snapshot = resetSnapshot.value;
@@ -354,6 +358,7 @@ async function simpan(): Promise<string> {
   body.jadwal = jadwalTerpilih.value.map((id) => ({ karj_jd_id: id }));
   body.pkwt = pkwt.value;
   if (fotoBase64.value) body.kar_foto_base64 = fotoBase64.value;
+  draft.checkpointSave();
 
   if (isEdit.value) {
     await api.put(`/master/karyawan/${encodeURIComponent(nik.value)}`, body);

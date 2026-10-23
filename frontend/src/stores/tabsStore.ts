@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { clearDrafts, confirmDraftDiscard, isTabBusy, isTabDirty } from "@/utils/unsavedChanges";
 
 export interface TabItem {
   id: string;
@@ -15,6 +16,7 @@ export const useTabsStore = defineStore("tabs", {
     tabs: [] as TabItem[],
     activeTabId: "" as string,
     cacheVersion: 0,
+    pendingTabs: {} as Record<string, Omit<TabItem, "id" | "timestamp">>,
   }),
 
   getters: {
@@ -22,6 +24,13 @@ export const useTabsStore = defineStore("tabs", {
   },
 
   actions: {
+    stageTab(tab: Omit<TabItem, "id" | "timestamp">) {
+      this.pendingTabs[this.generateTabId(tab.path, tab.query)] = tab;
+    },
+    canOpenTab(id: string): boolean {
+      return this.tabs.some(tab => tab.id === id) || this.tabs.length < 12
+        || this.tabs.some(tab => tab.closable && !isTabDirty(tab.id) && !isTabBusy(tab.id));
+    },
     generateTabId(path: string, query?: Record<string, any>): string {
       const params = new URLSearchParams();
       for (const key of Object.keys(query || {}).sort()) {
@@ -36,6 +45,7 @@ export const useTabsStore = defineStore("tabs", {
 
     openTab(tab: Omit<TabItem, "id" | "timestamp">) {
       const id = this.generateTabId(tab.path, tab.query);
+      if (!this.canOpenTab(id)) return false;
       const existing = this.tabs.find((t) => t.id === id);
       if (existing) {
         this.activeTabId = existing.id;
@@ -50,7 +60,7 @@ export const useTabsStore = defineStore("tabs", {
       this.tabs.push(newTab);
       this.activeTabId = newTab.id;
       if (this.tabs.length > 12) {
-        const closable = this.tabs.filter((t) => t.closable);
+        const closable = this.tabs.filter((t) => t.closable && t.id !== id && !isTabDirty(t.id) && !isTabBusy(t.id));
         if (closable.length > 0) {
           const oldest = closable.sort((a, b) => a.timestamp - b.timestamp)[0];
           this.closeTab(oldest.id);
@@ -63,6 +73,7 @@ export const useTabsStore = defineStore("tabs", {
       if (index === -1) return;
       const tab = this.tabs[index];
       if (!tab.closable) return;
+      if (!confirmDraftDiscard([tabId])) return false;
       this.tabs.splice(index, 1);
       if (this.activeTabId === tabId) {
         if (this.tabs.length > 0) {
@@ -72,9 +83,11 @@ export const useTabsStore = defineStore("tabs", {
           this.activeTabId = "";
         }
       }
+      return true;
     },
 
     closeAllTabs() {
+      if (!confirmDraftDiscard(this.tabs.map(tab => tab.id))) return false;
       const dashboard = this.tabs.find((t) => t.path === "/dashboard");
       this.tabs = [];
       this.openTab({
@@ -89,6 +102,7 @@ export const useTabsStore = defineStore("tabs", {
     closeOtherTabs(tabId: string) {
       const tab = this.tabs.find((t) => t.id === tabId);
       if (!tab) return;
+      if (!confirmDraftDiscard(this.tabs.filter(item => item.closable && item.id !== tabId).map(item => item.id))) return false;
       this.tabs = this.tabs.filter((t) => !t.closable || t.id === tabId);
       this.activeTabId = tabId;
     },
@@ -118,6 +132,8 @@ export const useTabsStore = defineStore("tabs", {
     },
 
     resetTabs() {
+      clearDrafts();
+      this.pendingTabs = {};
       this.tabs = [];
       this.activeTabId = "";
       this.cacheVersion += 1;

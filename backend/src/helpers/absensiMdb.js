@@ -91,5 +91,6 @@ export async function mdbKeExcelPeriode(buffer, periode, { createReader = data =
         if (count < MDB_BATCH_SIZE) break
     }
     if (!jumlah) throw new Error('Tidak ada data MDB dalam rentang tanggal yang dipilih.')
-    return Buffer.from(await workbook.xlsx.writeBuffer())
+    // Excel ini hanya perantara di memori: prioritaskan waktu kompresi, bukan ukuran arsip minimum.
+    return Buffer.from(await workbook.xlsx.writeBuffer({ zip: { compression: 'DEFLATE', compressionOptions: { level: 1 } } }))
 }

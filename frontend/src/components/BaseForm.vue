@@ -7,6 +7,8 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { getErrorMessage } from "@/api/axios";
 import { useAuthStore } from "@/stores/authStore";
 import { nextFormField } from "@/utils/formEnter";
+import { beginDraftSave, isTabDirty } from "@/utils/unsavedChanges";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 
 const props = withDefaults(
   defineProps<{
@@ -49,6 +51,8 @@ const router = useRouter();
 const toast = useToast();
 const tabsStore = useTabsStore();
 const auth = useAuthStore();
+const ownerTabId = tabsStore.activeTabId;
+const navigation = useTabNavigation();
 const canSaveNew = computed(() => !!props.newFormPath && !!props.transactionModule && auth.can(props.transactionModule, "insert"));
 
 const saving = ref(false);
@@ -60,11 +64,15 @@ async function doSave(mode: "close" | "new" = "close") {
   if (mode === "new" && !canSaveNew.value) return;
   const tabId = tabsStore.activeTabId;
   saving.value = true;
+  const finishSave = beginDraftSave(ownerTabId);
   try {
     const msg = await props.saveFn();
+    finishSave(true);
     successMsg.value = msg || "Data berhasil disimpan.";
     if (props.newFormPath) {
       toast.success(successMsg.value);
+      // Do not discard edits made after the submitted snapshot.
+      if (isTabDirty(ownerTabId)) return;
       // A background save must not close or replace another active tab.
       if (tabsStore.activeTabId !== tabId) return;
       if (mode === "new") {
@@ -74,7 +82,7 @@ async function doSave(mode: "close" | "new" = "close") {
         const failure = await router.replace({ path: props.newFormPath, query: { _entry: entry } });
         if (failure) throw new Error("Data sudah tersimpan, tetapi form baru gagal dibuka. Jangan simpan ulang data yang sama.");
         if (tabId) tabsStore.closeTab(tabId);
-      } else closeTab();
+      } else await closeTab();
     } else showSuccess.value = true;
   } catch (e) {
     // Validasi jam sudah dijelaskan di bawah input; tidak perlu popup ganda.
@@ -82,19 +90,13 @@ async function doSave(mode: "close" | "new" = "close") {
       toast.error(getErrorMessage(e));
     }
   } finally {
+    finishSave(false);
     saving.value = false;
   }
 }
 
-function closeTab() {
-  showSuccess.value = false;
-  const target = props.returnPath;
-  // Tutup tab form aktif
-  const activeId = tabsStore.activeTabId;
-  if (activeId) tabsStore.closeTab(activeId);
-  if (target) {
-    router.push(target);
-  }
+async function closeTab() {
+  if (await navigation.closeTab(ownerTabId, props.returnPath)) showSuccess.value = false;
 }
 
 function doReset() {

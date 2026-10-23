@@ -35,7 +35,7 @@ function editAbsensi(row: Record<string, any>) {
     nik: String(row.Kode ?? ""),
     tanggal: String(row.Tanggal || "").slice(0, 10),
   };
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: `Absensi ${row.Kode}`,
     path: "/absensi/form",
     query,

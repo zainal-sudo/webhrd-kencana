@@ -11,6 +11,7 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { useThemeToggle } from "@/composables/useTheme";
 import { useTabPageCache } from "@/composables/useTabPageCache";
 import { formatTanggal } from "@/utils/format";
+import { confirmDraftDiscard, protectedTabIds } from "@/utils/unsavedChanges";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -48,6 +49,7 @@ const cabang = computed(() => authStore.user?.user_akses || "Semua Pabrik");
 const userMenu = ref(false);
 
 async function logout() {
+  if (!confirmDraftDiscard(protectedTabIds())) return;
   userMenu.value = false;
   authStore.logout();
   tabsStore.resetTabs();
@@ -56,7 +58,7 @@ async function logout() {
 }
 
 function goHome() {
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: "Dashboard",
     path: "/dashboard",
     icon: "dashboard",

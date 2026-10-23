@@ -219,7 +219,7 @@ function bolehBuka(route: string): boolean {
 }
 
 function bukaRoute(route: string, label: string) {
-  tabsStore.openTab({ title: label, path: route, icon: "", closable: true });
+  tabsStore.stageTab({ title: label, path: route, icon: "", closable: true });
   router.push(route);
 }
 
@@ -288,7 +288,7 @@ async function load() {
 
 function open(node: { label: string; route?: string; icon?: string }) {
   if (!node.route) return;
-  tabsStore.openTab({ title: node.label, path: node.route, icon: node.icon || "", closable: true });
+  tabsStore.stageTab({ title: node.label, path: node.route, icon: node.icon || "", closable: true });
   router.push(node.route);
 }
 

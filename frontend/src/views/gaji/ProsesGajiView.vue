@@ -11,6 +11,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
 import { safeGet, downloadFile } from "@/api";
 import { todaySql, firstDayOfMonth } from "@/utils/format";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 
 /**
  * Proses Gaji — padanan `ufrmProsesGaji`.
@@ -45,6 +47,10 @@ const memuatPotongan = ref(false);
 const filePotongan = ref<File | null>(null);
 const grid = ref<InstanceType<typeof EditableGrid> | null>(null);
 const edited = ref(false);
+const draft = useDraftSnapshot(() => ({ rows: rows.value, file: filePotongan.value ? [filePotongan.value.name, filePotongan.value.size, filePotongan.value.lastModified] : null }), {
+  busy: () => memproses.value || menyimpan.value || memuatPotongan.value,
+});
+const navigation = useTabNavigation();
 let loadRequest = 0, firstActivation = true;
 const busy = computed(() => loading.value || memproses.value || menyimpan.value || memuatPotongan.value);
 
@@ -126,6 +132,7 @@ async function muat() {
     const result = await safeGet<Record<string, any>[]>("/gaji/proses", { params });
     if (request !== loadRequest || params.periode !== bulan.value || params.tahun !== tahun.value || params.start !== start.value || params.end !== end.value) return;
     rows.value = result;
+    draft.capture();
     edited.value = false;
     grid.value?.reset();
   } catch (e) {
@@ -178,6 +185,7 @@ async function simpan() {
   if (salah) return toast.error(salah);
   if (!confirm("Yakin ingin menyimpan perubahan (simpandata)?")) return;
   menyimpan.value = true;
+  const finishDraftSave = draft.beginSave();
   try {
     const payload = rows.value.map((r) => ({
       nik: r.nik,
@@ -198,11 +206,13 @@ async function simpan() {
       end: end.value,
       rows: payload,
     });
+    finishDraftSave(true);
     toast.success(data.message || `${data.data?.jumlah ?? 0} baris disimpan`);
     await muat();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan"));
   } finally {
+    finishDraftSave(false);
     menyimpan.value = false;
   }
 }
@@ -252,7 +262,7 @@ function ekspor() {
 
 function tutup() {
   const activeId = tabsStore.activeTabId;
-  if (activeId) tabsStore.closeTab(activeId);
+  if (activeId) void navigation.closeTab(activeId);
 }
 
 onMounted(() => {
@@ -260,6 +270,7 @@ onMounted(() => {
 });
 onActivated(() => {
   if (firstActivation) { firstActivation = false; return; }
+  if (draft.dirty()) return;
   return refreshGaji();
 });
 function invalidateLoad() { ++loadRequest; loading.value = false; }

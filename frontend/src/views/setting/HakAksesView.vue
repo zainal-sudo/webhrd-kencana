@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import { useToast } from "vue-toastification";
 import FSelect from "@/components/fields/FSelect.vue";
 import MsIcon from "@/components/MsIcon.vue";
@@ -20,11 +21,13 @@ const kodeAktif = ref(initialKode), loadedKode = ref("");
 const items = ref<UserPermissionRow[]>([]);
 const memuat = ref(true), menyimpan = ref(false), loaded = ref(false), loadError = ref("");
 const snapshot = ref("");
+const reloadRequired = ref(false);
 let request = 0, disposed = false;
 const canEdit = computed(() => auth.can("frmUser", "edit"));
 const serialize = () => JSON.stringify(items.value.map(permissionToApi));
 const dirty = computed(() => loaded.value && serialize() !== snapshot.value);
-const canSave = computed(() => canEdit.value && loaded.value && !!loadedKode.value && kodeAktif.value === loadedKode.value && !memuat.value && !menyimpan.value);
+const draft = useUnsavedChanges({ dirty: () => dirty.value, state: serialize, busy: () => menyimpan.value, enabled: () => loaded.value });
+const canSave = computed(() => canEdit.value && loaded.value && !!loadedKode.value && kodeAktif.value === loadedKode.value && !memuat.value && !menyimpan.value && !reloadRequired.value);
 const grup = computed(() => {
   const groups: Record<number, UserPermissionRow[]> = {};
   for (const item of items.value) (groups[item.men_modul] ||= []).push(item);
@@ -52,7 +55,7 @@ async function load(kode: string, preserveError = false) {
     const { data } = await api.get(`/master/user/${encodeURIComponent(kode)}/hak`);
     if (disposed || seq !== request) return;
     items.value = data.data.map(permissionFromApi);
-    loadedKode.value = kode; loaded.value = true; snapshot.value = serialize();
+    loadedKode.value = kode; loaded.value = true; snapshot.value = serialize(); reloadRequired.value = false; draft.rebase();
   } catch (err) {
     if (disposed || seq !== request) return;
     loadError.value = getErrorMessage(err, "Gagal memuat hak akses.");
@@ -70,7 +73,6 @@ onMounted(async () => {
 });
 onUnmounted(() => { disposed = true; ++request; });
 function discardAllowed() { return !auth.isAuthenticated || !dirty.value || window.confirm("Perubahan hak akses belum disimpan. Tinggalkan perubahan?"); }
-onBeforeRouteLeave(() => !auth.isAuthenticated || !auth.can("frmUser") || (!menyimpan.value && discardAllowed()));
 async function gantiUser() {
   if (menyimpan.value || !discardAllowed()) { kodeAktif.value = loadedKode.value; return; }
   await load(String(kodeAktif.value || ""));
@@ -95,9 +97,11 @@ async function simpan() {
   const target = loadedKode.value;
   menyimpan.value = true;
   let saved = false;
+  const finishDraftSave = draft.beginSave();
   try {
     const { data } = await api.put(`/master/user/${encodeURIComponent(target)}/hak`, { user_kode: target, items: items.value.map(permissionToApi) });
     saved = true;
+    finishDraftSave(true);
     if (disposed) return;
     toast.success(data.message || "Hak akses berhasil disimpan.");
     if (String(auth.user?.user_kode || "").toUpperCase() === target.toUpperCase()) {
@@ -110,10 +114,11 @@ async function simpan() {
     await load(target);
   } catch (err) {
     if (disposed) return;
+    reloadRequired.value = !!(err as any)?.response?.data?.reload_required;
     loadError.value = saved ? "Hak akses tersimpan, tetapi profil/menu belum berhasil dimuat ulang. Muat ulang halaman." : getErrorMessage(err, "Gagal menyimpan hak akses. Muat ulang untuk memeriksa kondisi aktual.");
     toast.error(loadError.value);
-    await load(target, true);
-  } finally { menyimpan.value = false; }
+    if (saved) await load(target, true);
+  } finally { finishDraftSave(false); menyimpan.value = false; }
 }
 </script>
 

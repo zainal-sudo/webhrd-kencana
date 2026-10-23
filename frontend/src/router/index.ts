@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
+import { confirmDraftNavigation } from "@/utils/unsavedChanges";
 
 /**
  * Rute web HRD Kencana.
@@ -160,7 +161,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore();
 
   if (to.meta.requiresAuth !== false && !auth.isAuthenticated) {
@@ -184,10 +185,26 @@ router.beforeEach(async (to) => {
   if (form && auth.menus.length > 0 && !auth.can(form)) {
     return { path: "/403", query: { form } };
   }
+  if (to.meta.requiresAuth !== false && to.meta.layout !== "BlankLayout" && !to.meta.publicPenilaian) {
+    const tabs = useTabsStore();
+    if (!tabs.canOpenTab(tabs.generateTabId(to.path, to.query))) {
+      window.alert("Batas 12 tab tercapai. Simpan atau tutup salah satu tab sebelum membuka halaman baru.");
+      return false;
+    }
+  }
+  const sourceForm = from.meta.form as string | undefined;
+  if (auth.isAuthenticated && (!sourceForm || auth.can(sourceForm)) && from.fullPath !== to.fullPath && !from.meta.publicPenilaian) {
+    const tabs = useTabsStore();
+    if (!confirmDraftNavigation(tabs.generateTabId(from.path, from.query))) return false;
+  }
   return true;
 });
 
 router.afterEach((to, _from, failure) => {
+  const pendingStore = useTabsStore();
+  const pendingId = pendingStore.generateTabId(to.path, to.query);
+  const staged = pendingStore.pendingTabs[pendingId];
+  delete pendingStore.pendingTabs[pendingId];
   if (failure) return;
   const title = (to.meta.title as string) || "HRIS — Kencana";
   document.title = title === "HRIS — Kencana" ? title : `${title} | HRIS — Kencana`;
@@ -198,7 +215,7 @@ router.afterEach((to, _from, failure) => {
   if (tabs.tabs.some((tab) => tab.id === id)) {
     tabs.setActiveTab(id);
   } else {
-    tabs.openTab({
+    tabs.openTab(staged || {
       title,
       path: to.path,
       query: { ...to.query },

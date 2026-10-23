@@ -21,7 +21,8 @@ import { todaySql } from "@/utils/format";
  * status lama dari master (`kar_status_kerja`); status baru + periode PKWT
  * diisi manual. Tidak ada otorisasi tanggal di Delphi untuk modul ini.
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/perubahan-status/karyawan");
 

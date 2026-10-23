@@ -10,6 +10,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { api, getErrorMessage } from "@/api/axios";
 import { safeGet, safePut, downloadFile } from "@/api";
 import { useLiveSearch } from "@/composables/useLiveSearch";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 
 /**
  * Setting Gaji — padanan `ufrmSettingGaji`.
@@ -33,6 +35,8 @@ const loading = ref(false);
 const menyimpan = ref(false);
 const grid = ref<InstanceType<typeof EditableGrid> | null>(null);
 const edited = ref(false);
+const draft = useDraftSnapshot(() => rows.value, { busy: () => menyimpan.value });
+const navigation = useTabNavigation();
 let loadRequest = 0;
 let loadedSearch = "", loadedPabrik = "";
 
@@ -88,6 +92,7 @@ async function muat() {
     });
     if (request !== loadRequest) return;
     rows.value = result;
+    draft.capture();
     loadedSearch = cari.value; loadedPabrik = pabrik.value;
     edited.value = false;
     grid.value?.reset();
@@ -106,14 +111,17 @@ async function simpan() {
   }
   if (!confirm("Yakin ingin menyimpan setting gaji?")) return;
   menyimpan.value = true;
+  const finishDraftSave = draft.beginSave();
   try {
     const r = await safePut<{ jumlah: number }>("/gaji/setting", { rows: rows.value });
+    finishDraftSave(true);
     toast.success(`${r.jumlah} karyawan berhasil disimpan`);
     edited.value = false;
     await muat();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan setting gaji"));
   } finally {
+    finishDraftSave(false);
     menyimpan.value = false;
   }
 }
@@ -128,7 +136,7 @@ function ekspor() {
 
 function tutup() {
   const activeId = tabsStore.activeTabId;
-  if (activeId) tabsStore.closeTab(activeId);
+  if (activeId) void navigation.closeTab(activeId);
 }
 
 onMounted(async () => {
@@ -142,7 +150,7 @@ let firstActivation = true;
 onActivated(() => {
   if (firstActivation) { firstActivation = false; return; }
   if (menyimpan.value || loading.value || !pabrik.value) return;
-  if (edited.value && !window.confirm("Perubahan setting gaji belum disimpan. Buang perubahan dan muat data terbaru?")) return;
+  if (draft.dirty()) return;
   return liveSearch.run();
 });
 </script>

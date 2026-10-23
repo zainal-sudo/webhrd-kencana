@@ -4,11 +4,14 @@ import { useToast } from "vue-toastification";
 import FText from "@/components/fields/FText.vue";
 import FNumber from "@/components/fields/FNumber.vue";
 import { api, getErrorMessage } from "@/api/axios";
+import { useDraftSnapshot } from "@/composables/useUnsavedChanges";
 
 const toast = useToast();
 
 const baris = ref<any[]>([]);
 const memuat = ref(false);
+const menyimpan = ref(false);
+const draft = useDraftSnapshot(() => baris.value, { busy: () => menyimpan.value });
 
 async function muatDaftar() {
   memuat.value = true;
@@ -20,6 +23,7 @@ async function muatDaftar() {
       men_keterangan: m.men_keterangan,
       men_modul: m.men_modul,
     }));
+    draft.capture();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat daftar menu"));
   } finally {
@@ -35,16 +39,20 @@ function hapus(i: number) {
 }
 
 async function simpanSemua() {
+  if (menyimpan.value || memuat.value) return;
+  menyimpan.value = true;
+  const finishDraftSave = draft.beginSave();
   try {
     for (const row of baris.value) {
       if (!row.men_id) continue;
       await api.post("/master/user/menu", row);
     }
     toast.success("Daftar menu tersimpan");
+    finishDraftSave(true);
     await muatDaftar();
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal menyimpan menu"));
-  }
+  } finally { finishDraftSave(false); menyimpan.value = false; }
 }
 
 onMounted(muatDaftar);
@@ -58,13 +66,13 @@ onMounted(muatDaftar);
         <p>Daftar modul aplikasi. <b>Kode menu harus sama dengan nama form Delphi</b> karena dipakai untuk pencocokan hak akses.</p>
       </div>
       <div class="acts">
-        <button class="btn" @click="muatDaftar">Muat Ulang</button>
-        <button class="btn" @click="tambah">+ Baris</button>
-        <button class="btn primary" @click="simpanSemua">Simpan Semua</button>
+        <button class="btn" :disabled="menyimpan" @click="muatDaftar">Muat Ulang</button>
+        <button class="btn" :disabled="menyimpan" @click="tambah">+ Baris</button>
+        <button class="btn primary" :disabled="menyimpan" @click="simpanSemua">Simpan Semua</button>
       </div>
     </div>
 
-    <fieldset class="fs">
+    <fieldset class="fs" :disabled="menyimpan">
       <legend>Daftar Menu</legend>
       <div v-if="memuat" class="loading">Memuat...</div>
       <table v-else class="tbl">

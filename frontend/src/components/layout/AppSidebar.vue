@@ -135,7 +135,7 @@ function go(routePath?: string) {
   const child = tree.value
     .flatMap((g) => g.children || [])
     .find((c) => c.route === routePath);
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: child?.label || "Halaman",
     path: routePath,
     icon: "mdi mdi-circle-small",

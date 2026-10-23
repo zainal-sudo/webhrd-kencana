@@ -44,7 +44,8 @@ const props = withDefaults(
   { subtitle: "", icon: "edit_note", idParam: "id", label: "" }
 );
 
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const auth = useAuthStore();
 const permissionModule = computed(() => String(route.meta.form ?? ""));

@@ -47,7 +47,8 @@ function kriteriaDariNilai(v: string): string {
   return "E";
 }
 
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/penilaian-3-bulan/karyawan");
 

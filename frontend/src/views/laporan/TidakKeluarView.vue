@@ -29,7 +29,7 @@ const columns: BrowseColumn[] = [
 ];
 
 function bukaTab(title: string, path: string, query: Record<string, string>) {
-  tabsStore.openTab({ title, path, query, icon: "mdi mdi-open-in-new", closable: true });
+  tabsStore.stageTab({ title, path, query, icon: "mdi mdi-open-in-new", closable: true });
   router.push({ path, query });
 }
 

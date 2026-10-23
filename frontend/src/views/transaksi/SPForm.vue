@@ -23,7 +23,8 @@ import { todaySql } from "@/utils/format";
  * tingkatan (Pembinaan, 1/2/3). Peringatan SP aktif ditampilkan live
  * (ambilsp): simpan ditolak bila peringkat aktif >= yang diminta.
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/sp/karyawan");
 

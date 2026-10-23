@@ -2,14 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const root = path.join(__dirname, '../src');
 
 function fixture(options = {}) {
   const events = [], saved = [];
-  const tabs = { activeTabId: 'edit-doc', closeTab(id) { events.push(['close', id]); } };
+  const tabs = { tabs: [{id:'edit-doc',closable:true,path:'/transaksi/pinjaman/form'}], activeTabId: 'edit-doc', closeTab(id) { events.push(['close', id]); } };
   const router = {
     async replace(target) { events.push(['replace', target]); if (options.navigationFailure) return { type: 4 }; tabs.activeTabId = 'new-entry'; },
     push(target) { events.push(['push', target]); },
@@ -57,7 +57,7 @@ test('Save Close saves once and returns to browse; legacy master keeps success d
   const f = fixture();
   await f.doSave('close');
   assert.equal(f.saved.length, 1);
-  assert.deepEqual(f.events.filter(event => ['close', 'push'].includes(event[0])), [['close', 'edit-doc'], ['push', '/transaksi/pinjaman']]);
+  assert.deepEqual(f.events.filter(event => ['close', 'push'].includes(event[0])), [['push', '/transaksi/pinjaman'], ['close', 'edit-doc']]);
   const legacy = fixture({ props: { newFormPath: '', transactionModule: '' } });
   await legacy.doSave();
   assert.equal(legacy.showSuccess.value, true);

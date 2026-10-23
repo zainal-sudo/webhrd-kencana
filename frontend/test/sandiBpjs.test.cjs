@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 const ts = require('typescript');
 const vue = require('vue');
 const pinia = require('pinia');
@@ -162,7 +162,7 @@ test('Auto-refresh shared browse dan navigasi kembali setelah save tetap terpasa
   assert.match(read('components/BaseBrowse.vue'), /onActivated\([\s\S]*props.refreshOnActivate\) fetchData\(\)/);
   assert.match(read('views/master/SandiBpjsForm.vue'), /return-path="\/master\/sandi-bpjs"/);
   assert.match(read('views/master/SandiBpjsForm.vue'), /:new-form-path="formPath"/);
-  assert.match(read('components/BaseForm.vue'), /else closeTab\(\)/);
+  assert.match(read('components/BaseForm.vue'), /else await closeTab\(\)/);
 });
 
 test('Sidebar mengikuti row menu; tidak ada hardcoded username', () => {
@@ -190,11 +190,12 @@ test('Router BPJS fail-closed ketika menu kosong atau profil gagal; route lain t
     'vue-router': { createWebHistory() {}, createRouter: () => ({ beforeEach: fn => { guard = fn; }, afterEach() {} }) },
     '@/stores/authStore': { useAuthStore: () => auth },
     '@/stores/permissionStore': { usePermissionStore: () => ({ build() {} }) },
+    '@/stores/tabsStore': { useTabsStore: () => ({canOpenTab:()=>true,generateTabId:path=>path}) },
   });
   const target = { path: '/master/sandi-bpjs', meta: { form: 'frmSandiBPJS', requiresAuth: true }, query: {} };
-  assert.equal((await guard(target)).path, '/403');
-  allowed = true; assert.equal(await guard(target), true);
-  fail = true; assert.equal((await guard(target)).path, '/403');
+  assert.equal((await guard(target,{path:'/dashboard',query:{},meta:{},fullPath:'/dashboard'})).path, '/403');
+  allowed = true; assert.equal(await guard(target,{path:'/dashboard',query:{},meta:{},fullPath:'/dashboard'}), true);
+  fail = true; assert.equal((await guard(target,{path:'/dashboard',query:{},meta:{},fullPath:'/dashboard'})).path, '/403');
 });
 
 test('Actual Browse render: password plaintext, date-time, aksi menurut permission, tanpa Excel', async () => {

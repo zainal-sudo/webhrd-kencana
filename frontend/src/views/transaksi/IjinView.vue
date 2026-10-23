@@ -38,7 +38,7 @@ const columns: BrowseColumn[] = [
 
 function bukaKolektif() {
   const path = "/transaksi/ijin-v2/form";
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: "Tambah Ijin Kolektif",
     path,
     icon: "mdi mdi-plus-box-outline",

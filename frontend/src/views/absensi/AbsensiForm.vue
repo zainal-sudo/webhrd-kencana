@@ -24,7 +24,8 @@ import { normJam, assertClockTime } from "@/utils/jam";
  * penyimpanan meminta otorisasi atasan model kode ala Delphi
  * (backend menolak dengan 403 bila tanpa token).
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const router = useRouter();
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/absensi/karyawan");

@@ -14,14 +14,17 @@ import { useAuthStore } from "@/stores/authStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useTransactionReset } from "@/composables/useTransactionReset";
+import { useTabNavigation } from "@/composables/useTabNavigation";
 import { todaySql } from "@/utils/format";
 
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const router = useRouter();
 const toast = useToast();
 const karyawanLookup = useKaryawanLookup("/transaksi/keluar/karyawan");
 const auth = useAuthStore();
 const tabsStore = useTabsStore();
+const navigation = useTabNavigation();
 const nomorEdit = computed(() => String(route.query.id || ""));
 const isEdit = computed(() => !!nomorEdit.value);
 const canSave = computed(() => auth.can("frmKeluar", isEdit.value ? "edit" : "insert"));
@@ -132,8 +135,7 @@ function pilihKaryawan(row: Record<string, any>) {
 
 function tutup() {
   const activeId = tabsStore.activeTabId;
-  if (activeId) tabsStore.closeTab(activeId);
-  router.push("/transaksi/keluar");
+  if (activeId) void navigation.closeTab(activeId, "/transaksi/keluar");
 }
 
 async function simpan(): Promise<string> {

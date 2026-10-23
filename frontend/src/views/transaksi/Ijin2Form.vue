@@ -230,8 +230,7 @@ async function simpan(): Promise<string> {
       jam2: pakaiJam2.value ? normJam(values.jam2) : "00:00:00",
       niks,
     });
-    baris.value = [{ nik: "", nama: "" }];
-    muatNomor();
+    // BaseForm closes or opens a fresh form after save. Do not erase newer input here.
     return `${data.message} untuk tanggal ${values.tanggal}`;
   } catch (e) {
     throw new Error(getErrorMessage(e));

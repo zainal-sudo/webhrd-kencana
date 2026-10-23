@@ -6,6 +6,7 @@ import BaseBrowse from "@/components/BaseBrowse.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import { api, getErrorMessage } from "@/api/axios";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import { reportRowKey } from "@/utils/reportRowKey";
 import { firstDayOfMonth } from "@/utils/format";
 import type { BrowseColumn } from "@/types";
@@ -28,6 +29,7 @@ const tabsStore = useTabsStore();
 const toast = useToast();
 const browseRef = ref<InstanceType<typeof BaseBrowse> | null>(null);
 const busyKey = ref<string | null>(null);
+useUnsavedChanges({ dirty: () => false, state: () => null, busy: () => !!busyKey.value });
 
 const columns: BrowseColumn[] = [
   { key: "Tanggal", label: "Tanggal", type: "date", width: "100px" },
@@ -81,7 +83,7 @@ function editAbsensi(row: Record<string, any>) {
     nik: String(row.nik ?? ""),
     tanggal: String(row.Tanggal || "").slice(0, 10),
   };
-  tabsStore.openTab({
+  tabsStore.stageTab({
     title: `Absensi ${query.nik}`,
     path: "/absensi/form",
     query,

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
-import { bacaBerkasAbsensi, simpanScanStaging, jamExcelKeTeks } from '../src/helpers/absensiImport.js'
+import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, jamExcelKeTeks } from '../src/helpers/absensiImport.js'
 
 const nik = '3201010101010001'
 const tanggal = '2026-08-01'
@@ -198,4 +198,31 @@ test('Staging: NIK dan tanggal berbeda tidak digabung; scan lintas malam tetap t
     assert.deepEqual(db.rows.get(`${nik}|${tanggal}`), { scan1: '15:30:00', scan2: '00:00:00' })
     assert.deepEqual(db.rows.get(`${nik}|2026-08-02`), { scan1: '00:00:00', scan2: '00:04:00' })
     assert.deepEqual(db.rows.get(`3201010101010002|${tanggal}`), { scan1: '08:00:00', scan2: '00:00:00' })
+})
+
+test('Ringkasan staging: 100.000 scan berulang menjadi dua kandidat tanpa mengubah MIN/MAX atau jumlah scan sumber', async () => {
+    const scans = Array.from({ length: 100000 }, (_, i) => ({ nik, tanggal,
+        jam: i % 4 === 0 ? '00:00:00' : i % 4 === 1 ? '07:00:00' : i % 4 === 2 ? '08:00:00' : '17:00:00', keluar: i % 2 === 1 }))
+    const compact = ringkasScanStaging(scans)
+    assert.equal(scans.length, 100000)
+    assert.equal(compact.length, 2)
+    const before = mockStaging(), after = mockStaging()
+    for (const db of [before, after]) db.rows.set(`${nik}|${tanggal}`, { scan1: '06:55:00', scan2: '16:30:00' })
+    for (const scan of scans) await simpanScanStaging(before, scan)
+    for (const scan of compact) await simpanScanStaging(after, scan)
+    assert.deepEqual(after.rows, before.rows)
+})
+
+test('Ringkasan staging: tiap NIK/tanggal/arah terpisah dan scan kosong tetap membentuk baris kosong', () => {
+    const rows = [
+        { nik, tanggal, jam: null, keluar: false },
+        { nik, tanggal, jam: '07:00:00', keluar: false },
+        { nik: '0002', tanggal, jam: '00:00:00', keluar: true },
+        { nik, tanggal: '2026-08-02', jam: '00:00:00', keluar: false },
+    ]
+    const result = ringkasScanStaging(rows)
+    assert.equal(result.length, 3)
+    assert.equal(result[0].jam, '07:00:00')
+    assert.equal(result[1].jam, '00:00:00')
+    assert.equal(rows[0].jam, null)
 })

@@ -193,7 +193,7 @@ async function simpan(): Promise<string> {
         panggilan: b.panggilan ? 1 : 0,
       })),
     });
-    baris.value = [{ tanggal: todaySql(), jam_mulai: "", jam_akhir: "", keterangan: "", panggilan: false }];
+    // BaseForm owns save-and-close/new; keep any input made while awaiting the request.
     return data.message;
   } catch (e) {
     throw new Error(getErrorMessage(e));

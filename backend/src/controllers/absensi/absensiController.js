@@ -5,7 +5,7 @@ import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
-import { bacaBerkasAbsensi, simpanScanStaging, jamExcelKeTeks, HEADER_NIK, HEADER_TANGGAL, HEADER_JAM, HEADER_TIPE } from '../../helpers/absensiImport.js'
+import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, jamExcelKeTeks, HEADER_NIK, HEADER_TANGGAL, HEADER_JAM, HEADER_TIPE } from '../../helpers/absensiImport.js'
 
 /**
  * Modul Absensi — cerminan unit Delphi:
@@ -574,10 +574,12 @@ export const importStaging = async (req, res, next) => {
         let gagal = 0
         let contohGagal = ''
         
-        // Optimasi: Gunakan Batch Insert / Bulk Insert dengan chunk lebih besar (2000 baris) agar sangat cepat
+        // Scan berulang untuk NIK/tanggal/arah yang sama cukup satu upsert.
+        // MIN/MAX terhadap staging lama tetap dijaga oleh SQL existing.
+        const ringkas = ringkasScanStaging(hasil)
         const batchSize = 2000
-        for (let i = 0; i < hasil.length; i += batchSize) {
-            const chunk = hasil.slice(i, i + batchSize)
+        for (let i = 0; i < ringkas.length; i += batchSize) {
+            const chunk = ringkas.slice(i, i + batchSize)
             const valuesMasuk = []
             const valuesKeluar = []
             

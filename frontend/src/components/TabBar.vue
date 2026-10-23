@@ -8,7 +8,7 @@ import { useTabNavigation } from "@/composables/useTabNavigation";
 const route = useRoute();
 const router = useRouter();
 const tabsStore = useTabsStore();
-const { closeAllTabs } = useTabNavigation();
+const { closeAllTabs, closeTab } = useTabNavigation();
 
 const draggedTabId = ref<string | null>(null);
 const dropIndex = ref<number | null>(null);
@@ -66,7 +66,6 @@ function moveWithKeyboard(event: KeyboardEvent, tabId: string) {
 }
 
 function activate(tabId: string) {
-  tabsStore.setActiveTab(tabId);
   const tab = tabsStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     router.push({ path: tab.path, query: tab.query });
@@ -74,19 +73,7 @@ function activate(tabId: string) {
 }
 
 function close(tabId: string) {
-  const tab = tabsStore.tabs.find((t) => t.id === tabId);
-  const wasActive = tabsStore.activeTabId === tabId;
-  tabsStore.closeTab(tabId);
-  if (wasActive) {
-    const next = tabsStore.tabs.find(
-      (t) => t.id === tabsStore.activeTabId
-    );
-    if (next) {
-      router.push({ path: next.path, query: next.query });
-    } else {
-      router.push("/dashboard");
-    }
-  }
+  void closeTab(tabId);
 }
 
 function refresh() {

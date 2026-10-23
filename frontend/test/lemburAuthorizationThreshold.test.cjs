@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const vm = require('./helpers/frontendVm.cjs');
 
 test('SPL allows H through H+2; frontend and backend require authorization starting H+3', async () => {
   const frontend = fs.readFileSync(path.join(__dirname, '../src/views/transaksi/LemburForm.vue'), 'utf8');

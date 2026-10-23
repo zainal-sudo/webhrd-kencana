@@ -9,12 +9,16 @@ import { usePermissionStore } from "@/stores/permissionStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import MsIcon from "@/components/MsIcon.vue";
 import { useThemeToggle } from "@/composables/useTheme";
+import { installDraftBrowserHooks } from "@/utils/unsavedChanges";
+import { useToast } from "vue-toastification";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const permissionStore = usePermissionStore();
 const tabsStore = useTabsStore();
+const toast = useToast();
+let disposeDraftBrowserHooks: (() => void) | undefined;
 // Terapkan preferensi tema sejak awal, termasuk pada layout Login.
 useThemeToggle();
 
@@ -30,6 +34,7 @@ function onAuthExpired() {
 }
 
 onMounted(() => {
+  disposeDraftBrowserHooks = installDraftBrowserHooks(message => toast.info(message));
   if (!route.meta?.publicPenilaian && authStore.isAuthenticated && !permissionStore.loaded) {
     permissionStore.fetchAll().catch(() => undefined);
   }
@@ -37,6 +42,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  disposeDraftBrowserHooks?.();
   window.removeEventListener("auth:expired", onAuthExpired);
 });
 

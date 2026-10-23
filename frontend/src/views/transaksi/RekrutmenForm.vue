@@ -19,7 +19,8 @@ import type { LookupItem } from "@/types";
  * Bank Pelamar (status selain Ditolak); duplikat dalam satu dokumen
  * ditolak. Klik baris untuk mengisi Nilai tes (tombol tersendiri Delphi).
  */
-const route = useRoute();
+// Each cached form owns its initial route, including the document ID.
+const route = { ...useRoute(), query: { ...useRoute().query }, params: { ...useRoute().params } };
 const toast = useToast();
 
 const nomorEdit = computed(() => String(route.query.id ?? ""));
