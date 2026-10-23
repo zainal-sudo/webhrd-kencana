@@ -62,6 +62,7 @@ onMounted(async () => {
 });
 
 function pilihSemua(v: boolean) {
+  if (mengunggah.value || memproses.value) return;
   pabrik.value.forEach((p) => (p.pilih = v));
 }
 
@@ -203,6 +204,15 @@ async function bersihkan() {
             Untuk MDB, sistem membaca data bertahap dan membuat Excel sementara hanya untuk periode
             terpilih, lalu otomatis mengimpornya ke staging. Tidak perlu mengunduh atau mengunggah ulang Excel.
           </p>
+
+          <div class="aksi-row pilihan-pabrik">
+            <button class="btn-mini" type="button" :disabled="mengunggah || memproses || !pabrik.length" @click="pilihSemua(true)">
+              Pilih semua
+            </button>
+            <button class="btn-mini" type="button" :disabled="mengunggah || memproses || !pabrik.length" @click="pilihSemua(false)">
+              Batalkan semua
+            </button>
+          </div>
 
           <table class="mini">
             <thead>
@@ -491,6 +501,9 @@ table.mini.mt {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+.pilihan-pabrik {
+  margin-bottom: 8px;
 }
 .ket {
   font-size: 11px;
