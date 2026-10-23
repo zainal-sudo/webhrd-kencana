@@ -497,11 +497,13 @@ function parseBaris(values, path, header) {
     if (nik === undefined || nik === null || String(nik).trim() === '') return null
 
     const t = String(tipe ?? '').trim().toUpperCase()
+    // Jika bukan 'I' (misal '0', 'O', 'OUT', angka lain, dll.), anggap sebagai keluar (O)
+    const isKeluar = t !== '' && t !== 'I' && t !== 'IN' && t !== 'MASUK' && t !== '0'
     return {
         nik: String(nik).trim(),
         tanggal: normTanggal(tgl),
         jam: normJam(jamExcelKeTeks(jam)),
-        keluar: t === 'O' || t === 'OUT' || t === 'KELUAR',
+        keluar: isKeluar,
         path: path || '',
     }
 }
@@ -538,7 +540,7 @@ function normTanggal(v) {
  */
 export const importStaging = async (req, res, next) => {
     try {
-        if (!req.file) return error(res, 'Berkas Excel/CSV belum diunggah', 400)
+        if (!req.file) return error(res, 'Berkas Access MDB, Excel, atau CSV belum diunggah', 400)
         const path = String((req.body ?? {}).path ?? '').trim()
         const mulai = normTanggal((req.body ?? {}).start_date)
         const selesai = normTanggal((req.body ?? {}).end_date)
@@ -568,12 +570,42 @@ export const importStaging = async (req, res, next) => {
 
         let gagal = 0
         let contohGagal = ''
-        for (const b of hasil) {
-            try {
-                await simpanScanStaging(pool, b)
-            } catch (e) {
-                gagal += 1
-                if (!contohGagal) contohGagal = e.message
+        
+        // Optimasi: Gunakan Batch Insert / Bulk Insert dengan chunk lebih besar (2000 baris) agar sangat cepat
+        const batchSize = 2000
+        for (let i = 0; i < hasil.length; i += batchSize) {
+            const chunk = hasil.slice(i, i + batchSize)
+            const valuesMasuk = []
+            const valuesKeluar = []
+            
+            for (const b of chunk) {
+                const jam = b.jam || '00:00:00'
+                if (b.keluar) {
+                    valuesKeluar.push([b.nik, b.tanggal, jam])
+                } else {
+                    valuesMasuk.push([b.nik, b.tanggal, jam])
+                }
+            }
+            
+            if (valuesMasuk.length > 0) {
+                const placeholders = valuesMasuk.map(() => '(?, ?, ?, \'00:00:00\')').join(', ')
+                const flatParams = valuesMasuk.flat()
+                await pool.query(
+                    `INSERT INTO tabsensi2 (nik, tanggal, scan1, scan2) VALUES ${placeholders}
+                     ON DUPLICATE KEY UPDATE scan1 = IF(VALUES(scan1) = '00:00:00', scan1,
+                         IF(scan1 IS NULL OR scan1 = '00:00:00', VALUES(scan1), LEAST(scan1, VALUES(scan1))))`,
+                    flatParams
+                )
+            }
+            if (valuesKeluar.length > 0) {
+                const placeholders = valuesKeluar.map(() => '(?, ?, \'00:00:00\', ?)').join(', ')
+                const flatParams = valuesKeluar.flat()
+                await pool.query(
+                    `INSERT INTO tabsensi2 (nik, tanggal, scan1, scan2) VALUES ${placeholders}
+                     ON DUPLICATE KEY UPDATE scan2 = IF(VALUES(scan2) = '00:00:00', scan2,
+                         IF(scan2 IS NULL OR scan2 = '00:00:00', VALUES(scan2), GREATEST(scan2, VALUES(scan2))))`,
+                    flatParams
+                )
             }
         }
 
