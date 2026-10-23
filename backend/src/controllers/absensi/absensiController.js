@@ -549,7 +549,10 @@ export const importStaging = async (req, res, next) => {
 
         let semua
         try {
-            semua = await bacaBerkasAbsensi(req.file.buffer, namaBerkas)
+            semua = await bacaBerkasAbsensi(req.file.buffer, namaBerkas, {
+                start_date: req.body?.start_date,
+                end_date: req.body?.end_date,
+            })
         } catch (err) {
             return error(res, `Berkas tidak dapat dibaca: ${err.message}`, 400)
         }
