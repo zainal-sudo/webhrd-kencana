@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
-import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, jamExcelKeTeks } from '../src/helpers/absensiImport.js'
+import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, jamExcelKeTeks, parseBaris, normTanggal } from '../src/helpers/absensiImport.js'
 
 const nik = '3201010101010001'
 const tanggal = '2026-08-01'
@@ -73,6 +73,50 @@ test('XLS: jam numerik Excel dinormalisasi tanpa mengubah jam teks', async () =>
     assert.equal(jamExcelKeTeks(rows[1].values[rows[1].header.jam]), '16:00:00')
     assert.equal(jamExcelKeTeks((7 * 3600 + 5 * 60 + 3) / 86400), '07:05:03')
     assert.equal(jamExcelKeTeks('07:00:00'), '07:00:00')
+})
+
+test('Excel ekspor mesin: kolom "MM/DD/YY HH:MM:SS" dan sel Date terbaca benar', async () => {
+    // Mirip berkas absensi_seminggu_terakhir.xlsx: kolom checktime bertipe Date
+    // (ExcelJS menyatakan serial Excel sebagai Date UTC) dan kolom tanggal berisi
+    // teks "MM/DD/YY HH:MM:SS" ekspor mesin berformat Amerika.
+    const buffer = await excelBuffer('xlsx', [[
+        ['id', 'nik', 'checktime', 'checktype', 'tanggal'],
+        [287038, nik, new Date(Date.UTC(2026, 9, 16, 8, 45, 2)), 'I', '10/16/26 08:45:02'],
+        [287040, nik, new Date(Date.UTC(2026, 9, 16, 17, 4, 53)), 'O', '10/16/26 17:04:53'],
+        [287062, '', new Date(Date.UTC(2026, 9, 20, 21, 9, 46)), 'O', '10/20/26 21:09:46'],
+    ]])
+    const rows = await bacaBerkasAbsensi(buffer, 'absensi.xlsx')
+    const masuk = parseBaris(rows[0].values, '', rows[0].header)
+    assert.deepEqual({ ...masuk, path: '' }, { nik, tanggal: '2026-10-16', jam: '08:45:02', keluar: false, path: '' })
+    const keluar = parseBaris(rows[1].values, '', rows[1].header)
+    assert.equal(keluar.tanggal, '2026-10-16')
+    assert.equal(keluar.jam, '17:04:53')
+    assert.equal(keluar.keluar, true)
+    // NIK kosong dari mesin ditolak
+    assert.equal(parseBaris(rows[2].values, '', rows[2].header), null)
+})
+
+test('parseBaris: tanggal tidak lentur tapi checktime Date terbaca sebagai tanggal & jam UTC', () => {
+    const jam = new Date(Date.UTC(2026, 9, 16, 8, 45, 2))
+    const header = { id: 0, nik: 1, checktime: 2, checktype: 3 }
+    const b = parseBaris([287038, nik, jam, 'I'], '', header)
+    assert.equal(b.tanggal, '2026-10-16')
+    assert.equal(b.jam, '08:45:02')
+})
+
+test('normTanggal: akhiran jam, MM/DD vs DD/MM, dan validasi bulan/hari', () => {
+    assert.equal(normTanggal('10/16/26 08:45:02'), '2026-10-16')
+    assert.equal(normTanggal('10/16/2026 08:45:02'), '2026-10-16')
+    assert.equal(normTanggal('17/02/2026 08:45:02'), '2026-02-17')
+    assert.equal(normTanggal('2026-10-16 08:45:02'), '2026-10-16')
+    assert.equal(normTanggal('2026-10-16T08:45:02'), '2026-10-16')
+    assert.equal(normTanggal('2026-10-16'), '2026-10-16')
+    assert.equal(normTanggal(46311.36460648148), '2026-10-16')
+    assert.equal(normTanggal(new Date(Date.UTC(2026, 9, 16, 8, 45, 2))), '2026-10-16')
+    // Komponen mustahil ditolak, bukan menghasilkan tanggal bolong
+    assert.equal(normTanggal('19/19/2026'), null)
+    assert.equal(normTanggal('32/01/2026'), null)
+    assert.equal(normTanggal('abc'), null)
 })
 
 test('Format tidak didukung ditolak dengan pesan jelas', async () => {

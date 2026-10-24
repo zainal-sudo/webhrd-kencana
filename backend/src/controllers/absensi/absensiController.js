@@ -5,7 +5,7 @@ import { applyKaryawanLookup } from '../../helpers/karyawanLookup.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
-import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, jamExcelKeTeks, HEADER_NIK, HEADER_TANGGAL, HEADER_JAM, HEADER_TIPE } from '../../helpers/absensiImport.js'
+import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, parseBaris, normTanggal, normJam } from '../../helpers/absensiImport.js'
 
 /**
  * Modul Absensi — cerminan unit Delphi:
@@ -70,29 +70,7 @@ function toTime(v) {
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-/**
- * Normalisasi input jam dari form ("08:05", "8:5:3", "080500", Date).
- * Semua bentuk diterjemahkan menjadi "HH:MM:SS" yang diterima kolom `time`.
- */
-export function normJam(v) {
-    if (v === null || v === undefined) return '00:00:00'
-    if (v instanceof Date) return toTime(v)
-    const s = String(v).trim()
-    if (s === '') return '00:00:00'
-    if (/^\d{1,2}:\d{1,2}(:\d{1,2})?$/.test(s)) {
-        const [h, m, d] = s.split(':')
-        const p = (x) => String(x).padStart(2, '0')
-        return `${p(h)}:${p(m)}:${p(d ?? 0)}`
-    }
-    if (/^\d{6}$/.test(s)) return `${s.slice(0, 2)}:${s.slice(2, 4)}:${s.slice(4, 6)}`
-    if (/^\d{1,8}$/.test(s)) {
-        const p = (x) => String(x).padStart(2, '0')
-        if (s.length <= 2) return `${p(s)}:00:00`
-        if (s.length <= 4) return `${p(s.slice(0, -2))}:${p(s.slice(-2))}:00`
-        return `${p(s.slice(0, -4))}:${p(s.slice(-4, -2))}:${p(s.slice(-2))}`
-    }
-    return s
-}
+// normJam ikut diimpor dari helper absensiImport (normalisasi "HH:MM:SS").
 
 /** Daftar absensi pada periode (default bulan berjalan). */
 export const getAbsensiList = async (req, res, next) => {
@@ -469,67 +447,6 @@ export const getStaging = async (req, res, next) => {
 }
 
 /**
- * Baca satu baris hasil ekspor mesin absensi memakai peta header, mis.
- *   NIK / kode / userid  |  tanggal / tgl / date  |  scan / checktime  |  tipe / type
- * Bila berkas tanpa baris header, dipakai urutan tetap 4 kolom
- * (nik, tanggal, jam, tipe) yang sama dengan tabel `checkinout`.
- *
- * Isi kolom NIK disimpan apa adanya ke `tabsensi2.nik`, yang berisi `kar_Nik`.
- */
-function parseBaris(values, path, header) {
-    let nik, tgl, jam, tipe
-
-    if (header) {
-        const idx = (nama) => {
-            const n = nama.find((x) => header[x] !== undefined)
-            return n === undefined ? undefined : header[n]
-        }
-        const iNik = idx(HEADER_NIK)
-        if (iNik === undefined) return null
-        nik = values[iNik]
-        tgl = at(values, idx(HEADER_TANGGAL))
-        jam = at(values, idx(HEADER_JAM))
-        tipe = at(values, idx(HEADER_TIPE))
-    } else {
-        ;[nik, tgl, jam, tipe] = [values[0], values[1], values[2], values[3]]
-    }
-
-    if (nik === undefined || nik === null || String(nik).trim() === '') return null
-
-    const t = String(tipe ?? '').trim().toUpperCase()
-    // Jika bukan 'I' (misal '0', 'O', 'OUT', angka lain, dll.), anggap sebagai keluar (O)
-    const isKeluar = t !== '' && t !== 'I' && t !== 'IN' && t !== 'MASUK' && t !== '0'
-    return {
-        nik: String(nik).trim(),
-        tanggal: normTanggal(tgl),
-        jam: normJam(jamExcelKeTeks(jam)),
-        keluar: isKeluar,
-        path: path || '',
-    }
-}
-
-const at = (values, i) => (i === undefined ? undefined : values[i])
-
-/** Terima tanggal Excel (nomor seri), "YYYY-MM-DD", "DD/MM/YYYY", atau Date. */
-function normTanggal(v) {
-    if (v === null || v === undefined || v === '') return null
-    if (v instanceof Date) return v.toISOString().slice(0, 10)
-    if (typeof v === 'number' && v > 20000 && v < 60000) {
-        // nomor seri Excel (basis 1899-12-30)
-        const ms = Math.round((v - 25569) * 86400 * 1000)
-        return new Date(ms).toISOString().slice(0, 10)
-    }
-    const s = String(v).trim()
-    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s)
-    if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
-    m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/.exec(s)
-    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
-    m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2})$/.exec(s)
-    if (m) return `20${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
-    return null
-}
-
-/**
  * Tahap 1: unggah hasil ekspor mesin absensi -> `tabsensi2` (staging).
  * Baris "I"/tipe kosong mengambil MIN scan1; "O" mengambil MAX scan2.
  * Upsert membandingkan staging lama juga; jam kosong tidak mengganti jam valid.
@@ -559,17 +476,33 @@ export const importStaging = async (req, res, next) => {
         if (semua.length === 0) return error(res, 'Berkas tidak memuat data sama sekali', 400)
 
         const hasil = []
+        let terbaca = 0
+        let rentang = null
         for (const { values, header } of semua) {
             const b = parseBaris(values, path, header)
             if (!b || !b.tanggal) continue
+            terbaca += 1
+            if (!rentang) rentang = { dari: b.tanggal, sampai: b.tanggal }
+            else {
+                rentang.dari = b.tanggal < rentang.dari ? b.tanggal : rentang.dari
+                rentang.sampai = b.tanggal > rentang.sampai ? b.tanggal : rentang.sampai
+            }
             if (mulai && b.tanggal < mulai) continue
             if (selesai && b.tanggal > selesai) continue
             hasil.push(b)
         }
 
         if (hasil.length === 0) {
+            if (terbaca && (mulai || selesai)) {
+                const periodeTeks = `${formatTanggal(mulai || '')}${selesai && selesai !== mulai ? ` s/d ${formatTanggal(selesai)}` : ''}`
+                return error(res,
+                    `Tidak ada baris pada periode ${periodeTeks}. Berkas memuat data tanggal ` +
+                    `${formatTanggal(rentang.dari)} s/d ${formatTanggal(rentang.sampai)} (${terbaca} baris). ` +
+                    'Sesuaikan tanggal Dari/Sampai lalu unggah ulang.', 400)
+            }
             return error(res, 'Tidak ada baris valid pada berkas. Pastikan kolom memuat NIK karyawan, tanggal, dan jam scan.', 400)
         }
+        const dilewati = terbaca - hasil.length
 
         let gagal = 0
         let contohGagal = ''
@@ -618,8 +551,10 @@ export const importStaging = async (req, res, next) => {
         if (ok === 0) return error(res, `Semua baris gagal disimpan: ${contohGagal}`, 500)
         success(
             res,
-            { jumlah: ok, gagal, dari: namaBerkas },
-            `${ok} baris masuk ke data staging${gagal ? `, ${gagal} baris gagal: ${contohGagal}` : ''}`
+            { jumlah: ok, gagal, dilewati, dari: namaBerkas, rentang },
+            `${ok} baris masuk ke data staging` +
+                (gagal ? `, ${gagal} baris gagal: ${contohGagal}` : '') +
+                (dilewati ? `. ${dilewati} baris di luar periode dilewati` : '')
         )
     } catch (err) {
         next(err)

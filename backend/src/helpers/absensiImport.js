@@ -15,6 +15,135 @@ export function jamExcelKeTeks(jam) {
     return `${p(Math.floor(detik / 3600))}:${p(Math.floor(detik / 60) % 60)}:${p(detik % 60)}`
 }
 
+/** Nilai waktu MySQL arrival -> "HH:MM:SS"; DB mengembalikan Date di zona lokal. */
+function toTime(v) {
+    if (v === null || v === undefined || v === '') return null
+    if (typeof v === 'string') return v.slice(0, 8)
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return null
+    const p = (n) => String(n).padStart(2, '0')
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/**
+ * Normalisasi input jam ("08:05", "8:5:3", "080500", Date) menjadi "HH:MM:SS".
+ * Catatan: Date diarahkan ke zona lokal (nilai dari DB/form), sedangkan Date
+ * asal berkas Excel ditangani khusus oleh parseBaris lewat jamHMSExcel karena
+ * ExcelJS menyatakan serial Excel sebagai Date UTC.
+ */
+export function normJam(v) {
+    if (v === null || v === undefined) return '00:00:00'
+    if (v instanceof Date) return toTime(v)
+    const s = String(v).trim()
+    if (s === '') return '00:00:00'
+    if (/^\d{1,2}:\d{1,2}(:\d{1,2})?$/.test(s)) {
+        const [h, m, d] = s.split(':')
+        const p = (x) => String(x).padStart(2, '0')
+        return `${p(h)}:${p(m)}:${p(d ?? 0)}`
+    }
+    if (/^\d{6}$/.test(s)) return `${s.slice(0, 2)}:${s.slice(2, 4)}:${s.slice(4, 6)}`
+    if (/^\d{1,8}$/.test(s)) {
+        const p = (x) => String(x).padStart(2, '0')
+        if (s.length <= 2) return `${p(s)}:00:00`
+        if (s.length <= 4) return `${p(s.slice(0, -2))}:${p(s.slice(-2))}:00`
+        return `${p(s.slice(0, -4))}:${p(s.slice(-4, -2))}:${p(s.slice(-2))}`
+    }
+    return s
+}
+
+/** Jam dinding DateExcel: ExcelJS menyatakan serial Excel sebagai Date UTC,
+ * jadi komponen pasarnya diambil dengan getter UTC, bukan zona lokal server
+ * (getter lokal menggeser jam sebesar selisih zona waktu). */
+function jamHMSExcel(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '00:00:00'
+    const p = (n) => String(n).padStart(2, '0')
+    return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`
+}
+
+/**
+ * Terima tanggal Excel (nomor seri), Date, "YYYY-MM-DD", "DD/MM/YYYY", atau
+ * "DD/MM/YY". Akhiran jam ("DD/MM/YY 08:45:02", "YYYY-MM-DD HH:MM:SS") diabaikan.
+ * Bila bagian "bulan" dari pembacaan DD/MM melebihi 12, teks dibaca sebagai
+ * MM/DD — format ekspor mesin absensi berformat Amerika ("10/16/26" = 16 Okt).
+ */
+export function normTanggal(v) {
+    if (v === null || v === undefined || v === '') return null
+    if (v instanceof Date) return v.toISOString().slice(0, 10)
+    if (typeof v === 'number' && v > 20000 && v < 60000) {
+        // nomor seri Excel (basis 1899-12-30)
+        const ms = Math.round((v - 25569) * 86400 * 1000)
+        return new Date(ms).toISOString().slice(0, 10)
+    }
+    // Buang bagian jam agar format dua digit tahun tetap terbaca.
+    const s = String(v).trim().split(/[\sT]+/)[0]
+    const pad = (n) => String(n).padStart(2, '0')
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s)
+    if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`
+    m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4}|\d{2})$/.exec(s)
+    if (m) {
+        let hari = Number(m[1])
+        let bulan = Number(m[2])
+        if (bulan > 12) [hari, bulan] = [bulan, hari]
+        if (hari < 1 || hari > 31 || bulan < 1 || bulan > 12) return null
+        return `${m[3].length === 2 ? '20' : ''}${m[3]}-${pad(bulan)}-${pad(hari)}`
+    }
+    return null
+}
+
+const at = (values, i) => (i === undefined ? undefined : values[i])
+
+/**
+ * Baca satu baris hasil ekspor mesin absensi memakai peta header, mis.
+ *   NIK / kode / userid  |  tanggal / tgl / date  |  scan / checktime  |  tipe / type
+ * Bila berkas tanpa baris header, dipakai urutan tetap 4 kolom
+ * (nik, tanggal, jam, tipe) yang sama dengan tabel `checkinout`.
+ *
+ * Isi kolom NIK disimpan apa adanya ke `tabsensi2.nik`, yang berisi `kar_Nik`.
+ */
+export function parseBaris(values, path, header) {
+    let nik, tgl, jam, tipe
+
+    if (header) {
+        const idx = (nama) => {
+            const n = nama.find((x) => header[x] !== undefined)
+            return n === undefined ? undefined : header[n]
+        }
+        const iNik = idx(HEADER_NIK)
+        if (iNik === undefined) return null
+        nik = values[iNik]
+        tgl = at(values, idx(HEADER_TANGGAL))
+        jam = at(values, idx(HEADER_JAM))
+        tipe = at(values, idx(HEADER_TIPE))
+    } else {
+        ;[nik, tgl, jam, tipe] = [values[0], values[1], values[2], values[3]]
+    }
+
+    if (nik === undefined || nik === null || String(nik).trim() === '') return null
+
+    // Kolom tanggal/jam bisa sama-sama memuat datetime: sel Excel terbaca Date
+    // (ExcelJS menyatakannya sebagai UTC). Kolom tanggal teks diutamakan; bila
+    // gagal dibaca, tanggal diambil dari kolom jam.
+    let tanggal = normTanggal(tgl)
+    let jamTeks
+    if (jam instanceof Date) {
+        jamTeks = jamHMSExcel(jam)
+        if (!tanggal) tanggal = jam.toISOString().slice(0, 10)
+    } else {
+        jamTeks = normJam(jamExcelKeTeks(jam))
+    }
+
+    const t = String(tipe ?? '').trim().toUpperCase()
+    // Jika bukan 'I' (misal '0', 'O', 'OUT', angka lain, dll.), anggap sebagai keluar (O)
+    const isKeluar = t !== '' && t !== 'I' && t !== 'IN' && t !== 'MASUK' && t !== '0'
+    return {
+        nik: String(nik).trim(),
+        tanggal,
+        jam: jamTeks,
+        keluar: isKeluar,
+        path: path || '',
+    }
+}
+
 /** Deteksi header pada baris pertama yang tidak kosong, terpisah per sheet. */
 function petakanHeader(values) {
     const map = {}
