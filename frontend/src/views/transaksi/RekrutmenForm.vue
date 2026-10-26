@@ -9,6 +9,7 @@ import FDate from "@/components/fields/FDate.vue";
 import { api as sourceApi, getErrorMessage } from "@/api/axios";
 import { useTransactionReset } from "@/composables/useTransactionReset";
 import { useLiveSearch } from "@/composables/useLiveSearch";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { todaySql, formatTanggal } from "@/utils/format";
 import type { LookupItem } from "@/types";
 
@@ -223,6 +224,8 @@ const liveSearch = useLiveSearch(cari, {
   enabled: () => cariOpen.value,
   invalidate: () => { ++searchRequest; hasilCari.value = []; cariLoading.value = false; },
 });
+// Fokuskan kotak pencarian saat dialog dibuka — bisa langsung ketik tanpa klik dulu.
+const cariInput = useDialogFocus(() => cariOpen.value);
 </script>
 
 <template>
@@ -321,7 +324,7 @@ const liveSearch = useLiveSearch(cari, {
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="Nomor / nama / posisi / alamat..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <input ref="cariInput" v-model="kataCari" placeholder="Nomor / nama / posisi / alamat..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
           <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="liveSearch.run">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>

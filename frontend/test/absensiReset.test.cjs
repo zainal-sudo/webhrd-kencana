@@ -33,6 +33,7 @@ function fixture(edit, fail = false) {
     if (name === 'vue-toastification') return { useToast: () => ({ error: message => errors.push(message) }) };
     if (name === '@/composables/useTransactionReset') return { useTransactionReset };
     if (name === '@/composables/useKaryawanLookup') return { useKaryawanLookup: () => ({ loading: false, clear() { cleared++; }, invalidate() {} }) };
+    if (name === '@/composables/useDialogFocus') return { useDialogFocus: () => vue.ref(null) };
     if (name === '@/composables/useLiveSearch') return { useLiveSearch: () => ({ cancel() { cancelled++; } }) };
     if (name === '@/api/axios') return { api, getErrorMessage: e => e.message };
     if (name === '@/utils/format') return { todaySql: () => '2026-10-13' };

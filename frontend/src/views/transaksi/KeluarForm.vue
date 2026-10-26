@@ -5,6 +5,7 @@ import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { useLiveSearch } from "@/composables/useLiveSearch";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
@@ -166,6 +167,8 @@ watch(nomorEdit, () => muatDokumen());
 watch(() => values.tanggal, () => { if (siap.value) muatNomor(); });
 watch(() => values.nik, () => { if (!isEdit.value) infoKaryawan(); });
 const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, invalidate: () => karyawanLookup.invalidate() });
+// Fokuskan kotak pencarian saat dialog dibuka — bisa langsung ketik tanpa klik dulu.
+const cariInput = useDialogFocus(() => cariOpen.value);
 </script>
 
 <template>
@@ -228,7 +231,7 @@ const liveSearch = useLiveSearch(cariNik, { enabled: () => cariOpen.value, inval
       <v-card-title class="dlg-head">Cari Karyawan</v-card-title>
       <v-card-text>
         <div class="cari-bar">
-          <input v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <input ref="cariInput" v-model="kataCari" placeholder="NIK / nama / jabatan / bagian / pabrik..." @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
           <button class="btn-mini primary" :disabled="cariLoading" @click="liveSearch.run">Cari</button>
         </div>
         <p class="note">Daftar mencakup karyawan aktif dan nonaktif; status ditampilkan pada setiap baris.</p>

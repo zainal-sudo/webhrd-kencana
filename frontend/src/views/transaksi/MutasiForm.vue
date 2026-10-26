@@ -6,6 +6,7 @@ import BaseForm from "@/components/BaseForm.vue";
 import MsIcon from "@/components/MsIcon.vue";
 import KaryawanLookupTable from "@/components/KaryawanLookupTable.vue";
 import { useKaryawanLookup } from "@/composables/useKaryawanLookup";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { useLiveSearch } from "@/composables/useLiveSearch";
 import FText from "@/components/fields/FText.vue";
 import FDate from "@/components/fields/FDate.vue";
@@ -209,6 +210,8 @@ const liveSearch = useLiveSearch(cari, {
   enabled: () => cariOpen.value,
   invalidate: () => { ++searchRequest; karyawanLookup.invalidate(); hasilCari.value = []; cariLoading.value = false; },
 });
+// Fokuskan kotak pencarian saat dialog dibuka — bisa langsung ketik tanpa klik dulu.
+const cariInput = useDialogFocus(() => cariOpen.value);
 </script>
 
 <template>
@@ -275,7 +278,7 @@ const liveSearch = useLiveSearch(cari, {
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataCari" :placeholder="cariMode === 'nik' ? 'NIK / nama / jabatan / bagian / pabrik...' : 'Kata kunci...'" @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
+          <input ref="cariInput" v-model="kataCari" :placeholder="cariMode === 'nik' ? 'NIK / nama / jabatan / bagian / pabrik...' : 'Kata kunci...'" @input="liveSearch.schedule" @keyup.enter="liveSearch.run" />
           <button class="btn-mini primary" type="button" :disabled="cariLoading" @click="liveSearch.run">
             {{ cariLoading ? "Mencari..." : "Cari" }}
           </button>

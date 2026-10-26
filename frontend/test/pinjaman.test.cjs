@@ -65,6 +65,7 @@ function fixture(kind, settings = {}) {
     if (name === '@/utils/columnFilter') return columnFilter;
     if (name === '@/composables/useTransactionReset') return resetModule;
     if (name === '@/composables/useKaryawanLookup') return lookupModule;
+    if (name === '@/composables/useDialogFocus') return { useDialogFocus: () => vueModule.ref(null) };
     if (name === '@/composables/useLiveSearch') return liveSearchModule;
     return {};
   }, {

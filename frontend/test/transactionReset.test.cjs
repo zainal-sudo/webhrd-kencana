@@ -59,6 +59,7 @@ function fixture(name, edit = false, fail = false) {
     if (module === '@/composables/useTransactionReset') return resetModule;
     if (module === '@/composables/useKaryawanLookup') return lookupModule;
     if (module === '@/composables/useLiveSearch') return liveSearchModule;
+    if (module === '@/composables/useDialogFocus') return { useDialogFocus: () => vueModule.ref(null) };
     if (module === '@/stores/authStore') return { useAuthStore: () => ({ can: () => true }) };
     if (module === '@/stores/tabsStore') return { useTabsStore: () => ({}) };
     return {};
