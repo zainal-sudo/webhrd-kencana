@@ -45,6 +45,8 @@ const props = withDefaults(
     /** tampilkan tombol print di tiap baris (emit 'print' dengan data baris) */
     printable?: boolean;
     defaultStart?: string;
+    /** Default "Sampai" untuk periode; kosong = hari ini. */
+    defaultEnd?: string;
     /** Jumlah baris per halaman. Naikkan turunkan sesuai kepadatan tabel. */
     perPage?: number;
     /** tampilkan tombol Export Excel (GET endpoint + ?export=xlsx) */
@@ -126,7 +128,7 @@ const rows = ref<Record<string, any>[]>([]);
 const loading = ref(false);
 const search = ref("");
 const startDate = ref(props.defaultStart || "");
-const endDate = ref(todaySql());
+const endDate = ref(props.defaultEnd || todaySql());
 const page = ref(1);
 const perPage = ref(props.perPage);
 const total = ref(0);

@@ -24,6 +24,21 @@ export function firstDayOfMonth(offsetMonths = 0): string {
   return formatDateToSql(d);
 }
 
+/** Tanggal 26 bulan lalu — awal cut-off gaji, format SQL. */
+export function awalCutoff(): string {
+  const d = new Date();
+  d.setDate(26);
+  d.setMonth(d.getMonth() - 1);
+  return formatDateToSql(d);
+}
+
+/** Tanggal 25 bulan ini — akhir cut-off gaji, format SQL. */
+export function akhirCutoff(): string {
+  const d = new Date();
+  d.setDate(25);
+  return formatDateToSql(d);
+}
+
 export function nonNullable(value: any): any {
   return value === null || value === undefined ? "" : value;
 }

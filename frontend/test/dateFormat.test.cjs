@@ -36,6 +36,19 @@ test('Numeric display pads dates, validates leap days and preserves SQL/input va
   for (const invalid of ['29/02/2026', '9/1/2026', '2026-01-09', '01/13/2026']) assert.equal(format.parseTanggalInput(invalid), null);
 });
 
+test('Cut-off payroll defaults: 26 previous month until 25 current month, including December rollover', () => {
+  for (const month of [0, 1, 10, 11]) {
+    const DateCtor = class extends Date {
+      constructor(...args) { super(...args); this.setMonth(month); this.setDate(1); }
+    };
+    const f = compile(source, null, { Date: DateCtor });
+    const year = new Date(2026, month, 1).getFullYear();
+    const awalYear = month === 0 ? year - 1 : year;
+    assert.equal(f.awalCutoff(), `${awalYear}-${String(month || 12).padStart(2, '0')}-26`);
+    assert.equal(f.akhirCutoff(), `${year}-${String(month + 1).padStart(2, '0')}-25`);
+  }
+});
+
 test('Date-only and timestamp display does not shift days in different timezones', () => {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   for (const TZ of ['UTC', 'Asia/Jakarta', 'America/Los_Angeles']) {

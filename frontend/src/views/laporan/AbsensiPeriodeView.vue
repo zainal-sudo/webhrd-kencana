@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
-import { firstDayOfMonth } from "@/utils/format";
+import { awalCutoff, akhirCutoff } from "@/utils/format";
 
 /**
  * Absensi Periode — padanan `ufrmLapAbsensiPeriode`.
  *
- * Kolom hari: '0' (tidak hadir/tanpa data — blank→0), '0.5' (ijin 1/2 hari),
- * '1' (hadir). Key kolom memakai tanggal lengkap agar rentang lintas bulan
- * (mis. 26-09 → 26-10) tidak menghasilkan key `26` dobel; label tetap dd.
- * Kolom hari dibangun dinamis lewat `columns-builder` mengikuti periode aktif.
+ * Default periode mengikuti cut-off gaji (26 bulan lalu s/d 25 bulan ini);
+ * kolom hari dimulai 26, 27, 28, 29, 30, 01, 02, dst.
  */
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -65,7 +63,8 @@ function builder(startDate: string, endDate: string): BrowseColumn[] {
     :columns-builder="builder"
     primary-key="Nik"
     has-period
-    :default-start="firstDayOfMonth()"
+    :default-start="awalCutoff()"
+    :default-end="akhirCutoff()"
     :can-delete="false"
     :show-actions="false"
     search-placeholder="Cari NIK / nama / bagian / pabrik..."
