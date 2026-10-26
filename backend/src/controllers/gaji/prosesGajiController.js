@@ -67,12 +67,15 @@ const SQL_NILAI = `SELECT kar_nik Nik,kar_nama Nama,kar_pab_kode Pabrik,jab_kode
  + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600  ,(time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 )))  lembur
  from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor where lem_tanggal
  between %START% and %END% and lemd_kar_nik=kar_nik),0) lembur,
- ifnull((select sum(if(if ( timediff(lemd_jamakhir,lemd_jammulai) < 0 ,
- (time_to_sec((timediff("24:00:00",lemd_jammulai))))/3600 + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600  ,
- (time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 ) >if(kar_sistem_gaji="Harian",1,2),if(kar_sistem_gaji="Harian",1,2),(time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600)) 2jam
- from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor and lemd_panggilan <> 1
- where lem_tanggal between %START% and %END%  and lem_tanggal not in (select hl_tanggal from tharilibur where hl_status=1)
- and lemd_kar_nik=kar_nik ),0) 2jam ,
+ ifnull((select sum(g.c) from (select b2.lem_tanggal, least(sum(if(b2.lem_tanggal not in (select hl_tanggal from tharilibur where hl_status=1)
+ or tk2.kar_bagian in ("SATPAM","IPAL & B3"), if ( timediff(a2.lemd_jamakhir,a2.lemd_jammulai) < 0 ,
+(time_to_sec((timediff("24:00:00",a2.lemd_jammulai))))/3600 + (time_to_sec((timediff(a2.lemd_jamakhir,"00:00:00"))))/3600  ,
+(time_to_sec((timediff(a2.lemd_jamakhir,a2.lemd_jammulai))))/3600 ), 0)),
+ if(max(tk2.kar_sistem_gaji)="Harian",1,2)) c
+ from tlembur_dtl a2 inner join tlembur_hdr b2 on b2.lem_nomor=a2.lemd_lem_nomor and a2.lemd_panggilan <> 1
+ left join tkaryawan tk2 on tk2.kar_nik=a2.lemd_kar_nik
+ where b2.lem_tanggal between %START% and %END%  and a2.lemd_kar_nik=kar_nik
+ group by b2.lem_tanggal) g ),0) 2jam ,
  ifnull((select (sum(if ( timediff(lemd_jamakhir,lemd_jammulai) < 0 , (time_to_sec((timediff("24:00:00",lemd_jammulai))))/3600
  + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600  ,(time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 )))  panggilan
  from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor and lemd_panggilan = 1 where lem_tanggal  between %START% and %END%

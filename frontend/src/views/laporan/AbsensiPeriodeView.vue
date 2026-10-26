@@ -6,9 +6,9 @@ import { firstDayOfMonth } from "@/utils/format";
 /**
  * Absensi Periode — padanan `ufrmLapAbsensiPeriode`.
  *
- * Tabel kalender: kolom per karyawan aktif (NIK, nama, bagian, sistem,
- * jabatan, pabrik) + satu kolom per tanggal dalam periode berisi
- * '0' (tidak hadir), '0.5' (ijin 1/2 hari), '1' (hadir), kosong (tiada data).
+ * Kolom hari: '0' (tidak hadir/tanpa data — blank→0), '0.5' (ijin 1/2 hari),
+ * '1' (hadir). Key kolom memakai tanggal lengkap agar rentang lintas bulan
+ * (mis. 26-09 → 26-10) tidak menghasilkan key `26` dobel; label tetap dd.
  * Kolom hari dibangun dinamis lewat `columns-builder` mengikuti periode aktif.
  */
 function pad2(n: number): string {
@@ -45,7 +45,7 @@ function builder(startDate: string, endDate: string): BrowseColumn[] {
   const cols: BrowseColumn[] = [...statik];
   for (const h of hariAntara(startDate, endDate)) {
     cols.push({
-      key: h.dd,
+      key: h.date,
       label: h.dd,
       width: "34px",
       align: "center",

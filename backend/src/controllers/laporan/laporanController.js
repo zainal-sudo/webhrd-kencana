@@ -986,21 +986,26 @@ export const getStHariTanpaIjinList = async (req, res, next) => {
 }
 
 /* ── Detail Lembur (ufrmLapDetailLembur) ──
- * Per NIK + tanggal: `2jam` (2 jam pertama, dikapas sesuai sistem gaji),
- * `Lembur-2Jam` Lebih2Jam, `Panggilan`, `Lembur` (total), jenis kerja.
- * Query correlated 3-subquery persis padanan Delphi. */
+ * Per NIK + tanggal: `2jam` (2 jam pertama, dikapas PER HARI: 1 jam utk
+ * sistem Harian, 2 jam utk lainnya), `Lembur-2jam` Lebih2Jam, `Panggilan`,
+ * `Lembur` (total), jenis kerja.
+ * Hari libur (tharilibur status 1) tidak dihitung 2jam — KECUALI bagian
+ * SATPAM / IPAL & B3 (dan dep MKTR pengecualian Delphi), karena bagi
+ * mereka hari libur tetap hari kerja (75%/jam, bukan 100%). */
 const DL_DUR = `if( timediff(lemd_jamakhir, lemd_jammulai) < 0 ,
     (time_to_sec((timediff('24:00:00', lemd_jammulai))))/3600
     + (time_to_sec((timediff(lemd_jamakhir, '00:00:00'))))/3600,
     (time_to_sec((timediff(lemd_jamakhir, lemd_jammulai))))/3600 )`
 
 const DL_INNER = `SELECT y.lem_jeniskerja AS Jenis_Kerja, y.lem_tanggal AS Tanggal, x.lemd_kar_nik AS Nik,
-    IFNULL((SELECT SUM(IF(${DL_DUR} > IF(tk.kar_sistem_gaji = 'Harian', 1, 2), IF(tk.kar_sistem_gaji = 'Harian', 1, 2), ${DL_DUR}))
+    IFNULL((SELECT LEAST(SUM(IF(tk.kar_bagian IN ('SATPAM', 'IPAL & B3') OR tk.kar_dep_kode = 'MKTR'
+                OR b.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1),
+            ${DL_DUR}, 0)),
+        IF(MAX(tk.kar_sistem_gaji) = 'Harian', 1, 2))
         FROM tlembur_dtl a
         INNER JOIN tlembur_hdr b ON b.lem_nomor = a.lemd_lem_nomor AND a.lemd_panggilan <> 1
         LEFT JOIN tkaryawan tk ON tk.kar_nik = a.lemd_kar_nik
         WHERE b.lem_tanggal = y.lem_tanggal
-          AND (b.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1) OR tk.kar_dep_kode = 'MKTR')
           AND a.lemd_kar_nik = x.lemd_kar_nik AND a.lemd_panggilan = 0), 0) AS \`2jam\`,
     IFNULL((SELECT SUM(TIME_TO_SEC(TIMEDIFF(a.lemd_jamakhir, a.lemd_jammulai)))/3600
         FROM tlembur_dtl a
@@ -1028,6 +1033,9 @@ const DL_COLUMNS = {
     Jenis_Kerja: 'final.Jenis_Kerja',
 }
 
+/** Kolom jam untuk dropdown filter: dibulatkan 1 desimal seperti tampilan tabel. */
+const DL_JAM_COLUMNS = new Set(['2jam', 'Lebih2Jam', 'Panggilan', 'Lembur'])
+
 const DL_FROM = ` FROM (${DL_INNER}) final INNER JOIN tkaryawan t ON t.kar_Nik = final.Nik`
 
 const DL_SELECT = `SELECT DISTINCT t.kar_kode_absensi AS \`Kode\`, final.Tanggal, final.Nik,
@@ -1051,9 +1059,14 @@ export const getDetailLemburList = async (req, res, next) => {
 
         if (req.query.distinct && DL_COLUMNS[req.query.distinct]) {
             const dcol = DL_COLUMNS[req.query.distinct]
+            // Kolom jam dibulatkan 1 desimal agar opsi checklist tampil sama
+            // dengan tabel (mysql2 mengirim DECIMAL "2.0000" → "2.0"). Filter
+            // balik '2.0' tetap cocok karena MySQL membandingkan numerik.
+            const jam = DL_JAM_COLUMNS.has(req.query.distinct)
+            const expr = jam ? `ROUND(${dcol}, 1)` : dcol
             const scoped = applyAllColumnFilters(where, params, req.query, DL_COLUMNS, req.query.distinct)
             const [drows] = await pool.query(
-                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${DL_FROM} ${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${expr} AS value, OCTET_LENGTH(${expr}) AS value_length ${DL_FROM} ${scoped.clause} ORDER BY ${expr}`,
                 scoped.params
             )
             return success(res, drows.map((r) => r.value))
@@ -1114,14 +1127,18 @@ function tanggalPeriode(start, end) {
     return hari
 }
 
-/** SELECT kolom kalender: 1 ekspresi per tanggal (algo. asli Delphi). */
+/** SELECT kolom kalender: 1 ekspresi per tanggal (algo. asli Delphi).
+ *  Alias pakai tanggal lengkap agar rentang lintas bulan tidak tabrakan
+ *  (kolom `26` dua kali). Hari tanpa baris absensi sama sekali tampil '0'
+ *  (IFNULL membungkus SELURUH subquery — IFNULL di dalam SELECT-list
+ *  tidak pernah dievaluasi gara-gara subquery tanpa baris = NULL). */
 function absensiPeriodeInner(start, end) {
     const cols = AP_STATIC.map(([alias, expr]) => `${expr} AS \`${alias}\``)
     for (const h of tanggalPeriode(start, end)) {
         cols.push(
-            `(SELECT CAST(IF(CAST(x.stat AS CHAR) = '0', '0',
+            `IFNULL((SELECT CAST(IF(CAST(x.stat AS CHAR) = '0', '0',
                 (SELECT IF(COUNT(*) > 0, '0.5', '1') FROM tijin WHERE ij_nik = x.kar_nik AND ij_tanggal = '${h.date}' AND ij_ji_id = 2))
-                AS CHAR) FROM v_absensi x WHERE x.tanggal = '${h.date}' AND x.nik = k.kar_kode_absensi LIMIT 1) AS \`${h.dd}\``
+                AS CHAR) FROM v_absensi x WHERE x.tanggal = '${h.date}' AND x.nik = k.kar_kode_absensi LIMIT 1), '0') AS \`${h.date}\``
         )
     }
     return `SELECT ${cols.join(', ')}
@@ -1142,7 +1159,7 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
         const inner = absensiPeriodeInner(start, end)
         const AP_COLUMNS = {}
         for (const [alias] of AP_STATIC) AP_COLUMNS[alias] = `t.\`${alias}\``
-        for (const h of tanggalPeriode(start, end)) AP_COLUMNS[h.dd] = `t.\`${h.dd}\``
+        for (const h of tanggalPeriode(start, end)) AP_COLUMNS[h.date] = `t.\`${h.date}\``
 
         // Filter kolom selalu menambahkan AND, termasuk saat search kosong.
         let where = ' WHERE 1=1'
@@ -1169,7 +1186,7 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`SELECT t.* FROM (${inner}) t ${where} ${orderBy} LIMIT 50000`, params)
-            const exportCols = AP_STATIC.map(([alias]) => alias).concat(tanggalPeriode(start, end).map(h => h.dd))
+            const exportCols = AP_STATIC.map(([alias]) => alias).concat(tanggalPeriode(start, end).map(h => h.date))
             return sendExcel(res, 'Absensi-Periode', exportCols, all)
         }
 

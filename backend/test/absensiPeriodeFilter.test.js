@@ -70,3 +70,37 @@ test('Export Excel memakai filter yang sama tanpa search', async () => {
     assert.equal(res.name, 'Absensi-Periode')
     assert.deepEqual(res.data.map(row => row.Nik), ['001', '002'])
 })
+
+test('Rentang lintas bulan (26 Okt s/d 26 Nov… 2026-09-26 → 2026-10-26): key kolom unik per tanggal lengkap', async () => {
+    const { calls } = await request({ start_date: '2026-09-26', end_date: '2026-10-26' })
+    const inner = calls.find(c => c.sql.includes('FROM (')).sql
+    assert.equal((inner.match(/AS `2026-09-26`/g) || []).length, 1, 'alias 2026-09-26 tepat sekali')
+    assert.equal((inner.match(/AS `2026-10-26`/g) || []).length, 1, 'alias 2026-10-26 tepat sekali')
+    for (const tgl of ['2026-09-27', '2026-09-30', '2026-10-01', '2026-10-25']) {
+        assert.equal((inner.match(new RegExp(`AS \\\`${tgl}\\\``)) || []).length, 1, `alias ${tgl} unik`)
+    }
+    // Alias day-of-month lama tidak boleh tinggal (dahulu `26` tertimpa 2 kali).
+    assert.doesNotMatch(inner, /AS `\d{2}`/)
+})
+
+test('Hari tanpa baris absensi tampil 0 (IFNULL membungkus seluruh subquery), bukan kosong/NULL', async () => {
+    const { calls } = await request({})
+    const inner = calls.find(c => c.sql.includes('FROM (')).sql
+    // IFNULL harus DI LUAR subquery.scalar — bukan di dalam SELECT-list (yang tidak
+    // pernah dievaluasi bila subquery tidak menghasilkan baris).
+    assert.match(inner, /IFNULL\(\(SELECT CAST\(IF\(CAST\(x\.stat AS CHAR\) = '0', '0'/)
+    assert.doesNotMatch(inner, /SELECT CAST\(IFNULL\(/)
+})
+
+test('Export lintas bulan: header Excel memakai tanggal lengkap agar tak dobel', async () => {
+    const { res } = await request({ export: 'xlsx', start_date: '2026-09-26', end_date: '2026-10-26' })
+    const kolomHari = res.columns.filter(c => /^2026-\d{2}-\d{2}$/.test(String(c)))
+    assert.equal(kolomHari.length, 31)
+    assert.equal(new Set(kolomHari).size, 31, '31 header hari, semua unik')
+})
+
+test('Frontend memakai key tanggal lengkap (bukan dd) untuk kolom hari', () => {
+    const view = readFileSync(new URL('../../frontend/src/views/laporan/AbsensiPeriodeView.vue', import.meta.url), 'utf8')
+    assert.match(view, /key: h\.date/)
+    assert.doesNotMatch(view, /key: h\.dd/)
+})

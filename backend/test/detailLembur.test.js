@@ -73,3 +73,36 @@ test('Detail Lembur: kolom frontend membaca field yang dikirim backend', () => {
         assert.ok(view.includes(`"${key}"`), `${key} masuk kolom satu desimal`)
     }
 })
+
+test('Detail Lembur: 2 jam pertama dikapas PER HARI (LEAST), bukan per baris SPL', () => {
+    const source = readFileSync(new URL('../src/controllers/laporan/laporanController.js', import.meta.url), 'utf8')
+    const block = source.slice(source.indexOf('const DL_INNER'), source.indexOf('const DL_COLUMNS'))
+    assert.match(block, /LEAST\(SUM\(IF\(/, 'cap per hari lewat LEAST(SUM(...), cap)')
+    assert.match(block, /IF\(MAX\(tk\.kar_sistem_gaji\) = 'Harian', 1, 2\)/, 'cap = 1 utk Harian, 2 utk lainnya')
+    // Pola lama per-baris tidak boleh tinggal.
+    assert.doesNotMatch(block, /IF\(tk\.kar_sistem_gaji = 'Harian', 1, 2\), IF\(tk\.kar_sistem_gaji/)
+})
+
+test('Detail Lembur: bagian SATPAM & IPAL & B3 ikut 2jam walau lembur di hari libur', () => {
+    const source = readFileSync(new URL('../src/controllers/laporan/laporanController.js', import.meta.url), 'utf8')
+    const block = source.slice(source.indexOf('const DL_INNER'), source.indexOf('const DL_COLUMNS'))
+    assert.match(block, /tk\.kar_bagian IN \('SATPAM', 'IPAL & B3'\)/)
+    // Hari libur konvensional (status 1) tetap dikecualikan; pengecualian hanya bagian/MKTR.
+    assert.match(block, /b\.lem_tanggal NOT IN \(SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1\)/)
+    assert.match(block, /tk\.kar_dep_kode = 'MKTR'/)
+})
+
+test('Distinct filter kolom jam dibulatkan 1 desimal agar sama dengan tampilan tabel', async () => {
+    const { calls, run } = fixture([BARIS])
+    await run({ query: { distinct: '2jam' } }, { }, err => { throw err })
+    assert.match(calls[0].sql, /SELECT DISTINCT ROUND\(final\.`2jam`, 1\) AS value/)
+    assert.match(calls[0].sql, /ORDER BY ROUND\(final\.`2jam`, 1\)/, 'urutan tetap numerik')
+    assert.doesNotMatch(calls[0].sql, /\bLIMIT\b/, 'distinct tanpa batas (semua opsi tersedia)')
+})
+
+test('Distinct kolom non-jam (Nama) tetap tanpa ROUND', async () => {
+    const { calls, run } = fixture([BARIS])
+    await run({ query: { distinct: 'Nama' } }, { }, err => { throw err })
+    assert.match(calls[0].sql, /SELECT DISTINCT t\.kar_nama AS value/)
+    assert.doesNotMatch(calls[0].sql, /ROUND/)
+})
