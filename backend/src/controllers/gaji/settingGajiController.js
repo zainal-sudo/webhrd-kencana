@@ -3,7 +3,7 @@ import { success, error } from '../../helpers/response.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Setting Gaji — cerminan unit Delphi `ufrmSettingGaji` (`frmSettingGaji`).
+ * Setting Gaji Ã¢â‚¬â€ cerminan unit Delphi `ufrmSettingGaji` (`frmSettingGaji`).
  *
  * Grid menampilkan karyawan aktif ber-sistem gaji Harian/Bulanan pada satu
  * pabrik; kolomnya persis `loaddataall` di Delphi. Simpan (`simpandata`)
@@ -56,7 +56,23 @@ export const getSettingGajiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${where} ORDER BY k.kar_nik`, params)
-            return sendExcel(res, 'Setting Gaji', COLUMNS, rows)
+            // Teks header = label kolom di SettingGajiView.
+            return sendExcel(res, 'Setting Gaji', COLUMNS, rows, {
+                headLabels: {
+                    nik: 'NIK',
+                    nama: 'Nama',
+                    jabatan: 'Jabatan',
+                    gapok: 'Gapok / hari',
+                    premi: 'Premi Hadir',
+                    status_premi: 'Premi Mingguan',
+                    makan: 'Tunj. Makan',
+                    tjabatan: 'Tunj. Jabatan (%)',
+                    lain: 'Lain',
+                    transport: 'Transport',
+                    bpjs: 'BPJS',
+                },
+                requestedColumns: req.query.columns,
+            })
         }
 
         const [rows] = await pool.query(`${SELECT_SQL}${where} ORDER BY k.kar_nik`, params)
@@ -73,7 +89,7 @@ const num = (v) => {
 }
 
 /**
- * simpandata — satu UPDATE `tkaryawan` per baris, dalam satu transaksi
+ * simpandata Ã¢â‚¬â€ satu UPDATE `tkaryawan` per baris, dalam satu transaksi
  * (Delphi mengeksekusi daftar statement lalu commit sekali di akhir).
  */
 export const saveSettingGaji = async (req, res, next) => {

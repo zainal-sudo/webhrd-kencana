@@ -96,6 +96,11 @@
 :root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) th {
   background: var(--ds-table-heading) !important;
 }
+/* Keep browse header separators dark against the navy header. The generic
+   dark-theme table rule above otherwise makes them bright white. */
+:root[data-theme="dark"] .browse-table th {
+  border-color: color-mix(in srgb, var(--ds-table-heading), #000 24%) !important;
+}
 :root[data-theme="dark"] :is(.browse-table, table.grid, .grid-table, table.mini, .tbl) tbody td {
   background: var(--ds-surface-raised) !important;
 }

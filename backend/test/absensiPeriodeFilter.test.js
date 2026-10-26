@@ -31,7 +31,12 @@ async function request(query) {
         } },
         success: (res, data) => { res.data = data },
         paginated: (res, data, pagination) => { Object.assign(res, { data, pagination }) },
-        sendExcel: (res, name, columns, data) => { Object.assign(res, { name, columns, data }) },
+        sendExcel: (res, name, columns, data, options) => { Object.assign(res, { name, columns, data, options }) },
+        // Stub helpers/tanggal.js (import dibuang harness): dd/mm/yyyy seperti web.
+        formatTanggal: (value) => {
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''))
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+        },
     }
     vm.createContext(scope)
     vm.runInContext(source.replace(/^import .*\r?\n/gm, '').replace(/^export /gm, '') + '\nglobalThis.run = getAbsensiPeriodeList;', scope)
@@ -97,6 +102,18 @@ test('Export lintas bulan: header Excel memakai tanggal lengkap agar tak dobel',
     const kolomHari = res.columns.filter(c => /^2026-\d{2}-\d{2}$/.test(String(c)))
     assert.equal(kolomHari.length, 31)
     assert.equal(new Set(kolomHari).size, 31, '31 header hari, semua unik')
+})
+
+test('Header Excel kolom hari tampil dd/mm/yyyy seperti web, key tetap ISO (lintas bulan unik)', async () => {
+    const { res } = await request({ export: 'xlsx', start_date: '2026-09-26', end_date: '2026-10-26' })
+    const labels = res.options?.headLabels || {}
+    const masukHari = res.columns.filter(c => /^2026-\d{2}-\d{2}$/.test(String(c)))
+    assert.equal(masukHari.length, 31, 'semua kolom hari punya label')
+    for (const key of masukHari) {
+        assert.match(labels[key], /^\d{2}\/\d{2}\/\d{4}$/, `label ${key} = dd/mm/yyyy, bukan ISO: ${labels[key]}`)
+        assert.equal(labels[key], key.slice(8, 10) + '/' + key.slice(5, 7) + '/' + key.slice(0, 4), `label ${key} sehari dari key`)
+    }
+    assert.ok(!('Nik' in labels) || labels.Nik === undefined, 'kolom statis tak dipetakan (pakai label sendiri)')
 })
 
 test('Frontend memakai key tanggal lengkap (bukan dd) untuk kolom hari', () => {

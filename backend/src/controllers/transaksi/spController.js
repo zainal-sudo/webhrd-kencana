@@ -5,7 +5,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Surat Peringatan (SP) — cerminan unit Delphi:
+ * Modul Surat Peringatan (SP) â€” cerminan unit Delphi:
  *   ufrmBrowseSP -> daftar per periode + hapus + cetak surat
  *   ufrmSP       -> form satu dokumen
  *
@@ -28,7 +28,7 @@ import { sendExcel } from '../../helpers/excel.js'
 /** Urutan peringkat tingkatan SP (rendah -> tinggi). */
 export const SP_KE = ['Pembinaan', '1 (Satu)', '2 (Dua)', '3 (Tiga)']
 
-/** Kolom browse — mengikuti `ufrmBrowseSP.btnRefreshClick`. */
+/** Kolom browse â€” mengikuti `ufrmBrowseSP.btnRefreshClick`. */
 const LIST_COLUMNS = {
     Nomor: 't.sp_nomor',
     Tanggal: 't.sp_tanggal',
@@ -119,7 +119,8 @@ export const getSPList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'SP', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'SP', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Periode1: 'Periode Awal', Periode2: 'Periode Akhir' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

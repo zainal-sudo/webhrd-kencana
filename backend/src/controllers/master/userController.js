@@ -5,14 +5,14 @@ import { applyAllColumnFilters, buildOrderBy } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Master User & Otorisasi — cerminan `ufrmUser` di program Delphi.
+ * Master User & Otorisasi â€” cerminan `ufrmUser` di program Delphi.
  *
  * tuser    : user_kode, user_nama, USER_PASSWORD (plaintext), user_akses (= KDCABANG)
  * thakuser : hak_user_kode, hak_men_id, hak_men_insert/edit/delete ('Y'/'N')
  * tmenu    : daftar modul yang dipatroli
  */
 
-/* ── User ───────────────────────────────────────────────────────────── */
+/* â”€â”€ User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const USER_COLUMNS = { Kode: 'user_kode', Nama: 'user_nama', Cabang: 'user_akses', Edit: 'user_edit', Dibuat: 'date_create' }
 const USER_SELECT = 'SELECT user_kode AS Kode, user_nama AS Nama, user_akses AS Cabang, user_edit AS Edit, date_create AS Dibuat FROM tuser'
 const USER_FILTERS = { stringColumns: new Set(['Kode', 'Nama', 'Cabang']), numberColumns: new Set(['Edit']) }
@@ -70,7 +70,8 @@ export const getUserList = async (req, res) => {
         const sql = `${USER_SELECT}${filtered.clause} ${order}`
         if (query.export === 'xlsx') {
             const [rows] = await pool.query(`${sql} LIMIT 50000`, filtered.params)
-            return sendExcel(res, 'User', ['Kode', 'Nama', 'Cabang'], rows)
+            return sendExcel(res, 'User', ['Kode', 'Nama', 'Cabang'], rows,
+                { headLabels: { Kode: 'Kode User', Nama: 'Nama User', Cabang: 'Pabrik / Cabang' }, requestedColumns: req.query.columns })
         }
         if (query.page === undefined && query.per_page === undefined) {
             const [rows] = await pool.query(sql, filtered.params)
@@ -178,7 +179,7 @@ export const saveMenu = async (req, res, next) => {
     }
 }
 
-/* ── Hak akses ──────────────────────────────────────────────────────── */
+/* â”€â”€ Hak akses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const getHakAkses = async (req, res) => {
     try {
         const kode = userCode(req.params.kode)

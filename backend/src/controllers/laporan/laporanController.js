@@ -2,15 +2,16 @@ import pool from '../../config/database.js'
 import { success, error, paginated } from '../../helpers/response.js'
 import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
+import { formatTanggal } from '../../helpers/tanggal.js'
 
 /**
- * Modul Laporan kehadiran — cerminan unit Delphi:
+ * Modul Laporan kehadiran â€” cerminan unit Delphi:
  *   ufrmLapTidakMasuk    (frmLapTidakMasuk)    -> status=0, bukan Minggu,
  *     karyawan aktif, bukan hari libur + aksi Alpha/Jadwal-Libur otomatis
  *   ufrmLapKeterlambatan (frmLapKeterlambatan) -> status=2 + ijin Terlambat
  *   ufrmLapPulangdulu    (frmLapPulangdulu)    -> status=1, keluar > scan2
  *
- * Ketiga query Delphi TIDAK memfilter pabrik (tampil lintas pabrik) —
+ * Ketiga query Delphi TIDAK memfilter pabrik (tampil lintas pabrik) â€”
  * versi web mempertahankan itu; filter tersedia lewat search + filter
  * kolom server-side. Popup Delphi (Buatkan Ijin / Edit Absensi) di web
  * menjadi tombol aksi baris menuju form Ijin (prefill nik+tanggal+jenis)
@@ -25,7 +26,7 @@ const HARI = `CASE DAYNAME(%s)
 
 const KETERANGAN_IJIN = `IF(i.ij_keterangan = 0, 'Sakit', IF(i.ij_keterangan = 1, 'Ijin', IF(i.ij_keterangan = 2, 'Alpha', 'Lain Lain')))`
 
-/* ── Tidak Masuk ── */
+/* â”€â”€ Tidak Masuk â”€â”€ */
 const TM_COLUMNS = {
     Kode: 'a.nik',
     Nik: 'k.kar_Nik',
@@ -86,7 +87,7 @@ export const getTidakMasukList = async (req, res, next) => {
             const dcol = TM_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TM_COLUMNS, req.query.distinct)
             // NULL ikut dikembalikan supaya baris blank (belum berijin) bisa
-            // dipilih di popup filter — frontend sudah mendukung flag
+            // dipilih di popup filter â€” frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
                 `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TM_FROM}${scoped.clause} ORDER BY value`,
@@ -102,7 +103,11 @@ export const getTidakMasukList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${TM_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Tidak-Masuk', Object.keys(TM_COLUMNS), all)
+            // Export = tampilan web: urutan & label sesuai TidakMasukView.
+            return sendExcel(res, 'Tidak-Masuk',
+                ['Nik', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Jabatan', 'Bagian', 'Jenis_Ijin', 'Keterangan', 'Alasan', 'SistemGaji'],
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Jenis_Ijin: 'Jenis Ijin', SistemGaji: 'Sistem' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${TM_FROM}${where}`, params)
@@ -198,7 +203,7 @@ async function ijinOtomatis(req, res, next, mode) {
 export const alphaOtomatis = (req, res, next) => ijinOtomatis(req, res, next, 'alpha')
 export const jadwalLiburOtomatis = (req, res, next) => ijinOtomatis(req, res, next, 'jadwal-libur')
 
-/* ── Keterlambatan ── */
+/* â”€â”€ Keterlambatan â”€â”€ */
 const TL_COLUMNS = {
     Kode: 'a.nik',
     Nik: 'k.kar_Nik',
@@ -246,7 +251,7 @@ export const getKeterlambatanList = async (req, res, next) => {
             const dcol = TL_COLUMNS[req.query.distinct]
             const scoped = applyAllColumnFilters(where, params, req.query, TL_COLUMNS, req.query.distinct)
             // NULL ikut dikembalikan supaya baris blank (belum berijin) bisa
-            // dipilih di popup filter — frontend sudah mendukung flag
+            // dipilih di popup filter â€” frontend sudah mendukung flag
             // filterNull_/filterEmpty_.
             const [drows] = await pool.query(
                 `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${TL_FROM}${scoped.clause} ORDER BY value`,
@@ -262,7 +267,11 @@ export const getKeterlambatanList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${TL_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Keterlambatan', Object.keys(TL_COLUMNS), all)
+            // Export = tampilan web: urutan & label sesuai KeterlambatanView.
+            return sendExcel(res, 'Keterlambatan',
+                ['Nik', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Jabatan', 'Bagian', 'Masuk', 'Scan1', 'Jenis_Ijin', 'Alasan'],
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Masuk: 'Jam Masuk', Scan1: 'Scan Masuk', Jenis_Ijin: 'Jenis Ijin' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${TL_FROM}${where}`, params)
@@ -278,7 +287,7 @@ export const getKeterlambatanList = async (req, res, next) => {
     }
 }
 
-/* ── Pulang Mendahului ── */
+/* â”€â”€ Pulang Mendahului â”€â”€ */
 const PD_COLUMNS = {
     Kode: 'a.nik',
     Nik: 'k.kar_Nik',
@@ -339,7 +348,11 @@ export const getPulangDuluList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${PD_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Pulang-Dulu', Object.keys(PD_COLUMNS), all)
+            // Export = tampilan web: urutan & label sesuai PulangDuluView.
+            return sendExcel(res, 'Pulang-Dulu',
+                ['Nik', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Jabatan', 'Bagian', 'Keluar', 'Scan2', 'Jam', 'Jenis_Ijin'],
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Keluar: 'Jam Keluar', Scan2: 'Scan Keluar', Jam: 'Selisih (jam)', Jenis_Ijin: 'Jenis Ijin' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${PD_FROM}${where}`, params)
@@ -355,7 +368,7 @@ export const getPulangDuluList = async (req, res, next) => {
     }
 }
 
-/* ── Absen Tidak Lengkap / Tidak Absen Keluar (ufrmLapTidakKeluar) ──
+/* â”€â”€ Absen Tidak Lengkap / Tidak Absen Keluar (ufrmLapTidakKeluar) â”€â”€
  * status <> 0, karyawan aktif, salah satu scan 00:00:00.
  * Popup Delphi: Buatkan Ijin (jenis 1/Terlambat), Edit Absensi. */
 const TK_COLUMNS = {
@@ -415,7 +428,12 @@ export const getTidakKeluarList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${TK_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Absen-Tidak-Lengkap', Object.keys(TK_COLUMNS), all)
+            // Export = tampilan web: urutan & label sesuai TidakKeluarView
+            // (menu "Absen Tidak Lengkap").
+            return sendExcel(res, 'Absen-Tidak-Lengkap',
+                ['Nik', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Scan1', 'Scan2', 'Jenis_Ijin'],
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Scan1: 'Scan Masuk', Scan2: 'Scan Keluar', Jenis_Ijin: 'Jenis Ijin' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${TK_FROM}${where}`, params)
@@ -431,7 +449,7 @@ export const getTidakKeluarList = async (req, res, next) => {
     }
 }
 
-/* ── Laporan Lembur per SPL (ufrmLapLembur) ──
+/* â”€â”€ Laporan Lembur per SPL (ufrmLapLembur) â”€â”€
  * Tiap baris SPL + scan keluar absensi; Stat=1 bila scan2 < jam akhir
  * (baris merah di Delphi). Popup: Buka SPL, Edit Absensi. */
 const LL_COLUMNS = {
@@ -493,7 +511,9 @@ export const getLemburList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${LL_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Laporan-Lembur', Object.keys(LL_COLUMNS), all)
+            // Label header = tampilan web (urutan kolom sudah sama).
+            return sendExcel(res, 'Laporan-Lembur', Object.keys(LL_COLUMNS), all,
+                { headLabels: { Nomor: 'Nomor SPL', Nik: 'NIK', Nama: 'Nama Lengkap', Jadwal: 'Jam Akhir SPL', Scan2: 'Scan Keluar' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${LL_FROM}${where}`, params)
@@ -509,7 +529,7 @@ export const getLemburList = async (req, res, next) => {
     }
 }
 
-/* ── Lembur Tanpa SPL (ufrmLapLemburTanpaSPL) ──
+/* â”€â”€ Lembur Tanpa SPL (ufrmLapLemburTanpaSPL) â”€â”€
  * Scan keluar > 25 menit (1500 detik) dari jam keluar jadwal tanpa SPL.
  * Kategori Delphi: Setengah (15-45 mnt), Satu (45-75 mnt), selainnya Lebih.
  * Popup: Buka SPL, Edit Absensi. */
@@ -579,7 +599,11 @@ export const getLemburTanpaSplList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${LS_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Lembur-Tanpa-SPL', Object.keys(LS_COLUMNS), all)
+            // Export = tampilan web: urutan & label sesuai LemburTanpaSplView.
+            return sendExcel(res, 'Lembur-Tanpa-SPL',
+                ['Nik', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Keluar', 'Scan2', 'Lembur', 'Sistem'],
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Keluar: 'Jam Keluar', Scan2: 'Scan Keluar', Lembur: 'Kategori' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${LS_FROM}${where}`, params)
@@ -595,10 +619,10 @@ export const getLemburTanpaSplList = async (req, res, next) => {
     }
 }
 
-/* ── Rekap Absensi per karyawan (ufrmLapAbsensi) ──
+/* â”€â”€ Rekap Absensi per karyawan (ufrmLapAbsensi) â”€â”€
  * Ringkasan kehadiran + lembur + bonus + ijin per NIK dalam periode.
  * Delphi menjalankan UPDATE status dinas/meninggalkan-pekerjaan
- * (ij_ji_id 4/5, jam <= 08:00) setiap refresh — versi web melakukan
+ * (ij_ji_id 4/5, jam <= 08:00) setiap refresh â€” versi web melakukan
  * hal yang sama sebelum membaca. Checkbox Delphi ("tampilkan rincian
  * tanggal") menjadi ?detail=1 yang mengisi kolom Ket* (Adaform,
  * Tanpaform, KetSakit, KetIjin, KetAlpha, KetLainLain, KetSetengahaHari)
@@ -606,10 +630,32 @@ export const getLemburTanpaSplList = async (req, res, next) => {
 const RA_OUTER = [
     'Nik', 'Nama', 'Pabrik', 'Departemen', 'Jabatan', 'Bagian', 'Sistem',
     'Total_Hari', '2_Jam_Pertama', 'Lebih dari 2 Jam', 'Panggilan', 'TotalLembur',
-    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'Adaform', 'Tanpaform',
-    'ST_HARI', 'KetSetengahaHari', 'sakit', 'KetSakit', 'Ijin', 'KetIjin',
-    'Alpha', 'KetAlpha', 'LainLain', 'KetLainLain', 'Total',
+    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'ST_HARI', 'sakit', 'Ijin',
+    'Alpha', 'LainLain', 'Total', 'Adaform', 'Tanpaform', 'KetSetengahaHari',
+    'KetSakit', 'KetIjin', 'KetAlpha', 'KetLainLain',
 ]
+
+/** Teks header Excel = header kolom di AbsensiRekapView. */
+const RA_LABELS = {
+    Nik: 'NIK',
+    Nama: 'Nama Lengkap',
+    Total_Hari: 'Total Hari',
+    '2_Jam_Pertama': '2 Jam Pertama',
+    TotalLembur: 'Total Lembur',
+    Bonus_Malam_Libur: 'Bonus Malam Libur',
+    Bonus_Libur: 'Bonus Libur',
+    terlambat: 'Terlambat',
+    Adaform: 'Terlambat Ada Form',
+    Tanpaform: 'Terlambat Tanpa Form',
+    ST_HARI: 'Â½ Hari',
+    KetSetengahaHari: 'Ket Â½ Hari',
+    sakit: 'Sakit',
+    KetSakit: 'Ket Sakit',
+    KetIjin: 'Ket Ijin',
+    KetAlpha: 'Ket Alpha',
+    LainLain: 'Lain2',
+    KetLainLain: 'Ket Lain-lain',
+}
 
 function rekapAbsensiSql() {
     return `SELECT Nik,Nama,Pabrik,Departemen,Jabatan,Bagian,Sistem,Total_hari,
@@ -625,7 +671,8 @@ function rekapAbsensiSql() {
         IFNULL(lembur,0) "TotalLembur",IFNULL(bonus_mlm_lbr,0) "Bonus_Malam_Libur",
         (IFNULL(Bonus_Libur,0)*0.5)+(IFNULL(Bonus_Libur2,0)) Bonus_Libur,
         (SELECT count(*) from tabsensi a inner join tkaryawan b on b.kar_kode_absensi=a.nik
-         where tanggal between ? and ? and b.kar_nik=final2.kar_nik and a.status=2) terlambat,
+         where b.kar_kode_absensi IS NOT NULL AND b.kar_kode_absensi <> ''
+         and tanggal between ? and ? and b.kar_nik=final2.kar_nik and a.status=2) terlambat,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=2 and ij_nik=final2.kar_nik) ST_HARI,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=3 and ij_nik=final2.kar_nik and ij_keterangan=0) sakit,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=3 and ij_nik=final2.kar_nik and ij_keterangan=1) Ijin,
@@ -686,13 +733,13 @@ function rekapAbsensiSql() {
              and nik=a.nik and tanggal between ? and ?) bonus_libur2
             from tabsensi a
             inner join tkaryawan on kar_kode_absensi=nik
+                and kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
             where tanggal between ? and ? and scan1 <> "00:00:00" and status <> 0
             group by kar_nik
         ) final on final2.kar_nik=final.kar_nik
         left join tjabatan on kar_jab_kode=jab_kode
         left join tdepartemen on dep_kode=kar_dep_kode
         where final2.kar_status_aktif=1
-        AND final2.kar_kode_absensi IS NOT NULL AND final2.kar_kode_absensi <> ''
     ) andi`
 }
 
@@ -763,7 +810,20 @@ export const getAbsensiRekapList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${sql} LIMIT 50000`, params)
             if (String(req.query.detail || '') === '1') await isiKet(all, start, end)
-            return sendExcel(res, 'Rekap-Absensi', RA_OUTER, all)
+            return sendExcel(res, 'Rekap-Absensi', RA_OUTER, all, {
+                headLabels: RA_LABELS,
+                requestedColumns: req.query.columns,
+                numericColumns: [
+                    'Total_Hari', '2_Jam_Pertama', 'Lebih dari 2 Jam', 'Panggilan', 'TotalLembur',
+                    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'ST_HARI', 'sakit', 'Ijin',
+                    'Alpha', 'LainLain', 'Total',
+                ],
+                numberFormats: Object.fromEntries([
+                    'Total_Hari', '2_Jam_Pertama', 'Lebih dari 2 Jam', 'Panggilan', 'TotalLembur',
+                    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'ST_HARI', 'sakit', 'Ijin',
+                    'Alpha', 'LainLain', 'Total',
+                ].map(column => [column, '0.0'])),
+            })
         }
 
         const [cntRows] = await pool.query(`SELECT COUNT(*) AS total FROM (${sql}) x`, params)
@@ -825,8 +885,8 @@ async function tanggalSetengah(start, end, nik) {
     return rows.map((r) => fmtKet(r.ij_tanggal))
 }
 
-/* ── Laporan Tanpa Ijin (ufrmLapTanpaIjin) ──
- * Kehadiran yang hanya berlangsung 0–5 jam (selisih scan masuk-keluar) dan
+/* â”€â”€ Laporan Tanpa Ijin (ufrmLapTanpaIjin) â”€â”€
+ * Kehadiran yang hanya berlangsung 0â€“5 jam (selisih scan masuk-keluar) dan
  * TIDAK ada ijin apa pun pada tanggal itu (ij_ji_id IS NULL), bukan Borongan.
  * Popup Delphi: Buatkan Ijin (jenis 1/Terlambat). */
 const TI_COLUMNS = {
@@ -886,7 +946,11 @@ export const getTanpaIjinList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${TI_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Tanpa-Ijin', Object.keys(TI_COLUMNS), all)
+            // Export = tampilan web: buang Kode, label sesuai TanpaIjinView.
+            return sendExcel(res, 'Tanpa-Ijin',
+                Object.keys(TI_COLUMNS).filter((c) => c !== 'Kode'),
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Waktu: 'Jam' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${TI_FROM}${where}`, params)
@@ -902,7 +966,7 @@ export const getTanpaIjinList = async (req, res, next) => {
     }
 }
 
-/* ── Setengah Hari Tanpa Ijin (ufrmLapStHariTanpaIjin) ──
+/* â”€â”€ Setengah Hari Tanpa Ijin (ufrmLapStHariTanpaIjin) â”€â”€
  * Kehadiran < 6 jam (> 0) di luar Sabtu tanpa ijin apa pun pada tanggal itu.
  * Nilai Jam memakai FORMAT(...,2) Delphi; filter jam mengikuti having asli. */
 const SH_COLUMNS = {
@@ -969,7 +1033,12 @@ export const getStHariTanpaIjinList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SH_CORE}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Setengah-Hari-Tanpa-Ijin', Object.keys(SH_COLUMNS), all)
+            // Export = tampilan web: buang Kode & Jenis_Ijin, label sesuai
+            // SetengahHariTanpaIjinView.
+            return sendExcel(res, 'Setengah-Hari-Tanpa-Ijin',
+                Object.keys(SH_COLUMNS).filter((c) => c !== 'Kode' && c !== 'Jenis_Ijin'),
+                all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Scan1: 'Scan Masuk', Scan2: 'Scan Keluar' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${SH_INNER}) t ${where}`, params)
@@ -985,11 +1054,11 @@ export const getStHariTanpaIjinList = async (req, res, next) => {
     }
 }
 
-/* ── Detail Lembur (ufrmLapDetailLembur) ──
+/* â”€â”€ Detail Lembur (ufrmLapDetailLembur) â”€â”€
  * Per NIK + tanggal: `2jam` (2 jam pertama, dikapas PER HARI: 1 jam utk
  * sistem Harian, 2 jam utk lainnya), `Lembur-2jam` Lebih2Jam, `Panggilan`,
  * `Lembur` (total), jenis kerja.
- * Hari libur (tharilibur status 1) tidak dihitung 2jam — KECUALI bagian
+ * Hari libur (tharilibur status 1) tidak dihitung 2jam â€” KECUALI bagian
  * SATPAM / IPAL & B3 (dan dep MKTR pengecualian Delphi), karena bagi
  * mereka hari libur tetap hari kerja (75%/jam, bukan 100%). */
 const DL_DUR = `if( timediff(lemd_jamakhir, lemd_jammulai) < 0 ,
@@ -1060,7 +1129,7 @@ export const getDetailLemburList = async (req, res, next) => {
         if (req.query.distinct && DL_COLUMNS[req.query.distinct]) {
             const dcol = DL_COLUMNS[req.query.distinct]
             // Kolom jam dibulatkan 1 desimal agar opsi checklist tampil sama
-            // dengan tabel (mysql2 mengirim DECIMAL "2.0000" → "2.0"). Filter
+            // dengan tabel (mysql2 mengirim DECIMAL "2.0000" â†’ "2.0"). Filter
             // balik '2.0' tetap cocok karena MySQL membandingkan numerik.
             const jam = DL_JAM_COLUMNS.has(req.query.distinct)
             const expr = jam ? `ROUND(${dcol}, 1)` : dcol
@@ -1079,7 +1148,23 @@ export const getDetailLemburList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${DL_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Detail-Lembur', Object.keys(DL_COLUMNS), all)
+            // Kolom jam diformat 1 desimal persis seperti tampilan web (0.0,
+            // 2.5) â€” bukan string mentah DECIMAL dari MySQL (0.0000). Kolom Kode
+            // dibuang: tabel web tidak menampilkannya.
+            const angka = all.map((r) => {
+                const row = { ...r }
+                for (const c of DL_JAM_COLUMNS) {
+                    const v = row[c]
+                    if (v === null || v === undefined || v === '') continue
+                    const num = Number(v)
+                    if (Number.isFinite(num)) row[c] = String(num.toFixed(1))
+                }
+                return row
+            })
+            return sendExcel(res, 'Detail-Lembur',
+                Object.keys(DL_COLUMNS).filter((c) => c !== 'Kode'),
+                angka,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', '2jam': '2 Jam Pertama', Lebih2Jam: 'Lebih 2 Jam', Lembur: 'Total Lembur', Jenis_Kerja: 'Jenis Kerja' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${DL_SELECT}${where}) x`, params)
@@ -1095,7 +1180,7 @@ export const getDetailLemburList = async (req, res, next) => {
     }
 }
 
-/* ── Absensi Periode (ufrmLapAbsensiPeriode) ──
+/* â”€â”€ Absensi Periode (ufrmLapAbsensiPeriode) â”€â”€
  * Tabel kalender per karyawan aktif: satu kolom per tanggal dalam periode
  * berisi '0' (stat=0/tidak hadir), '0.5' (ada ijin 1/2 hari), atau '1'.
  * `LIMIT 1` ditambahkan pada subquery v_absensi karena kar_kode_absensi ada
@@ -1128,11 +1213,11 @@ function tanggalPeriode(start, end) {
 }
 
 /** SELECT kolom kalender: 1 ekspresi per tanggal (algo. asli Delphi).
- *  Semua karyawan AKTIF ditampilkan — juga yang belum punya kode absensi
+ *  Semua karyawan AKTIF ditampilkan â€” juga yang belum punya kode absensi
  *  (barisnya penuh '0' karena v_absensi join lewat kode absensi).
  *  Alias pakai tanggal lengkap agar rentang lintas bulan tidak tabrakan
  *  (kolom `26` dua kali). Hari tanpa baris absensi sama sekali tampil '0'
- *  (IFNULL membungkus SELURUH subquery — IFNULL di dalam SELECT-list
+ *  (IFNULL membungkus SELURUH subquery â€” IFNULL di dalam SELECT-list
  *  tidak pernah dievaluasi gara-gara subquery tanpa baris = NULL). */
 function absensiPeriodeInner(start, end) {
     const cols = AP_STATIC.map(([alias, expr]) => `${expr} AS \`${alias}\``)
@@ -1187,8 +1272,18 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`SELECT t.* FROM (${inner}) t ${where} ${orderBy} LIMIT 50000`, params)
-            const exportCols = AP_STATIC.map(([alias]) => alias).concat(tanggalPeriode(start, end).map(h => h.date))
-            return sendExcel(res, 'Absensi-Periode', exportCols, all)
+            const hari = tanggalPeriode(start, end)
+            const exportCols = AP_STATIC.map(([alias]) => alias).concat(hari.map(h => h.date))
+            // Header Excel dibaca manusia: dd/mm/yyyy seperti tampilan web;
+            // key kolom tetap ISO agar lintas bulan tidak tabrakan.
+            const headLabels = {}
+            for (const h of hari) headLabels[h.date] = formatTanggal(h.date)
+            return sendExcel(res, 'Absensi-Periode', exportCols, all, {
+                headLabels,
+                requestedColumns: req.query.columns,
+                numericColumns: hari.map(h => h.date),
+                numberFormats: Object.fromEntries(hari.map(h => [h.date, '0.##'])),
+            })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${inner}) t ${where}`, params)

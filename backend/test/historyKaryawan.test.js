@@ -80,7 +80,8 @@ test('Actual XLSX preserves complete PKWT ranges, text NIK, blank history, and n
     assert.equal(sheet.views[0].state, 'frozen')
     assert.equal(sheet.views[0].ySplit, 1)
     assert.equal(sheet.views[0].xSplit, 0)
-    assert.deepEqual(sheet.getRow(1).values.slice(1), history.HISTORY_KEYS)
+    // Header Excel memakai label web (Nik -> NIK); kolom data tetap HISTORY_KEYS.
+    assert.deepEqual(sheet.getRow(1).values.slice(1), history.HISTORY_KEYS.map(k => (k === 'Nik' ? 'NIK' : k)))
     const cell = key => sheet.getRow(2).getCell(history.HISTORY_KEYS.indexOf(key) + 1)
     assert.equal(cell('Nik').value, '001231229')
     assert.equal(cell('PKWT2').value, sample.PKWT2)

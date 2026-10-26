@@ -4,7 +4,7 @@ import { success, error } from '../../helpers/response.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Proses Gaji — cerminan unit Delphi `ufrmProsesGaji` (`frmProsesGaji`).
+ * Proses Gaji Ã¢â‚¬â€ cerminan unit Delphi `ufrmProsesGaji` (`frmProsesGaji`).
  *
  *   GET  /gaji/proses?periode=&tahun=&start=&end=[&export=xlsx]   -> loaddataall
  *   POST /gaji/proses/process                                     -> RefreshClick
@@ -16,7 +16,7 @@ import { sendExcel } from '../../helpers/excel.js'
  *   adefaulthari = 22, adefaultbonuslibur = 0, adefaultbonusmlibur = 0.
  * Fungsi bantu (getminggu/getpremi/getpremi2/getharimakan/getkoperasi/
  * getpotongan) di Delphi memanggil SQL per baris per tanggal; di sini seluruh
- * data periode dimuat sekali ke memori lalu dihitung di JavaScript — hasilnya
+ * data periode dimuat sekali ke memori lalu dihitung di JavaScript Ã¢â‚¬â€ hasilnya
  * sama, jauh lebih cepat.
  */
 
@@ -26,7 +26,7 @@ const BONUS_MLIBUR_DEFAULT = 0
 const TGL_KECUALI = '2019-09-06'
 const RE_TGL = /^\d{4}-\d{2}-\d{2}$/
 
-/* ── Tanggal (murni kalender, tanpa timezone JS) ─────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tanggal (murni kalender, tanpa timezone JS) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 function parseTgl(s) {
     const [y, m, d] = String(s).split('-').map(Number)
@@ -49,10 +49,10 @@ const num = (v) => {
 /** Kutip string SQL yang sudah divalidasi format tanggalnya. */
 const qTgl = (s) => `'${s}'`
 
-/* ── SQL ─────────────────────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ SQL Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 /**
- * InsertNilai (ufrmProsesGaji.pas) — dipindahkan huruf per huruf dari
+ * InsertNilai (ufrmProsesGaji.pas) Ã¢â‚¬â€ dipindahkan huruf per huruf dari
  * Delphi; `%START%` / `%END%` diganti tanggal yang sudah divalidasi.
  * Nama kolom hasil (Nik, Nama, "2 Jam Pertama", ...) menyesuaikan Delphi,
  * dipetakan ulang di `petakanBaris()`.
@@ -130,7 +130,7 @@ const KOL_INSERT = [
     'gb_sistem_gaji', 'gb_masakerja', 'gb_tmasakerja', 'gb_hari_premi', 'gb_koperasi', 'gb_potongan',
 ]
 
-/** loaddataall — pembulatan & alias persis tampilan grid Delphi. */
+/** loaddataall Ã¢â‚¬â€ pembulatan & alias persis tampilan grid Delphi. */
 const SQL_PROSES = `SELECT gb_kar_nik AS nik,
     kar_nama AS nama,
     kar_bagian AS bagian,
@@ -193,7 +193,7 @@ function bacaPeriode(req) {
     return { periode, tahun, start, end }
 }
 
-/* ── loaddataall ─────────────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ loaddataall Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 export const getProsesList = async (req, res, next) => {
     try {
@@ -203,7 +203,43 @@ export const getProsesList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(SQL_PROSES, params)
-            return sendExcel(res, 'Proses Gaji', PROSES_COLUMNS, rows)
+            // Teks header = label kolom di ProsesGajiView.
+            return sendExcel(res, 'Proses Gaji', PROSES_COLUMNS, rows, {
+                headLabels: {
+                    nik: 'NIK',
+                    nama: 'Nama',
+                    bagian: 'Bagian',
+                    pabrik: 'Pabrik',
+                    gapok: 'Gapok',
+                    harimasuk: 'Hari Masuk',
+                    premi: 'Premi',
+                    haripremi: 'Hari Premi',
+                    makan: 'Makan',
+                    harimakan: 'Hari Makan',
+                    tjabatan: 'Tj. Jab.',
+                    tmasakerja: 'Tj. Masa Kerja',
+                    tlain: 'Tj. Lain',
+                    harilembur2: 'Jam Lbr 2',
+                    tlembur2: 'Tj. Lbr 2',
+                    harilembur: 'Jam Lbr',
+                    tlembur: 'Tj. Lembur',
+                    harilemburp: 'Jam Pgl',
+                    tlemburp: 'Tj. Pgl',
+                    bonuslibur: 'Bonus Libur',
+                    bonusmlibur: 'Bonus Mlm Libur',
+                    bpjs: 'BPJS',
+                    koperasi: 'Koperasi',
+                    potongan: 'Potongan',
+                    skill: 'SP',
+                    total: 'Total',
+                    rekening: 'Rekening',
+                    sthari: 'Setengah Hari',
+                    sakit: 'Sakit',
+                    ijin: 'Ijin',
+                    alpha: 'Alpha',
+                },
+                requestedColumns: req.query.columns,
+            })
         }
 
         const [rows] = await pool.query(SQL_PROSES, params)
@@ -213,7 +249,7 @@ export const getProsesList = async (req, res, next) => {
     }
 }
 
-/* ── RefreshClick: getminggu + InsertNilai ───────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ RefreshClick: getminggu + InsertNilai Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 export const jalankanProsesGaji = async (req, res, next) => {
     try {
@@ -264,7 +300,7 @@ async function muatLibur(conn, start, end) {
 }
 
 /**
- * getminggu — hapus baris lama periode ini lalu isi ulang nomor minggu:
+ * getminggu Ã¢â‚¬â€ hapus baris lama periode ini lalu isi ulang nomor minggu:
  * minggu bertambah saat `i` mencapai 6 selama `a < 4`, dan hanya hari
  * non-libur yang dicatat.
  */
@@ -410,7 +446,7 @@ async function muatBantuan(conn, { periode, tahun, start, end, libur }) {
         return !!a && num(a.status) !== 0
     }
 
-    /** getpremi — jumlah minggu yang berhak premi hadir. */
+    /** getpremi Ã¢â‚¬â€ jumlah minggu yang berhak premi hadir. */
     const getPremi = (nik) => {
         let ahari = 0
         let apremi = 0
@@ -440,7 +476,7 @@ async function muatBantuan(conn, { periode, tahun, start, end, libur }) {
         return apremi
     }
 
-    /** getharimakan — hari makan: absensi valid dikurangi ijin setengah hari. */
+    /** getharimakan Ã¢â‚¬â€ hari makan: absensi valid dikurangi ijin setengah hari. */
     const getHariMakan = (nik) => {
         const kode = kodeByNik.get(nik) ?? ''
         let hasil = (absenValid.get(kode) || 0) - (jmlSetengahHari.get(nik) || 0)
@@ -448,7 +484,7 @@ async function muatBantuan(conn, { periode, tahun, start, end, libur }) {
         return hasil
     }
 
-    /** getpremi2 — hari absen pada minggu yang berisi ijin/alpha. */
+    /** getpremi2 Ã¢â‚¬â€ hari absen pada minggu yang berisi ijin/alpha. */
     const getPremi2 = (nik) => {
         const temp = new Map()
         const isiMinggu = (w) => {
@@ -493,7 +529,7 @@ async function muatBantuan(conn, { periode, tahun, start, end, libur }) {
     }
 }
 
-/** Satu baris INSERT `tgajibulanan` — urutan nilai = urutan KOL_INSERT. */
+/** Satu baris INSERT `tgajibulanan` Ã¢â‚¬â€ urutan nilai = urutan KOL_INSERT. */
 function hitungBaris(r, b, { periode, tahun, start, end }) {
     const nik = r.nik
     const gapok = r.gapok
@@ -565,7 +601,7 @@ async function simpanBaris(conn, values) {
     }
 }
 
-/* ── simpandata ──────────────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ simpandata Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 export const saveProsesGaji = async (req, res, next) => {
     try {
@@ -615,7 +651,7 @@ export const saveProsesGaji = async (req, res, next) => {
     }
 }
 
-/* ── Load Potongan (Button2Click: baca Excel lalu isi grid) ──────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Load Potongan (Button2Click: baca Excel lalu isi grid) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 function teksSel(cell) {
     const v = cell?.value

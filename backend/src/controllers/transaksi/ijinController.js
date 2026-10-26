@@ -33,7 +33,7 @@ export function normJam(v) {
 }
 
 /**
- * Modul Ijin — cerminan unit Delphi:
+ * Modul Ijin â€” cerminan unit Delphi:
  *   ufrmBrowseIjin -> daftar ijin per periode + hapus
  *   ufrmIjin       -> form satu NIK + rentang tanggal (Tanggal s/d Tanggal2)
  *
@@ -45,7 +45,7 @@ export function normJam(v) {
  *   (ufrmIjin.getmaxnomor / getmaxnomor2).
  * - Bila Tanggal != Tanggal2: satu baris per hari kalender, hari libur
  *   (`tharilibur`) dilewati, NIK yang sudah punya ijin hari itu hanya
- *   diperingatkan — barisnya tetap dibuat (Delphi: pesan tapi tidak Exit).
+ *   diperingatkan â€” barisnya tetap dibuat (Delphi: pesan tapi tidak Exit).
  * - Duplikat NIK+tanggal pada mode 1 hari: frontend wajib konfirmasi
  *   "LANJUT?" (cekdata); backend menolak bila `konfirmasi_duplikat != true`.
  * - Tanggal pertama tidak boleh lebih besar dari tanggal kedua.
@@ -56,7 +56,7 @@ export function normJam(v) {
  *   Minggu dan tharilibur dilewati. Mulai hari kerja ke-4 wajib otorisasi.
  */
 
-/** Kolom browse — mengikuti `ufrmBrowseIjin.btnRefreshClick`. */
+/** Kolom browse â€” mengikuti `ufrmBrowseIjin.btnRefreshClick`. */
 const BAGIAN_SQL = `TRIM(CONCAT_WS(' ', j.jab_nama, k.kar_bagian))`
 
 const LIST_COLUMNS = {
@@ -231,7 +231,8 @@ export const getIjinList = async (req, res, next) => {
                 r.Awal = toTime(r.Awal)
                 r.Akhir = toTime(r.Akhir)
             }
-            return sendExcel(res, 'Ijin', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Ijin', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Jenis_Ijin: 'Jenis Ijin', Nik: 'NIK', Nama: 'Nama Lengkap', Bagian: 'Jabatan / Bagian', Awal: 'Jam Awal', Akhir: 'Jam Akhir', SistemGaji: 'Sistem' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
@@ -357,7 +358,7 @@ export const infoKaryawan = async (req, res, next) => {
     }
 }
 
-/** Cek duplikat NIK+tanggal (ufrmIjin.cekdata) — dipakai form sebelum simpan. */
+/** Cek duplikat NIK+tanggal (ufrmIjin.cekdata) â€” dipakai form sebelum simpan. */
 export const cekDuplikatHandler = async (req, res, next) => {
     try {
         const nik = String(req.query.nik || '')
@@ -511,7 +512,7 @@ export const saveIjin = async (req, res, next) => {
             }
             if (dibuat.length === 0) {
                 await conn.rollback()
-                return error(res, 'Semua tanggal pada rentang adalah hari libur — tidak ada data dibuat', 400)
+                return error(res, 'Semua tanggal pada rentang adalah hari libur â€” tidak ada data dibuat', 400)
             }
         }
         await conn.commit()

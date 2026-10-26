@@ -5,7 +5,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Mutasi Karyawan — cerminan unit Delphi:
+ * Modul Mutasi Karyawan â€” cerminan unit Delphi:
  *   ufrmBrowseMutasiKaryawan -> daftar mutasi per periode + cetak surat
  *   ufrmMutasiKaryawan       -> form satu dokumen mutasi
  *
@@ -23,7 +23,7 @@ import { sendExcel } from '../../helpers/excel.js'
 
 export const ALASAN_MUTASI = ['Mutasi', 'Demosi', 'Promosi', 'Rotasi']
 
-/** Kolom browse — mengikuti `ufrmBrowseMutasiKaryawan.btnRefreshClick`. */
+/** Kolom browse â€” mengikuti `ufrmBrowseMutasiKaryawan.btnRefreshClick`. */
 const LIST_COLUMNS = {
     Nomor: 'm.mut_nomor',
     Tanggal: 'm.mut_tanggal',
@@ -101,7 +101,8 @@ export const getMutasiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Mutasi-Karyawan', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Mutasi-Karyawan', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Jabatan_Lama: 'Jabatan Lama', Jabatan_Baru: 'Jabatan Baru', Lapor: 'Melapor Kepada' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

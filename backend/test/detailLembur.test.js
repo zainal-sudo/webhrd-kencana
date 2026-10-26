@@ -60,8 +60,24 @@ test('Detail Lembur: export Excel memakai nama field yang sama dengan daftar', a
         assert.ok(res.exported.columns.includes(key), `kolom ${key} ada di header Excel`)
         for (const row of res.exported.data) assert.ok(key in row, `field ${key} terisi di baris export`)
     }
-    assert.equal(res.exported.data[0].Panggilan, 3.5)
-    assert.equal(res.exported.data[1].Lembur, 0)
+    assert.equal(res.exported.data[0].Panggilan, '3.5')
+    assert.equal(res.exported.data[1].Lembur, '0.0')
+})
+
+test('Detail Lembur export: format jam = 1 desimal seperti web, bukan DECIMAL mentah 0.0000', async () => {
+    // Simulasi mysql2: kolom DECIMAL datang sebagai string 1 desimal empat.
+    const { res, run } = fixture([{ ...BARIS, '2jam': '2.0000', Lebih2Jam: '1.5000', Panggilan: '3.5000', Lembur: '5.5000' }, { ...BARIS_NOL, '2jam': '0.0000', Lebih2Jam: '0.0000', Panggilan: '0.0000', Lembur: '0.0000' }])
+    await run({ query: { export: 'xlsx' } }, res, err => { throw err })
+    const [pertama, nol] = res.exported.data
+    for (const [c, v] of [['2jam', '2.0'], ['Lebih2Jam', '1.5'], ['Panggilan', '3.5'], ['Lembur', '5.5']]) {
+        assert.equal(pertama[c], v, `baris 1 kolom ${c} = ${v}`)
+    }
+    for (const [c, v] of [['2jam', '0.0'], ['Lebih2Jam', '0.0'], ['Panggilan', '0.0'], ['Lembur', '0.0']]) {
+        assert.equal(nol[c], v, `baris nol kolom ${c} = ${v}`)
+    }
+    // Nilai non-jam (Kode/Nama/Tanggal) tidak tersentuh.
+    assert.equal(pertama.Nama, 'Budi')
+    assert.equal(pertama.Tanggal, '2026-10-01')
 })
 
 test('Detail Lembur: kolom frontend membaca field yang dikirim backend', () => {

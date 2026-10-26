@@ -8,7 +8,7 @@ import { sendExcel } from '../../helpers/excel.js'
 import { normJam, toTime, cekTanggal } from './ijinController.js'
 
 /**
- * Modul Lembur — cerminan unit Delphi:
+ * Modul Lembur â€” cerminan unit Delphi:
  *   ufrmBrowseLembur -> daftar SPL per periode (+ detail) + hapus hdr+dtl
  *   ufrmLembur       -> form SPL: header (tanggal/pabrik/departemen/jabatan/
  *                       bagian/jenis kerja) + grid karyawan (nik/jam/keterangan)
@@ -27,7 +27,7 @@ import { normJam, toTime, cekTanggal } from './ijinController.js'
  *   (`tabsensi.scan2` lewat join kar_kode_absensi). Bila tidak ada record
  *   absensi, baris dilewati (Delphi: Fields[0] kosong -> selisih besar -> gagal;
  *   di sini record kosong dianggap belum scan dan tetap boleh disimpan supaya
- *   SPL susulan tidak terkunci — perbedaannya dicatat pada pesan).
+ *   SPL susulan tidak terkunci â€” perbedaannya dicatat pada pesan).
  * - cektanggal(tgl) <= 2 bebas simpan, > 2 wajib otorisasi atasan (token JWT).
  * - Simpan: upsert header, lalu DELETE detail + INSERT ulang tiap baris
  *   yang NIK-nya terisi (simpandata).
@@ -35,7 +35,7 @@ import { normJam, toTime, cekTanggal } from './ijinController.js'
 
 export { normJam, toTime }
 
-/** Kolom browse header — mengikuti `ufrmBrowseLembur.btnRefreshClick`. */
+/** Kolom browse header â€” mengikuti `ufrmBrowseLembur.btnRefreshClick`. */
 const HDR_COLUMNS = {
     Nomor: 'h.lem_nomor',
     Tanggal: 'h.lem_tanggal',
@@ -131,7 +131,8 @@ export const getLemburList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${HDR_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Lembur', Object.keys(HDR_COLUMNS), all)
+            return sendExcel(res, 'Lembur', Object.keys(HDR_COLUMNS), all,
+                { headLabels: { Nomor: 'Nomor SPL', JenisKerja: 'Jenis Kerja' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${HDR_FROM}${where}`, params)
@@ -164,7 +165,7 @@ export const getLemburList = async (req, res, next) => {
     }
 }
 
-/** Detail satu SPL (grid Delphi) — dipakai browse detail & form edit. */
+/** Detail satu SPL (grid Delphi) â€” dipakai browse detail & form edit. */
 export const getLemburDetail = async (req, res, next) => {
     try {
         const nomor = String(req.query.nomor || req.params.nomor || '')
@@ -239,7 +240,7 @@ export const getLembur = async (req, res, next) => {
 }
 
 /**
- * Muat karyawan aktif sesuai filter (ufrmLembur.loaddata — tombol Bagian).
+ * Muat karyawan aktif sesuai filter (ufrmLembur.loaddata â€” tombol Bagian).
  * Query param: pabrik (wajib), departemen?, jabatan?, bagian?
  * `all_departemen=1` / `all_jabatan=1` / `all_bagian=1` meniru checkbox All.
  */
