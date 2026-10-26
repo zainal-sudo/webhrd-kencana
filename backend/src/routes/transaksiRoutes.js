@@ -127,6 +127,12 @@ import {
     saveCalon,
     deleteCalon,
 } from '../controllers/transaksi/calonKaryawanController.js'
+import {
+    getBudgetMPP,
+    saveBudgetMPP,
+    getProsesMPP,
+    saveProsesMPP,
+} from '../controllers/transaksi/mppController.js'
 
 const r = Router()
 r.get('/pinjaman/rekap-hutang', wajibHak('frmLapSaldo'), getRekapHutang)
@@ -294,5 +300,13 @@ r.post('/rekrutmen/tes', wajibHak('frmCalonKaryawan', 'edit'), saveTes)
 r.post('/rekrutmen', wajibHak('frmCalonKaryawan', 'insert'), saveCalon)
 r.put('/rekrutmen', wajibHak('frmCalonKaryawan', 'edit'), saveCalon)
 r.delete('/rekrutmen/:nomor', wajibHak('frmCalonKaryawan', 'delete'), deleteCalon)
+
+/* ── Setting Budget MPP (ufrmSettingBudgetMPP, hak form `frmSettingBudgetMPP`) ── */
+r.get('/mpp/budget', wajibHak('frmSettingBudgetMPP'), getBudgetMPP)
+r.put('/mpp/budget', wajibHak('frmSettingBudgetMPP', 'edit'), saveBudgetMPP)
+
+/* ── Proses MPP Bulanan (ufrmProsesMPPBulanan, hak form `frmprosesMPPBulanan`) ── */
+r.get('/mpp/proses', wajibHak('frmprosesMPPBulanan'), getProsesMPP)
+r.put('/mpp/proses', wajibHak('frmprosesMPPBulanan', 'edit'), saveProsesMPP)
 
 export default r

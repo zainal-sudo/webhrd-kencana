@@ -121,6 +121,8 @@ const routes = [
   { path: "/transaksi/penilaian-3-bulan/form", component: () => import("@/views/transaksi/PenilaianForm.vue"), meta: { requiresAuth: true, title: "Form Penilaian 3 Bulan", form: "frmPenilaian3Bulan" } },
   { path: "/transaksi/sp", component: () => import("@/views/transaksi/SPView.vue"), meta: { requiresAuth: true, title: "Surat Peringatan", form: "frmSP" } },
   { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
+  { path: "/transaksi/setting-budget-mpp", component: () => import("@/views/transaksi/SettingBudgetMppView.vue"), meta: { requiresAuth: true, title: "Setting Budget MPP", form: "frmSettingBudgetMPP" } },
+  { path: "/transaksi/proses-mpp-bulanan", component: () => import("@/views/transaksi/ProsesMppBulananView.vue"), meta: { requiresAuth: true, title: "Proses MPP Bulanan", form: "frmprosesMPPBulanan" } },
 
   /* ── Laporan kehadiran (duplikat Delphi) ── */
   { path: "/laporan/akhir-tahun", component: () => import("@/views/laporan/AkhirTahunView.vue"), meta: { requiresAuth: true, title: "Laporan Akhir Tahun", form: "frmLapAkhirTahun" } },
