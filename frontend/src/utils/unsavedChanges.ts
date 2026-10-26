@@ -9,7 +9,7 @@ export interface DraftSource {
 interface DraftEntry extends DraftSource { saved?: string }
 const drafts = new Map<string, Map<symbol, DraftEntry>>();
 const saving = new Map<string, number>();
-type SaveTicket = { submitted: { entry: DraftEntry; state: string }[] };
+type SaveTicket = { submitted: { entry: DraftEntry; state: string }[]; skip?: Set<DraftEntry> };
 const tickets = new Map<string, Set<SaveTicket>>();
 const approved = new Set<string>();
 const listeners = new Set<() => void>();
@@ -25,7 +25,18 @@ export function registerDraft(id: string, source: DraftSource) {
   drafts.get(id)!.set(token, entry);
   publishDrafts();
   return {
-    rebase() { delete entry.saved; publishDrafts(); },
+    rebase() {
+      delete entry.saved;
+      // Form yang rebaseline di tengah simpan (capture) menandai baseline
+      // sendiri — jangan tulis ulang snapshot pra-simpan di atasnya saat
+      // sukses, agar tab langsung bersih (lihat beginDraftSave).
+      for (const ticket of tickets.get(id) || []) {
+        if (ticket.submitted.some(item => item.entry === entry)) {
+          (ticket.skip ??= new Set()).add(entry);
+        }
+      }
+      publishDrafts();
+    },
     dispose() {
       drafts.get(id)?.delete(token);
       if (!drafts.get(id)?.size) drafts.delete(id);
@@ -76,7 +87,14 @@ export function beginDraftSave(id: string) {
   return (success: boolean) => {
     if (finished) return;
     finished = true;
-    if (success) for (const item of ticket.submitted) item.entry.saved = item.state;
+    if (success) {
+      for (const item of ticket.submitted) {
+        // Entry yang rebaseline saat simpan (nilai di-tempel saveFn dari
+        // server, mis. Absensi/Pinjaman) punya baseline sendiri — biarkan,
+        // dirty-nya dihitung dari snapshot segar, sehingga tab langsung bersih.
+        if (!ticket.skip?.has(item.entry)) item.entry.saved = item.state;
+      }
+    }
     tickets.get(id)?.delete(ticket);
     if (!tickets.get(id)?.size) tickets.delete(id);
     const remaining = (saving.get(id) || 1) - 1;

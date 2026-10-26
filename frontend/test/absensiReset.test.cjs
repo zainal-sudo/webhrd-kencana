@@ -105,3 +105,17 @@ test('Absensi failed Edit load keeps Reset disabled; loading and lookup also blo
     assert.equal(f.resetState.disabled.value, false);
   } finally { f.dispose(); }
 });
+
+test('Absensi simpan: nilai hasil update server tidak dianggap edit (capture rebaseline)', () => {
+  const source = read('views/absensi/AbsensiForm.vue');
+  const from = source.indexOf('const { data } = adaRecord.value ? await api.put');
+  const upto = source.indexOf('return d.otorisasi_by');
+  assert.ok(from >= 0 && upto > from, 'blok respons simpan absensi ada');
+  const block = source.slice(from, upto);
+  for (const need of ['values.masuk =', 'values.keluar =', 'values.status =']) {
+    assert.ok(block.includes(need), `nilai server di-tempel ke form: ${need}`);
+  }
+  // capture() mesti SETELAH semuanya — tab bersih -> BaseForm langsung menutup.
+  assert.ok(block.includes('resetState.capture();'), 'resetState.capture() memanggil rebaseline');
+  assert.ok(block.lastIndexOf('resetState.capture();') > block.lastIndexOf('values.status ='), 'capture di akhir, bukan sebelum update nilai');
+});

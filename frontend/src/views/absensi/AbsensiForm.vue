@@ -219,6 +219,9 @@ async function simpan(): Promise<string> {
   values.masuk = d.masuk ?? values.masuk;
   values.keluar = d.keluar ?? values.keluar;
   values.status = d.status ?? values.status;
+  // Nilai yang atasnya di-update server bukan "edit" — rebaseline snapshot
+  // supaya BaseForm tidak menolak menutup tab, dan Reset kembali ke hasil simpan.
+  resetState.capture();
   return d.otorisasi_by
     ? `Absensi ${body.nik} tanggal ${body.tanggal} tersimpan, disetujui oleh ${d.otorisasi_by}.`
     : `Absensi ${body.nik} tanggal ${body.tanggal} berhasil disimpan.`;

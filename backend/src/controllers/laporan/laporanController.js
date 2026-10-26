@@ -1128,6 +1128,8 @@ function tanggalPeriode(start, end) {
 }
 
 /** SELECT kolom kalender: 1 ekspresi per tanggal (algo. asli Delphi).
+ *  Semua karyawan AKTIF ditampilkan — juga yang belum punya kode absensi
+ *  (barisnya penuh '0' karena v_absensi join lewat kode absensi).
  *  Alias pakai tanggal lengkap agar rentang lintas bulan tidak tabrakan
  *  (kolom `26` dua kali). Hari tanpa baris absensi sama sekali tampil '0'
  *  (IFNULL membungkus SELURUH subquery — IFNULL di dalam SELECT-list
@@ -1144,8 +1146,7 @@ function absensiPeriodeInner(start, end) {
     return `SELECT ${cols.join(', ')}
         FROM tkaryawan k
         INNER JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
-        WHERE k.kar_status_aktif = 1
-        AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''`
+        WHERE k.kar_status_aktif = 1`
 }
 
 /** Daftar kehadiran (kalender) seluruh karyawan aktif per periode. */

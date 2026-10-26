@@ -104,3 +104,11 @@ test('Frontend memakai key tanggal lengkap (bukan dd) untuk kolom hari', () => {
     assert.match(view, /key: h\.date/)
     assert.doesNotMatch(view, /key: h\.dd/)
 })
+
+test('Kalender menampilkan SEMUA karyawan aktif, juga tanpa kode absensi', async () => {
+    const { calls } = await request({})
+    const inner = calls.find(c => c.sql.includes('FROM (')).sql
+    assert.match(inner, /kar_status_aktif = 1\)/)
+    // Dulu: juga menyaring kode absensi — 18 karyawan aktif tanpa kode ikut hilang.
+    assert.doesNotMatch(inner, /AND k\.kar_kode_absensi IS NOT NULL|kar_kode_absensi <> ''/)
+})

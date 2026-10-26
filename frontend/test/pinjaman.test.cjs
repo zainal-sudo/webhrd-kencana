@@ -668,3 +668,17 @@ test('Pinjaman, Pelunasan and Rekap Hutang reuse separate legacy permissions in 
   assert.ok(routes.find(line => line.includes('/pelunasan')).includes('form: "frmBayar"'));
   assert.match(read('stores/permissionStore.ts'), /if \(key === "frmSP"\) return transactionOrder\.length \+ 1/);
 });
+
+test('Pinjaman simpan: nomor hasil server tidak dianggap edit (capture rebaseline)', () => {
+  const source = read('views/transaksi/PinjamanForm.vue');
+  const block = source.slice(source.indexOf('async function simpan()'), source.indexOf('watch(() => values.tanggal'));
+  assert.ok(block.includes('values.nomor = data.data.nomor'), 'nomor dari respons ditempel ke form');
+  // capture() setelah mutasi, sebelum return sukses, supaya tab langsung bisa ditutup.
+  const idx = [];
+  for (const need of ['values.nomor = data.data.nomor', 'resetState.capture();', 'notifyPinjamanSaved();']) {
+    idx.push([need, block.indexOf(need)]);
+    assert.ok(block.includes(need), `ada: ${need}`);
+  }
+  assert.ok(block.indexOf('resetState.capture();') > block.indexOf('values.nomor = data.data.nomor'), 'capture setelah tempel nomor');
+  assert.ok(block.indexOf('resetState.capture();') < block.indexOf('return `Pinjaman'), 'capture sebelum return sukses');
+});

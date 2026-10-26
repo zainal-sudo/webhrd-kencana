@@ -71,7 +71,8 @@ async function doSave(mode: "close" | "new" = "close") {
     successMsg.value = msg || "Data berhasil disimpan.";
     if (props.newFormPath) {
       toast.success(successMsg.value);
-      // Do not discard edits made after the submitted snapshot.
+      // Baseline sudah di-rebase ke kondisi form saat sukses (unsavedChanges);
+      // cek ini jadi hanya menangkap isian yang berubah SETELAH simpan sukses.
       if (isTabDirty(ownerTabId)) return;
       // A background save must not close or replace another active tab.
       if (tabsStore.activeTabId !== tabId) return;

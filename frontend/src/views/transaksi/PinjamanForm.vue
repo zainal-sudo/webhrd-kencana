@@ -136,6 +136,9 @@ async function simpan() {
         .map(i => ({ periode: data.data[`periode_potong${i}`], nominal: data.data[`nilai_potong${i}`] })) };
     ++nomorRequest;
     values.nomor = data.data.nomor; saved.value = true;
+    // Nomor hasil server bukan "edit" — rebaseline snapshot supaya BaseForm
+    // tidak menolak menutup tab, dan Reset kembali ke kondisi tersimpan.
+    resetState.capture();
     notifyPinjamanSaved();
     return `Pinjaman ${data.data.nomor} berhasil ${isEdit ? "diubah" : "disimpan"}.`;
   } finally { saving.value = false; }
