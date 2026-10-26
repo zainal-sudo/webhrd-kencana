@@ -70,7 +70,8 @@ export const getUserList = async (req, res) => {
         const sql = `${USER_SELECT}${filtered.clause} ${order}`
         if (query.export === 'xlsx') {
             const [rows] = await pool.query(`${sql} LIMIT 50000`, filtered.params)
-            return sendExcel(res, 'User', ['Kode', 'Nama', 'Cabang'], rows)
+            return sendExcel(res, 'User', ['Kode', 'Nama', 'Cabang'], rows,
+                { headLabels: { Kode: 'Kode User', Nama: 'Nama User', Cabang: 'Pabrik / Cabang' } })
         }
         if (query.page === undefined && query.per_page === undefined) {
             const [rows] = await pool.query(sql, filtered.params)

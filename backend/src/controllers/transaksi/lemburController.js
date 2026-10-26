@@ -131,7 +131,8 @@ export const getLemburList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${HDR_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Lembur', Object.keys(HDR_COLUMNS), all)
+            return sendExcel(res, 'Lembur', Object.keys(HDR_COLUMNS), all,
+                { headLabels: { Nomor: 'Nomor SPL', JenisKerja: 'Jenis Kerja' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${HDR_FROM}${where}`, params)

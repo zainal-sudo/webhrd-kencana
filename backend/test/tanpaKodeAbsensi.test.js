@@ -72,11 +72,16 @@ test('Rekap absensi menyaring kode absensi kosong', async () => {
     for (const sql of pilih) assert.match(sql, /final2\.kar_kode_absensi IS NOT NULL AND final2\.kar_kode_absensi <> ''/i)
 })
 
-test('Absensi periode menyaring kode absensi kosong', async () => {
+test('Absensi periode menampilkan SEMUA karyawan aktif (aktif-only, tanpa syarat kode absensi)', async () => {
+    // Kebijakan berubah (2026-10): aktif-only — karyawan aktif yang belum punya
+    // kode absensi tetap tampil dengan baris '0'.
     const { handlers, calls } = muatLaporan()
     await handlers.getAbsensiPeriodeList({ query: { start_date: '2026-10-01', end_date: '2026-10-02' } }, {}, next)
     assert.ok(calls.length > 0)
-    for (const sql of calls) assert.match(sql, PENJAGA)
+    for (const sql of calls) {
+        assert.match(sql, /kar_status_aktif = 1/)
+        assert.doesNotMatch(sql, /AND (?:k\.)?kar_kode_absensi IS NOT NULL AND (?:k\.)?kar_kode_absensi <> ''/)
+    }
 })
 
 test('Penggajian tidak lagi memasukkan karyawan tanpa kode absensi', async () => {

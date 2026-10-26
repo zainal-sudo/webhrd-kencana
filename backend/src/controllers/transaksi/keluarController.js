@@ -52,7 +52,9 @@ export const getKeluarList = async (req, res, next) => {
         const order = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY x.kl_tanggal DESC, x.kl_nomor DESC')
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${f.clause} ${order} LIMIT 50000`, f.params)
-            return sendExcel(res, 'Karyawan-Keluar', Object.keys(LIST_COLUMNS), rows)
+            // Label header = kolom di KeluarView.
+            return sendExcel(res, 'Karyawan-Keluar', Object.keys(LIST_COLUMNS), rows,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap' } })
         }
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = cnt[0].total

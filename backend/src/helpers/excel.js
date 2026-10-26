@@ -16,14 +16,16 @@ import { formatTanggal } from './tanggal.js'
  * isi file sama persis dengan yang terlihat di tabel (termasuk search,
  * periode, sort & filter kolom yang sedang aktif).
  */
-export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false } = {}) {
+export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false, headLabels } = {}) {
     const wb = new ExcelJS.Workbook()
     wb.creator = 'Web HRD Kencana'
     wb.created = new Date()
     const ws = wb.addWorksheet(String(title).slice(0, 31))
     if (freezeHeader) ws.views = [{ state: 'frozen', ySplit: 1 }]
 
-    ws.addRow(columns)
+    // Label header boleh dipetakan ulang (mis. key kolom hari memakai tanggal
+    // lengkap agar unik, tapi teks header tampil dd/mm/yyyy seperti di web).
+    ws.addRow(columns.map((c) => headLabels?.[c] ?? c))
     const head = ws.getRow(1)
     head.font = { bold: true, color: { argb: 'FFFFFFFF' } }
     head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF243656' } }
@@ -37,7 +39,10 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
                 if (v instanceof Date) {
                     if (isNaN(v.getTime())) return ''
                     const p = (n) => String(n).padStart(2, '0')
-                    return `${formatTanggal(v)} ${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
+                    // Kolom tanggal polos (tanpa jam) tampil seperti web — tanpa
+                    // jejak 00:00:00. DATETIME dengan jam beneran tetap lengkap.
+                    const waktu = `${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
+                    return waktu === '00:00:00' ? formatTanggal(v) : `${formatTanggal(v)} ${waktu}`
                 }
                 if (typeof v === 'string' && !/\s+s\/d\s+/.test(v) && /tanggal|tgl|date|pkwt|dibuat|diubah|^Periode[12]$/i.test(c)) {
                     const tanggal = formatTanggal(v)
@@ -50,9 +55,10 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
         )
     }
 
-    // Lebar kolom mengikuti isi (contoh 30 baris pertama), 12-45 karakter.
+    // Lebar kolom mengikuti isi (contoh 30 baris pertama), 12-45 karakter;
+    // panjang label header ikut dihitung agar label panjang tidak tersekat.
     columns.forEach((c, i) => {
-        let w = String(c).length
+        let w = String(headLabels?.[c] ?? c).length
         const contoh = (rows || []).slice(0, 30)
         for (const r of contoh) {
             const v = r?.[c]

@@ -231,7 +231,8 @@ export const getIjinList = async (req, res, next) => {
                 r.Awal = toTime(r.Awal)
                 r.Akhir = toTime(r.Akhir)
             }
-            return sendExcel(res, 'Ijin', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Ijin', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Jenis_Ijin: 'Jenis Ijin', Nik: 'NIK', Nama: 'Nama Lengkap', Bagian: 'Jabatan / Bagian', Awal: 'Jam Awal', Akhir: 'Jam Akhir', SistemGaji: 'Sistem' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

@@ -101,7 +101,8 @@ export const getMutasiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Mutasi-Karyawan', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Mutasi-Karyawan', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Jabatan_Lama: 'Jabatan Lama', Jabatan_Baru: 'Jabatan Baru', Lapor: 'Melapor Kepada' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

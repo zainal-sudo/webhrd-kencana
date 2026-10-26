@@ -629,6 +629,7 @@ export const getHistoryKaryawan = async (req, res, next) => {
             return sendExcel(res, 'History-Karyawan', HISTORY_KEYS, normalizeHistoryRows(all), {
                 columnWidths: { Rotasi: 45, Demosi: 45 },
                 freezeHeader: true,
+                headLabels: { Nik: 'NIK' },
             })
         }
         const [cnt] = await pool.query(`${HISTORY_CTE}SELECT COUNT(*) AS c FROM history h${where}`, params)

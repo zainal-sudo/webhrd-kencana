@@ -56,7 +56,22 @@ export const getSettingGajiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${where} ORDER BY k.kar_nik`, params)
-            return sendExcel(res, 'Setting Gaji', COLUMNS, rows)
+            // Teks header = label kolom di SettingGajiView.
+            return sendExcel(res, 'Setting Gaji', COLUMNS, rows, {
+                headLabels: {
+                    nik: 'NIK',
+                    nama: 'Nama',
+                    jabatan: 'Jabatan',
+                    gapok: 'Gapok / hari',
+                    premi: 'Premi Hadir',
+                    status_premi: 'Premi Mingguan',
+                    makan: 'Tunj. Makan',
+                    tjabatan: 'Tunj. Jabatan (%)',
+                    lain: 'Lain',
+                    transport: 'Transport',
+                    bpjs: 'BPJS',
+                },
+            })
         }
 
         const [rows] = await pool.query(`${SELECT_SQL}${where} ORDER BY k.kar_nik`, params)

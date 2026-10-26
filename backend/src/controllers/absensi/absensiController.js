@@ -128,8 +128,21 @@ export const getAbsensiList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            const exportColumns = Object.keys(LIST_COLUMNS).filter((column) => column !== 'Nama Pabrik')
-            return sendExcel(res, 'Absensi', exportColumns, all)
+            // Export = tampilan web: buang kolom internal (duplikat Nik,
+            // kode absensi, jabatan mentah, flag verifikasi) dan urutkan
+            // seperti AbsensiView.
+            const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status', 'Nonaktif']
+            return sendExcel(res, 'Absensi', exportColumns, all, {
+                headLabels: {
+                    Nama: 'Nama Lengkap',
+                    Bagian: 'Jabatan / Bagian',
+                    Masuk: 'Jam Masuk',
+                    Scan1: 'Scan Masuk',
+                    Keluar: 'Jam Keluar',
+                    Scan2: 'Scan Keluar',
+                    Nonaktif: 'Sudah Keluar',
+                },
+            })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

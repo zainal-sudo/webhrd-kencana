@@ -32,10 +32,16 @@ const LIST_COLUMNS = {
     Bagian: 'k.kar_bagian',
     Jabatan: 'j.jab_nama',
     Pabrik: 'k.kar_pab_kode',
+    // 'stat' hanya pembantu warna baris — tidak tampil di grid maupun export.
     Status_Lama: '(SELECT x.sk_keterangan FROM tstatuskaryawan x WHERE x.sk_id = a.ps_kar_status_karyawan)',
     Status_Baru: '(SELECT x.sk_keterangan FROM tstatuskaryawan x WHERE x.sk_id = a.ps_kar_status_karyawan2)',
-    stat: 'a.ps_kar_status_karyawan2',
 }
+
+/** Urutan & label export = tampilan grid PerubahanStatusView. */
+const EXPORT_COLUMNS = [
+    'Nomor', 'Tanggal', 'Nik', 'Nama', 'Pabrik', 'Jabatan', 'Bagian', 'Status_Lama', 'Status_Baru',
+]
+const EXPORT_LABELS = { Nik: 'NIK', Nama: 'Nama Lengkap', Status_Lama: 'Status Lama', Status_Baru: 'Status Baru' }
 
 const FROM_SQL = `FROM tperubahanstatus a
     INNER JOIN tkaryawan k ON k.kar_Nik = a.ps_kar_nik
@@ -99,7 +105,8 @@ export const getPerubahanStatusList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Perubahan-Status', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Perubahan-Status', EXPORT_COLUMNS, all,
+                { headLabels: EXPORT_LABELS })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

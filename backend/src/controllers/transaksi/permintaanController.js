@@ -128,7 +128,8 @@ export const getPermintaanList = async (req, res, next) => {
                 `SELECT *, IF(Jumlah_Minta > IFNULL(Jml_Realisasi, 0), 'Belum', 'Sudah') AS Closed FROM (${INNER_SQL}${inner}) AS Final${extraWhere} ${orderBy} LIMIT 50000`,
                 [...params, ...extraParams]
             )
-            return sendExcel(res, 'Permintaan-Karyawan', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'Permintaan-Karyawan', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Tgl_Butuh: 'Tgl Butuh', Jumlah_Minta: 'Minta', Jml_Realisasi: 'Realisasi', Closed: 'Status' } })
         }
         const [rows] = await pool.query(
             `SELECT *, IF(Jumlah_Minta > IFNULL(Jml_Realisasi, 0), 'Belum', 'Sudah') AS Closed FROM (${INNER_SQL}${inner}) AS Final${extraWhere} ${orderBy} LIMIT ? OFFSET ?`,

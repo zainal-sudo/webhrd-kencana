@@ -119,7 +119,8 @@ export const getSPList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'SP', Object.keys(LIST_COLUMNS), all)
+            return sendExcel(res, 'SP', Object.keys(LIST_COLUMNS), all,
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', Periode1: 'Periode Awal', Periode2: 'Periode Akhir' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

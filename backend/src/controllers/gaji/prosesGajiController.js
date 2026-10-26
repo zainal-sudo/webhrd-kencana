@@ -203,7 +203,42 @@ export const getProsesList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(SQL_PROSES, params)
-            return sendExcel(res, 'Proses Gaji', PROSES_COLUMNS, rows)
+            // Teks header = label kolom di ProsesGajiView.
+            return sendExcel(res, 'Proses Gaji', PROSES_COLUMNS, rows, {
+                headLabels: {
+                    nik: 'NIK',
+                    nama: 'Nama',
+                    bagian: 'Bagian',
+                    pabrik: 'Pabrik',
+                    gapok: 'Gapok',
+                    harimasuk: 'Hari Masuk',
+                    premi: 'Premi',
+                    haripremi: 'Hari Premi',
+                    makan: 'Makan',
+                    harimakan: 'Hari Makan',
+                    tjabatan: 'Tj. Jab.',
+                    tmasakerja: 'Tj. Masa Kerja',
+                    tlain: 'Tj. Lain',
+                    harilembur2: 'Jam Lbr 2',
+                    tlembur2: 'Tj. Lbr 2',
+                    harilembur: 'Jam Lbr',
+                    tlembur: 'Tj. Lembur',
+                    harilemburp: 'Jam Pgl',
+                    tlemburp: 'Tj. Pgl',
+                    bonuslibur: 'Bonus Libur',
+                    bonusmlibur: 'Bonus Mlm Libur',
+                    bpjs: 'BPJS',
+                    koperasi: 'Koperasi',
+                    potongan: 'Potongan',
+                    skill: 'SP',
+                    total: 'Total',
+                    rekening: 'Rekening',
+                    sthari: 'Setengah Hari',
+                    sakit: 'Sakit',
+                    ijin: 'Ijin',
+                    alpha: 'Alpha',
+                },
+            })
         }
 
         const [rows] = await pool.query(SQL_PROSES, params)

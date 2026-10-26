@@ -111,7 +111,8 @@ export const getPenilaianList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${HDR_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            return sendExcel(res, 'Penilaian-3-Bulan', Object.keys(HDR_COLUMNS), all)
+            return sendExcel(res, 'Penilaian-3-Bulan', Object.keys(HDR_COLUMNS), all,
+                { headLabels: { Periode: 'Periode Bl', Periode2: 'Periode s/d' } })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${HDR_FROM}${where}`, params)

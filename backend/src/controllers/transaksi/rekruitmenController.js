@@ -122,7 +122,8 @@ export const getRekruitmenList = async (req, res, next) => {
         const order = buildOrderBy(req.query, LIST_COLUMNS, 'ORDER BY rkt_tanggal DESC, rkt_nomor DESC')
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${f.clause} ${order} LIMIT 50000`, f.params)
-            return sendExcel(res, 'Bank-Pelamar', Object.keys(LIST_COLUMNS), rows)
+            return sendExcel(res, 'Bank-Pelamar', Object.keys(LIST_COLUMNS), rows,
+                { headLabels: { Jenis_Kelamin: 'L/P', TempatLahir: 'Tempat Lahir', TglLahir: 'Tgl Lahir', IbuKandung: 'Ibu Kandung', PendidikanTerakhir: 'Pendidikan', SizeKaos: 'Size' } })
         }
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = Number(count[0].total)
