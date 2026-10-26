@@ -69,7 +69,7 @@ export function makeMasterController(cfg) {
 
             if (req.query.export === 'xlsx') {
                 const [all] = await pool.query(`${selectSql}${where} ${orderBy} LIMIT 50000`, params)
-                return sendExcel(res, label, Object.values(alias), all)
+                return sendExcel(res, label, Object.values(alias), all, { requestedColumns: req.query.columns })
             }
 
             const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM \`${table}\`${where}`, params)

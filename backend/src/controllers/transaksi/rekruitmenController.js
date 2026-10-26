@@ -4,7 +4,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Bank Pelamar — cerminan unit Delphi:
+ * Modul Bank Pelamar â€” cerminan unit Delphi:
  *   ufrmBrowseRekruitmen -> daftar per periode + hapus
  *   ufrmRekruitmen       -> form data pelamar + pengalaman + nilai tes
  *
@@ -14,7 +14,7 @@ import { sendExcel } from '../../helpers/excel.js'
  *
  * Aturan Delphi yang diduplikasi:
  * - Nomor: 3 digit urut per TAHUN berjalan + `/HRD/REKRUIT/` + MM/yy.
- * - Status tersimpan sebagai index combo (0–8); label browse mengikuti
+ * - Status tersimpan sebagai index combo (0â€“8); label browse mengikuti
  *   pemetaan IF Delphi.
  * - Jenkel tersimpan 1 = Laki-laki, selainnya Perempuan.
  * - Simpan menimpa ulang baris pengalaman (yang namanya terisi) dan nilai
@@ -123,7 +123,7 @@ export const getRekruitmenList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${f.clause} ${order} LIMIT 50000`, f.params)
             return sendExcel(res, 'Bank-Pelamar', Object.keys(LIST_COLUMNS), rows,
-                { headLabels: { Jenis_Kelamin: 'L/P', TempatLahir: 'Tempat Lahir', TglLahir: 'Tgl Lahir', IbuKandung: 'Ibu Kandung', PendidikanTerakhir: 'Pendidikan', SizeKaos: 'Size' } })
+                { headLabels: { Jenis_Kelamin: 'L/P', TempatLahir: 'Tempat Lahir', TglLahir: 'Tgl Lahir', IbuKandung: 'Ibu Kandung', PendidikanTerakhir: 'Pendidikan', SizeKaos: 'Size' }, requestedColumns: req.query.columns })
         }
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = Number(count[0].total)
@@ -310,7 +310,7 @@ export const saveRekruitmen = async (req, res, next) => {
     }
 }
 
-/** Hapus — MENOLAK bila pelamar sudah dipakai di data panggilan. */
+/** Hapus â€” MENOLAK bila pelamar sudah dipakai di data panggilan. */
 export const deleteRekruitmen = async (req, res, next) => {
     const conn = await pool.getConnection()
     try {
@@ -321,7 +321,7 @@ export const deleteRekruitmen = async (req, res, next) => {
             [nomor]
         )
         if (Number(pakai[0].c) > 0) {
-            return error(res, `Nomor ${nomor} sudah dipakai di data panggilan — hapus dari sana dulu`, 409)
+            return error(res, `Nomor ${nomor} sudah dipakai di data panggilan â€” hapus dari sana dulu`, 409)
         }
         await conn.beginTransaction()
         await conn.query('DELETE FROM trekruitmentes WHERE rtt_rkt_nomor = ?', [nomor])

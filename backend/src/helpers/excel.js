@@ -16,7 +16,8 @@ import { formatTanggal } from './tanggal.js'
  * isi file sama persis dengan yang terlihat di tabel (termasuk search,
  * periode, sort & filter kolom yang sedang aktif).
  */
-export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false, headLabels } = {}) {
+export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false, headLabels, requestedColumns } = {}) {
+    columns = requestedExportColumns(requestedColumns, columns)
     const wb = new ExcelJS.Workbook()
     wb.creator = 'Web HRD Kencana'
     wb.created = new Date()
@@ -55,17 +56,25 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
         )
     }
 
-    // Lebar kolom mengikuti isi (contoh 30 baris pertama), 12-45 karakter;
-    // panjang label header ikut dihitung agar label panjang tidak tersekat.
+    // Header tetap satu baris; lebarkan kolom untuk label atau isi terpanjang.
     columns.forEach((c, i) => {
         let w = String(headLabels?.[c] ?? c).length
-        const contoh = (rows || []).slice(0, 30)
-        for (const r of contoh) {
+        for (const r of rows || []) {
             const v = r?.[c]
-            const len = v === null || v === undefined ? 0 : String(v).length
+            let shown = v
+            if (v instanceof Date && !isNaN(v.getTime())) {
+                const p = (n) => String(n).padStart(2, '0')
+                const waktu = `${p(v.getHours())}:${p(v.getMinutes())}:${p(v.getSeconds())}`
+                shown = waktu === '00:00:00' ? formatTanggal(v) : `${formatTanggal(v)} ${waktu}`
+            } else if (typeof v === 'string' && !/\s+s\/d\s+/.test(v) && /tanggal|tgl|date|pkwt|dibuat|diubah|^Periode[12]$/i.test(c)) {
+                const tanggal = formatTanggal(v)
+                const waktu = /[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(v)?.[1]
+                if (tanggal) shown = waktu ? `${tanggal} ${waktu}` : tanggal
+            } else if (typeof v === 'object' && v !== null) shown = JSON.stringify(v)
+            const len = shown === null || shown === undefined ? 0 : String(shown).length
             if (len > w) w = len
         }
-        ws.getColumn(i + 1).width = columnWidths[c] ?? Math.min(45, Math.max(12, w + 2))
+        ws.getColumn(i + 1).width = columnWidths[c] ?? Math.max(8, w + 2)
     })
 
     const aman = String(title).replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'data'
@@ -75,4 +84,13 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
     res.setHeader('Content-Disposition', `attachment; filename="${file}"`)
     res.setHeader('Content-Length', buf.byteLength)
     return res.status(200).send(Buffer.from(buf))
+}
+
+/** Use only requested columns that belong to this export; ignore duplicates. */
+export function requestedExportColumns(requested, allowed) {
+    if (!requested) return [...allowed]
+    const list = Array.isArray(requested) ? requested : String(requested).split(',')
+    const whitelist = new Set(allowed)
+    const selected = [...new Set(list.map(value => String(value).trim()).filter(value => whitelist.has(value)))]
+    return selected.length ? selected : [...allowed]
 }

@@ -127,7 +127,7 @@ export const getKaryawanList = async (req, res, next) => {
             const rows = all.map(row => Object.fromEntries(keys.map((key, index) => [headers[index],
                 row[key] != null && EXPORT_TEXT_KEYS.has(key) ? String(row[key]) : row[key],
             ])))
-            return sendExcel(res, 'Karyawan', headers, rows)
+            return sendExcel(res, 'Karyawan', headers, rows, { requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
@@ -630,6 +630,7 @@ export const getHistoryKaryawan = async (req, res, next) => {
                 columnWidths: { Rotasi: 45, Demosi: 45 },
                 freezeHeader: true,
                 headLabels: { Nik: 'NIK' },
+                requestedColumns: req.query.columns,
             })
         }
         const [cnt] = await pool.query(`${HISTORY_CTE}SELECT COUNT(*) AS c FROM history h${where}`, params)

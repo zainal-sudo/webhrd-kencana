@@ -5,7 +5,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Penilaian 3 Bulan — cerminan unit Delphi:
+ * Modul Penilaian 3 Bulan â€” cerminan unit Delphi:
  *   ufrmBrowsePenilaian3Bulan -> daftar per periode (+ detail) + hapus
  *   ufrmPenilaian3Bulan       -> form header (tanggal/pabrik/periode/tahun)
  *                                + grid karyawan (nilai/kriteria/keterangan)
@@ -19,7 +19,7 @@ import { sendExcel } from '../../helpers/excel.js'
  * - Tombol muat (Button1Click/loaddata): isi grid dengan SEMUA karyawan
  *   aktif pabrik terpilih, urut bagian.
  * - Kriteria otomatis dari nilai (clNilaiPropertiesEditValueChanged):
- *   >= 46 A, >= 36 B, >= 26 C, >= 16 D, < 16 E — dihitung server saat
+ *   >= 46 A, >= 36 B, >= 26 C, >= 16 D, < 16 E â€” dihitung server saat
  *   simpan supaya tidak bisa dimanipulasi klien.
  * - Modul ini TANPA otorisasi tanggal: tanggal berapa pun bebas simpan.
  * - Simpan: upsert header, DELETE detail + INSERT ulang baris ber-NIK.
@@ -31,7 +31,7 @@ import { sendExcel } from '../../helpers/excel.js'
  *   versi web memetakan jabatan/bagian/departemen dengan benar.
  */
 
-/** Kriteria dari nilai — cerminan clNilaiPropertiesEditValueChanged. */
+/** Kriteria dari nilai â€” cerminan clNilaiPropertiesEditValueChanged. */
 export function kriteriaDariNilai(nilai) {
     const v = parseFloat(nilai)
     if (isNaN(v)) return ''
@@ -42,7 +42,7 @@ export function kriteriaDariNilai(nilai) {
     return 'E'
 }
 
-/** Kolom browse header — mengikuti `ufrmBrowsePenilaian3Bulan.btnRefreshClick`. */
+/** Kolom browse header â€” mengikuti `ufrmBrowsePenilaian3Bulan.btnRefreshClick`. */
 const HDR_COLUMNS = {
     Nomor: 'h.pb_nomor',
     Tanggal: 'h.pb_tanggal',
@@ -112,7 +112,7 @@ export const getPenilaianList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${HDR_SELECT}${where} ${orderBy} LIMIT 50000`, params)
             return sendExcel(res, 'Penilaian-3-Bulan', Object.keys(HDR_COLUMNS), all,
-                { headLabels: { Periode: 'Periode Bl', Periode2: 'Periode s/d' } })
+                { headLabels: { Periode: 'Periode Bl', Periode2: 'Periode s/d' }, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${HDR_FROM}${where}`, params)
@@ -128,7 +128,7 @@ export const getPenilaianList = async (req, res, next) => {
     }
 }
 
-/** Detail satu nomor (grid Delphi) — dipakai form edit & browse detail. */
+/** Detail satu nomor (grid Delphi) â€” dipakai form edit & browse detail. */
 export const getPenilaianDetail = async (req, res, next) => {
     try {
         const nomor = String(req.query.nomor || req.params.nomor || '')
@@ -229,7 +229,7 @@ export const getPenilaian = async (req, res, next) => {
 
 /**
  * Muat SEMUA karyawan aktif satu pabrik ke grid (Button1Click/loaddata),
- * urut bagian — dengan pemetaan kolom yang benar.
+ * urut bagian â€” dengan pemetaan kolom yang benar.
  */
 export const muatKaryawan = async (req, res, next) => {
     try {

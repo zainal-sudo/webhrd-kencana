@@ -133,6 +133,7 @@ export const getAbsensiList = async (req, res, next) => {
             // seperti AbsensiView.
             const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status', 'Nonaktif']
             return sendExcel(res, 'Absensi', exportColumns, all, {
+                requestedColumns: req.query.columns,
                 headLabels: {
                     Nama: 'Nama Lengkap',
                     Bagian: 'Jabatan / Bagian',

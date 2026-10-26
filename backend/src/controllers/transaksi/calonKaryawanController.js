@@ -4,7 +4,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Rekruitmen (Panggilan) — cerminan unit Delphi:
+ * Modul Rekruitmen (Panggilan) â€” cerminan unit Delphi:
  *   ufrmBrowseCalonKaryawan -> daftar per periode + hapus
  *   ufrmCalonKaryawan       -> form panggilan: pelamar dari bank + nilai tes
  *
@@ -103,7 +103,7 @@ export const getCalonList = async (req, res, next) => {
             return sendExcel(res, 'Rekrutmen-Panggilan',
                 ['Nomor', 'Tanggal', 'Tgl_Panggil', 'Jml_Pelamar', 'Keterangan'],
                 rows,
-                { headLabels: { Tgl_Panggil: 'Tgl Panggil', Jml_Pelamar: 'Pelamar' } })
+                { headLabels: { Tgl_Panggil: 'Tgl Panggil', Jml_Pelamar: 'Pelamar' }, requestedColumns: req.query.columns })
         }
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = Number(count[0].total)

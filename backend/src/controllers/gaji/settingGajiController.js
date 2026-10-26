@@ -3,7 +3,7 @@ import { success, error } from '../../helpers/response.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Setting Gaji — cerminan unit Delphi `ufrmSettingGaji` (`frmSettingGaji`).
+ * Setting Gaji Ã¢â‚¬â€ cerminan unit Delphi `ufrmSettingGaji` (`frmSettingGaji`).
  *
  * Grid menampilkan karyawan aktif ber-sistem gaji Harian/Bulanan pada satu
  * pabrik; kolomnya persis `loaddataall` di Delphi. Simpan (`simpandata`)
@@ -71,6 +71,7 @@ export const getSettingGajiList = async (req, res, next) => {
                     transport: 'Transport',
                     bpjs: 'BPJS',
                 },
+                requestedColumns: req.query.columns,
             })
         }
 
@@ -88,7 +89,7 @@ const num = (v) => {
 }
 
 /**
- * simpandata — satu UPDATE `tkaryawan` per baris, dalam satu transaksi
+ * simpandata Ã¢â‚¬â€ satu UPDATE `tkaryawan` per baris, dalam satu transaksi
  * (Delphi mengeksekusi daftar statement lalu commit sekali di akhir).
  */
 export const saveSettingGaji = async (req, res, next) => {

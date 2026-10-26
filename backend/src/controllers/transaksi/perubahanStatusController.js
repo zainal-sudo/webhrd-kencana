@@ -5,7 +5,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Perubahan Status — cerminan unit Delphi:
+ * Modul Perubahan Status â€” cerminan unit Delphi:
  *   ufrmBrowsePerubahanStatus -> daftar per periode + hapus + cetak PKWT
  *   ufrmPerubahanStatus       -> form satu dokumen
  *
@@ -23,7 +23,7 @@ import { sendExcel } from '../../helpers/excel.js'
  * - Tidak ada otorisasi tanggal pada modul ini di Delphi.
  */
 
-/** Kolom browse — mengikuti `ufrmBrowsePerubahanStatus.btnRefreshClick`. */
+/** Kolom browse â€” mengikuti `ufrmBrowsePerubahanStatus.btnRefreshClick`. */
 const LIST_COLUMNS = {
     Nomor: 'a.ps_nomor',
     Tanggal: 'a.ps_tanggal',
@@ -32,7 +32,7 @@ const LIST_COLUMNS = {
     Bagian: 'k.kar_bagian',
     Jabatan: 'j.jab_nama',
     Pabrik: 'k.kar_pab_kode',
-    // 'stat' hanya pembantu warna baris — tidak tampil di grid maupun export.
+    // 'stat' hanya pembantu warna baris â€” tidak tampil di grid maupun export.
     Status_Lama: '(SELECT x.sk_keterangan FROM tstatuskaryawan x WHERE x.sk_id = a.ps_kar_status_karyawan)',
     Status_Baru: '(SELECT x.sk_keterangan FROM tstatuskaryawan x WHERE x.sk_id = a.ps_kar_status_karyawan2)',
 }
@@ -106,7 +106,7 @@ export const getPerubahanStatusList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${SELECT_SQL}${where} ${orderBy} LIMIT 50000`, params)
             return sendExcel(res, 'Perubahan-Status', EXPORT_COLUMNS, all,
-                { headLabels: EXPORT_LABELS })
+                { headLabels: EXPORT_LABELS, requestedColumns: req.query.columns })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)

@@ -4,7 +4,7 @@ import { buildOrderBy, applyAllColumnFilters } from '../../helpers/browse.js'
 import { sendExcel } from '../../helpers/excel.js'
 
 /**
- * Modul Realisasi Permintaan Karyawan — cerminan unit Delphi:
+ * Modul Realisasi Permintaan Karyawan â€” cerminan unit Delphi:
  *   ufrmBrowseRiilPermintaanKaryawan -> daftar per periode + hapus
  *   ufrmRiilPermintaanKaryawan       -> form satu dokumen
  *
@@ -98,7 +98,7 @@ export const getRiilList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT_SQL}${f.clause} ${order} LIMIT 50000`, f.params)
             return sendExcel(res, 'Realisasi-Permintaan', Object.keys(LIST_COLUMNS), rows,
-                { headLabels: { Nomor_Minta: 'Nomor Minta', Tanggal_Minta: 'Tgl Minta', Tgl_Butuh: 'Tgl Butuh', KeteranganNama: 'Keterangan Nama' } })
+                { headLabels: { Nomor_Minta: 'Nomor Minta', Tanggal_Minta: 'Tgl Minta', Tgl_Butuh: 'Tgl Butuh', KeteranganNama: 'Keterangan Nama' }, requestedColumns: req.query.columns })
         }
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = Number(count[0].total)

@@ -89,7 +89,7 @@ export const getPeringatan = async (req, res, next) => {
             const meta = BAGIAN_EXPORT[req.query.bagian]
             if (!meta) return error(res, 'Bagian peringatan tidak dikenal', 400)
             const [rows] = await pool.query(`${meta.query} LIMIT 50000`)
-            return sendExcel(res, meta.judul, meta.kolom, rows)
+            return sendExcel(res, meta.judul, meta.kolom, rows, { requestedColumns: req.query.columns })
         }
         const [
             [cBpjs], [rBpjs],

@@ -159,18 +159,53 @@ const cols = computed<BrowseColumn[]>(() => {
   return props.columns;
 });
 
+// Urutan hanya hidup selama instance browse ini aktif. Kolom baru dari builder
+// periode (mis. tanggal kalender) otomatis masuk mengikuti urutan defaultnya.
+const columnOrder = ref<string[]>([]);
+const draggingColumn = ref<string | null>(null);
+const dropColumn = ref<string | null>(null);
+const orderedCols = computed(() => {
+  const current = cols.value;
+  const keys = new Set(current.map((col) => col.key));
+  const retained = columnOrder.value.filter((key) => keys.has(key));
+  const missing = current.map((col) => col.key).filter((key) => !retained.includes(key));
+  const order = [...retained, ...missing];
+  if (order.join("\0") !== columnOrder.value.join("\0")) columnOrder.value = order;
+  const byKey = new Map(current.map((col) => [col.key, col]));
+  return order.map((key) => byKey.get(key)!).filter(Boolean);
+});
+
+function moveColumn(targetKey: string) {
+  if (!draggingColumn.value || draggingColumn.value === targetKey) return;
+  const next = [...orderedCols.value];
+  const from = next.findIndex((col) => col.key === draggingColumn.value);
+  const to = next.findIndex((col) => col.key === targetKey);
+  if (from < 0 || to < 0) return;
+  next.splice(to, 0, ...next.splice(from, 1));
+  columnOrder.value = next.map((col) => col.key);
+}
+
+function finishColumnDrag() {
+  draggingColumn.value = null;
+  dropColumn.value = null;
+}
+
 // Lebar minimal tabel mengikuti lebar kolom (kolom hari sempit seperti sel).
 function colWidth(c: BrowseColumn): number {
   const n = parseInt(c.width || "", 10);
-  return isNaN(n) ? 140 : n + 16;
+  return isNaN(n) ? 0 : n;
 }
 const tableMinWidth = computed<string>(
   () => props.compact
-    ? 36 + (props.expandable ? 36 : 0) + (props.showActions ? props.actionWidth : 0) + cols.value.reduce((sum, col) => sum + (parseInt(col.width || "", 10) || 100), 0) + "px"
-    : 42 + (props.expandable ? 36 : 0) + (props.showActions ? 80 : 0) + cols.value.reduce((s, c) => s + colWidth(c) + 8, 0) + "px"
+    ? 36 + (props.expandable ? 36 : 0) + (props.showActions ? props.actionWidth : 0) + orderedCols.value.reduce((sum, col) => sum + colWidth(col), 0) + "px"
+    : 42 + (props.expandable ? 36 : 0) + (props.showActions ? 80 : 0) + orderedCols.value.reduce((s, c) => s + colWidth(c), 0) + "px"
 );
+function colStyle(col: BrowseColumn): Record<string, string> {
+  const width = col.width || 'auto';
+  return { width, minWidth: width, maxWidth: width };
+}
 
-// ── Sort & filter per kolom (server-side, popup checklist di header) ──
+// â”€â”€ Sort & filter per kolom (server-side, popup checklist di header) â”€â”€
 const sortBy = ref<string | null>(null);
 const sortDir = ref<"asc" | "desc" | null>(null);
 const filterSets = reactive<Record<string, string[]>>(
@@ -284,7 +319,7 @@ async function fetchData() {
     if (request !== loadRequest) return;
     rows.value = data.data || [];
     emit("loaded", data.pagination);
-    // Foto yang sebelumnya gagal dimuat dicoba ulang — berkasnya bisa saja
+    // Foto yang sebelumnya gagal dimuat dicoba ulang â€” berkasnya bisa saja
     // baru saja diunggah/diperbaiki di server bukti.
     for (const k of Object.keys(brokenFotos)) delete brokenFotos[k];
     const p = data.pagination;
@@ -378,12 +413,12 @@ const exporting = ref(false);
 
 /**
  * Unduh seluruh data (maks 50 ribu baris) sesuai filter aktif sebagai
- * berkas .xlsx — lewat endpoint yang sama + `?export=xlsx`.
+ * berkas .xlsx â€” lewat endpoint yang sama + `?export=xlsx`.
  */
 async function exportExcel() {
   exporting.value = true;
   try {
-    const params = { ...buildParams(false), export: "xlsx" };
+    const params = { ...buildParams(false), export: "xlsx", columns: orderedCols.value.map((col) => col.key) };
     const res = await api.get(props.endpoint, { params, responseType: "blob", timeout: 300000 });
     const nama =
       (props.exportName || props.moduleTitle || "data")
@@ -549,7 +584,7 @@ function cellText(row: Record<string, any>, col: BrowseColumn): string {
   return String(v);
 }
 
-// ── Thumbnail foto ──
+// â”€â”€ Thumbnail foto â”€â”€
 // `brokenFotos` diisi saat <img> gagal dimuat (nama file ada di DB tapi berkas
 // tidak ada di server bukti/) supaya menampilkan ikon, bukan gambar rusak.
 const brokenFotos = reactive<Record<string, boolean>>({});
@@ -686,23 +721,28 @@ onActivated(() => {
     <div ref="tableWrap" class="table-wrap">
       <table class="browse-table" :style="{ minWidth: tableMinWidth }">
         <colgroup v-if="compact">
-          <col v-if="expandable" style="width: 36px" />
-          <col v-if="!rowNumberAfterFirstColumn || !cols.length" style="width: 36px" />
-          <template v-for="(col, colIndex) in cols" :key="col.key">
-            <col :style="{ width: col.width || '100px' }" />
-            <col v-if="rowNumberAfterFirstColumn && colIndex === 0" style="width: 36px" />
+          <col v-if="expandable" style="width: 36px; min-width: 36px; max-width: 36px" />
+          <col v-if="!rowNumberAfterFirstColumn || !orderedCols.length" style="width: 36px; min-width: 36px; max-width: 36px" />
+          <template v-for="(col, colIndex) in orderedCols" :key="col.key">
+            <col :style="colStyle(col)" />
+            <col v-if="rowNumberAfterFirstColumn && colIndex === 0" style="width: 36px; min-width: 36px; max-width: 36px" />
           </template>
-          <col v-if="showActions" :style="{ width: `${actionWidth}px` }" />
+          <col v-if="showActions" :style="{ width: `${actionWidth}px`, minWidth: `${actionWidth}px`, maxWidth: `${actionWidth}px` }" />
         </colgroup>
         <thead>
           <tr>
             <th v-if="expandable" class="expand-col"><span class="sr-only">{{ expandLabel }}</span></th>
             <th v-if="!rowNumberAfterFirstColumn || !cols.length" class="num-col">{{ rowNumberLabel }}</th>
-            <template v-for="(col, colIndex) in cols" :key="col.key">
+            <template v-for="(col, colIndex) in orderedCols" :key="col.key">
             <th
+              :draggable="true"
+              :class="{ sortable: isSortable(col), sorted: sortBy === col.key, 'column-dragging': draggingColumn === col.key, 'column-drop-target': dropColumn === col.key }"
               :style="{ textAlign: col.align || 'left' }"
-              :class="{ sortable: isSortable(col), sorted: sortBy === col.key }"
-              :title="isSortable(col) ? 'Klik untuk mengurutkan' : ''"
+              :title="isSortable(col) ? 'Seret untuk memindahkan kolom Â· Klik untuk mengurutkan' : 'Seret untuk memindahkan kolom'"
+              @dragstart="draggingColumn = col.key"
+              @dragover.prevent="dropColumn = col.key"
+              @drop.prevent="moveColumn(col.key); finishColumnDrag()"
+              @dragend="finishColumnDrag"
               @click="toggleSort(col)"
             >
               <div class="th-content">
@@ -767,7 +807,7 @@ onActivated(() => {
               </button>
             </td>
             <td v-if="!rowNumberAfterFirstColumn || !cols.length" class="num-col">{{ (page - 1) * perPage + idx + 1 }}</td>
-            <template v-for="(col, colIndex) in cols" :key="col.key">
+            <template v-for="(col, colIndex) in orderedCols" :key="col.key">
             <td
                :class="{ 'foto-cell': col.type === 'image', 'numeric-cell': col.align === 'right', 'nowrap-cell': col.key === 'Nik' }"
               :style="{ textAlign: col.align || 'left' }"
@@ -1065,7 +1105,8 @@ onActivated(() => {
   overscroll-behavior: contain;
 }
 .browse-table {
-  width: 100%;
+  width: max-content;
+  table-layout: auto;
   /* Collapsed borders scroll with the body and expose a seam above sticky th. */
   border-collapse: separate;
   border-spacing: 0;
@@ -1103,6 +1144,15 @@ onActivated(() => {
   position: sticky;
   top: 0;
   z-index: 2;
+  /* Sticky header cells can paint a light seam between narrow columns in
+     Chromium. Draw the separator inside each cell so the table underneath
+     never shows through. */
+  box-shadow: inset -1px 0 #1b2d4a, inset 0 -1px #1b2d4a;
+}
+.browse-table thead th:first-child { box-shadow: inset 1px 0 #1b2d4a, inset -1px 0 #1b2d4a, inset 0 -1px #1b2d4a; }
+.browse-table th:not(.num-col):not(.action-col),
+.browse-table td:not(.num-col):not(.action-col):not(.expand-col) {
+  width: fit-content;
 }
 .browse-table th.num-col,
 .browse-table th.action-col {
@@ -1113,6 +1163,9 @@ onActivated(() => {
   cursor: pointer;
   user-select: none;
 }
+.browse-table th[draggable="true"] { cursor: grab; }
+.browse-table th.column-dragging { opacity: .45; }
+.browse-table th.column-drop-target { box-shadow: inset 3px 0 0 var(--ds-primary, #3b5998), inset -1px 0 #1b2d4a, inset 0 -1px #1b2d4a; }
 .browse-table th.sortable:hover {
   background: #2e4468;
 }
@@ -1205,7 +1258,7 @@ th.sorted .th-sort {
   padding-top: 1px;
   padding-bottom: 1px;
 }
-/* ── Kolom foto ──
+/* â”€â”€ Kolom foto â”€â”€
    Thumbnail sengaja kecil (40x30) dan padding sel diperketat supaya baris
    hanya tumbuh ~10px dari baris biasa. Kolom ini diletakkan paling depan di
    view masing-masing supaya tidak perlu scroll horizontal. */

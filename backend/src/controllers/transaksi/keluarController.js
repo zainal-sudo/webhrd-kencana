@@ -54,7 +54,7 @@ export const getKeluarList = async (req, res, next) => {
             const [rows] = await pool.query(`${SELECT_SQL}${f.clause} ${order} LIMIT 50000`, f.params)
             // Label header = kolom di KeluarView.
             return sendExcel(res, 'Karyawan-Keluar', Object.keys(LIST_COLUMNS), rows,
-                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap' } })
+                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap' }, requestedColumns: req.query.columns })
         }
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${f.clause}`, f.params)
         const total = cnt[0].total

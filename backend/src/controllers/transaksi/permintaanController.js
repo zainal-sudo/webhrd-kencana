@@ -5,13 +5,13 @@ import { sendExcel } from '../../helpers/excel.js'
 import { applyAllColumnFilters } from '../../helpers/browse.js'
 
 /**
- * Modul Permintaan Karyawan — cerminan unit Delphi:
+ * Modul Permintaan Karyawan â€” cerminan unit Delphi:
  *   ufrmBrowsePermintaanKaryawan -> daftar per periode (+ realisasi) + hapus
  *   ufrmPermintaanKaryawan       -> form satu dokumen
  *
  * Tabel: `tpermintaankaryawan` (tpk_nomor PK `NNN/HRD/PKAR/MM/YYYY`),
  *        `triilpermintaankaryawan` (realisasi, modul terpisah
- *        `frmRiilPermintaanKaryawan` — di sini hanya dibaca), `tkaryawan`,
+ *        `frmRiilPermintaanKaryawan` â€” di sini hanya dibaca), `tkaryawan`,
  *        `tjabatan`.
  *
  * Aturan Delphi yang diduplikasi:
@@ -129,7 +129,7 @@ export const getPermintaanList = async (req, res, next) => {
                 [...params, ...extraParams]
             )
             return sendExcel(res, 'Permintaan-Karyawan', Object.keys(LIST_COLUMNS), all,
-                { headLabels: { Tgl_Butuh: 'Tgl Butuh', Jumlah_Minta: 'Minta', Jml_Realisasi: 'Realisasi', Closed: 'Status' } })
+                { headLabels: { Tgl_Butuh: 'Tgl Butuh', Jumlah_Minta: 'Minta', Jml_Realisasi: 'Realisasi', Closed: 'Status' }, requestedColumns: req.query.columns })
         }
         const [rows] = await pool.query(
             `SELECT *, IF(Jumlah_Minta > IFNULL(Jml_Realisasi, 0), 'Belum', 'Sudah') AS Closed FROM (${INNER_SQL}${inner}) AS Final${extraWhere} ${orderBy} LIMIT ? OFFSET ?`,
@@ -330,7 +330,7 @@ export const savePermintaan = async (req, res, next) => {
     }
 }
 
-/** Hapus — MENOLAK bila sudah ada realisasi (perbaikan bug Delphi). */
+/** Hapus â€” MENOLAK bila sudah ada realisasi (perbaikan bug Delphi). */
 export const deletePermintaan = async (req, res, next) => {
     try {
         const nomor = String(req.params.nomor || req.query.nomor || '')
@@ -340,7 +340,7 @@ export const deletePermintaan = async (req, res, next) => {
             [nomor]
         )
         if (riil[0].c > 0) {
-            return error(res, `Nomor ${nomor} sudah direalisasi (${riil[0].c} baris) — hapus realisasi dulu`, 409)
+            return error(res, `Nomor ${nomor} sudah direalisasi (${riil[0].c} baris) â€” hapus realisasi dulu`, 409)
         }
         const [r] = await pool.query('DELETE FROM tpermintaankaryawan WHERE tpk_nomor = ?', [nomor])
         if (r.affectedRows === 0) return error(res, 'Nomor tidak ditemukan', 404)

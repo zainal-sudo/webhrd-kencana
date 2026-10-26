@@ -79,7 +79,7 @@ export const getLemburHariLiburList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [rows] = await pool.query(`${SELECT}${f.clause} ${order} LIMIT 50000`, f.params)
             return sendExcel(res, 'Lembur-Hari-Libur', Object.keys(COLUMNS), rows,
-                { headLabels: { Kar_Nik: 'NIK', scan1: 'Scan 1', scan2: 'Scan 2', jam_mulai: 'Jam Mulai', jam_selesai: 'Jam Selesai', lama_lembur: 'Lama Lembur', no_ijin: 'No Ijin' } })
+                { headLabels: { Kar_Nik: 'NIK', scan1: 'Scan 1', scan2: 'Scan 2', jam_mulai: 'Jam Mulai', jam_selesai: 'Jam Selesai', lama_lembur: 'Lama Lembur', no_ijin: 'No Ijin' }, requestedColumns: req.query.columns })
         }
         const [count] = await pool.query(`SELECT COUNT(*) AS total ${FROM}${f.clause}`, f.params)
         const total = Number(count[0].total)
