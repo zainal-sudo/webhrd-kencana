@@ -16,8 +16,9 @@ import { formatTanggal } from './tanggal.js'
  * isi file sama persis dengan yang terlihat di tabel (termasuk search,
  * periode, sort & filter kolom yang sedang aktif).
  */
-export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false, headLabels, requestedColumns } = {}) {
+export async function sendExcel(res, title, columns, rows, { columnWidths = {}, freezeHeader = false, headLabels, requestedColumns, numericColumns = [], numberFormats = {} } = {}) {
     columns = requestedExportColumns(requestedColumns, columns)
+    const numericKeys = new Set(numericColumns)
     const wb = new ExcelJS.Workbook()
     wb.creator = 'Web HRD Kencana'
     wb.created = new Date()
@@ -37,6 +38,10 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
             columns.map((c) => {
                 const v = r?.[c]
                 if (v === null || v === undefined) return ''
+                if (numericKeys.has(c)) {
+                    const number = typeof v === 'number' ? v : Number(String(v).replace(',', '.'))
+                    return Number.isFinite(number) ? number : ''
+                }
                 if (v instanceof Date) {
                     if (isNaN(v.getTime())) return ''
                     const p = (n) => String(n).padStart(2, '0')
@@ -75,6 +80,7 @@ export async function sendExcel(res, title, columns, rows, { columnWidths = {}, 
             if (len > w) w = len
         }
         ws.getColumn(i + 1).width = columnWidths[c] ?? Math.max(8, w + 2)
+        if (numberFormats[c]) ws.getColumn(i + 1).numFmt = numberFormats[c]
     })
 
     const aman = String(title).replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'data'

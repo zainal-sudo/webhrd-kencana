@@ -810,7 +810,20 @@ export const getAbsensiRekapList = async (req, res, next) => {
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${sql} LIMIT 50000`, params)
             if (String(req.query.detail || '') === '1') await isiKet(all, start, end)
-            return sendExcel(res, 'Rekap-Absensi', RA_OUTER, all, { headLabels: RA_LABELS, requestedColumns: req.query.columns })
+            return sendExcel(res, 'Rekap-Absensi', RA_OUTER, all, {
+                headLabels: RA_LABELS,
+                requestedColumns: req.query.columns,
+                numericColumns: [
+                    'Total_Hari', '2_Jam_Pertama', 'Lebih dari 2 Jam', 'Panggilan', 'TotalLembur',
+                    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'ST_HARI', 'sakit', 'Ijin',
+                    'Alpha', 'LainLain', 'Total',
+                ],
+                numberFormats: Object.fromEntries([
+                    'Total_Hari', '2_Jam_Pertama', 'Lebih dari 2 Jam', 'Panggilan', 'TotalLembur',
+                    'Bonus_Malam_Libur', 'Bonus_Libur', 'terlambat', 'ST_HARI', 'sakit', 'Ijin',
+                    'Alpha', 'LainLain', 'Total',
+                ].map(column => [column, '0.0'])),
+            })
         }
 
         const [cntRows] = await pool.query(`SELECT COUNT(*) AS total FROM (${sql}) x`, params)
@@ -1265,7 +1278,12 @@ export const getAbsensiPeriodeList = async (req, res, next) => {
             // key kolom tetap ISO agar lintas bulan tidak tabrakan.
             const headLabels = {}
             for (const h of hari) headLabels[h.date] = formatTanggal(h.date)
-            return sendExcel(res, 'Absensi-Periode', exportCols, all, { headLabels, requestedColumns: req.query.columns })
+            return sendExcel(res, 'Absensi-Periode', exportCols, all, {
+                headLabels,
+                requestedColumns: req.query.columns,
+                numericColumns: hari.map(h => h.date),
+                numberFormats: Object.fromEntries(hari.map(h => [h.date, '0.##'])),
+            })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${inner}) t ${where}`, params)
