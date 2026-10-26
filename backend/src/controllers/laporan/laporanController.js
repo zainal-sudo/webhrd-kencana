@@ -671,7 +671,8 @@ function rekapAbsensiSql() {
         IFNULL(lembur,0) "TotalLembur",IFNULL(bonus_mlm_lbr,0) "Bonus_Malam_Libur",
         (IFNULL(Bonus_Libur,0)*0.5)+(IFNULL(Bonus_Libur2,0)) Bonus_Libur,
         (SELECT count(*) from tabsensi a inner join tkaryawan b on b.kar_kode_absensi=a.nik
-         where tanggal between ? and ? and b.kar_nik=final2.kar_nik and a.status=2) terlambat,
+         where b.kar_kode_absensi IS NOT NULL AND b.kar_kode_absensi <> ''
+         and tanggal between ? and ? and b.kar_nik=final2.kar_nik and a.status=2) terlambat,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=2 and ij_nik=final2.kar_nik) ST_HARI,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=3 and ij_nik=final2.kar_nik and ij_keterangan=0) sakit,
         (select count(*) from tijin where ij_tanggal between ? and ? and ij_ji_id=3 and ij_nik=final2.kar_nik and ij_keterangan=1) Ijin,
@@ -732,13 +733,13 @@ function rekapAbsensiSql() {
              and nik=a.nik and tanggal between ? and ?) bonus_libur2
             from tabsensi a
             inner join tkaryawan on kar_kode_absensi=nik
+                and kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
             where tanggal between ? and ? and scan1 <> "00:00:00" and status <> 0
             group by kar_nik
         ) final on final2.kar_nik=final.kar_nik
         left join tjabatan on kar_jab_kode=jab_kode
         left join tdepartemen on dep_kode=kar_dep_kode
         where final2.kar_status_aktif=1
-        AND final2.kar_kode_absensi IS NOT NULL AND final2.kar_kode_absensi <> ''
     ) andi`
 }
 

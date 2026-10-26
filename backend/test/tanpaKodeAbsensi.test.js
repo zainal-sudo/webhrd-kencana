@@ -5,10 +5,9 @@ import vm from 'node:vm'
 import { applyAllColumnFilters, buildOrderBy } from '../src/helpers/browse.js'
 
 /**
- * Karyawan tanpa kode absensi (kar_kode_absensi NULL/kosong) tidak boleh
- * muncul di browse absensi, laporan absensi (rekap + periode), laporan
- * tidak masuk, dan penggajian. Tanpa penjaga ini, kode kosong bisa ikut
- * ter-join bila tabsensi.nik juga kosong ('').
+ * Karyawan tanpa kode absensi tidak boleh masuk browse absensi/transaksi
+ * attendance atau penggajian. Rekap Absensi dan Absensi Periode sengaja
+ * menampilkan semua karyawan aktif; catatan dengan kode kosong tetap diabaikan.
  */
 const PENJAGA = /(?:\w+\.)?kar_kode_absensi IS NOT NULL AND (?:\w+\.)?kar_kode_absensi <> ''/
 
@@ -64,12 +63,15 @@ test('Laporan tidak masuk menyaring kode absensi kosong', async () => {
     for (const sql of calls) assert.match(sql, PENJAGA)
 })
 
-test('Rekap absensi menyaring kode absensi kosong', async () => {
+test('Rekap absensi menampilkan karyawan aktif tanpa kode absensi', async () => {
     const { handlers, calls } = muatLaporan()
     await handlers.getAbsensiRekapList({ query: { start_date: '2026-10-01', end_date: '2026-10-12' } }, {}, next)
     const pilih = calls.filter((sql) => sql.toLowerCase().includes('final2.kar_nik'))
     assert.ok(pilih.length > 0)
-    for (const sql of pilih) assert.match(sql, /final2\.kar_kode_absensi IS NOT NULL AND final2\.kar_kode_absensi <> ''/i)
+    for (const sql of pilih) {
+        assert.match(sql, /final2\.kar_status_aktif\s*=\s*1/i)
+        assert.doesNotMatch(sql, /final2\.kar_kode_absensi IS NOT NULL AND final2\.kar_kode_absensi <> ''/i)
+    }
 })
 
 test('Absensi periode menampilkan SEMUA karyawan aktif (aktif-only, tanpa syarat kode absensi)', async () => {
