@@ -931,7 +931,8 @@ onActivated(() => {
   border-bottom: none;
 }
 .modul-item:hover {
-  border-color: #3b5998;
+  /* Garis biru saat hover dihapus — pemisah antar baris tetap abu-abu
+     seperti baris biasa; highlight cukup dari latar + warna teks. */
   background: #f1f1f8;
   color: #3b5998;
 }
