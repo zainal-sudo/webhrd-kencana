@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef } from "vue";
+import { computed, reactive, ref, shallowRef, watch } from "vue";
 import { formatNumber } from "@/utils/format";
 import { filterKey } from "@/utils/columnFilter";
 import { compareValues } from "@/utils/table";
@@ -72,12 +72,36 @@ function tandai(row: Record<string, any>, col: GridCol) {
   selDirty.value = s;
 }
 
+/**
+ * Menandai sel kuning saat mengetik TANPA menyentuh state reaktif —
+ * re-render (ganti Set / tulis row) menimpa kembali nilai input dari
+ * binding :value dan ketikan jadi tidak bisa masuk. Reset kelas DOM
+ * tidak masalah: sel tetap tersimpan di `selDirty` saat commit.
+ */
+function tandaiMengetik(ev: Event) {
+  (ev.target as HTMLInputElement).closest("td")?.classList.add("dirty");
+}
+
+/**
+ * Parsing angka format Indonesia pada editor teks: "50.000" -> 50000
+ * (pemisah ribuan), "12,5" -> 12.5 (desimal koma), "1000" -> 1000.
+ * Mengembalikan NaN jika bukan angka supaya commit memakih nilai lama.
+ */
+function parseAngka(raw: string): number {
+  const s = raw.trim();
+  if (!s) return 0;
+  let t = s.replace(/[^\d.,eE+-]/g, "");
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+  else if (t.includes(",")) t = t.replace(/\./g, "").replace(/,/g, ".");
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 function commit(row: Record<string, any>, col: GridCol, ev: Event) {
   const k = kunci(row, col);
   const m = meta.get(k);
   const oldValue = m ? m.old : row[col.key];
-  const raw = (ev.target as HTMLInputElement).value;
-  const nilai = raw === "" ? 0 : Number(raw);
+  const nilai = parseAngka((ev.target as HTMLInputElement).value);
   row[col.key] = Number.isFinite(nilai) ? nilai : oldValue;
   tandai(row, col);
   emit("update", { row, col, oldValue, newValue: row[col.key] });
@@ -134,18 +158,38 @@ function bersihkanFilter() {
   openFilter.value = null;
 }
 
-const tersaring = computed(() => {
+/**
+ * Hasil filter dikunci (snapshot) saat filter diterapkan: mengedit nilai di
+ * kolom yang sedang difilter TIDAK mengusir barisnya dari tampilan (seperti
+ * cxGrid Delphi) — baris cukup ditandai kuning; data yang disimpan tetap semua.
+ */
+const cocok = ref<Set<Record<string, any>> | null>(null);
+
+function bangunCocok() {
   const aktif = Object.entries(filterSets).filter(([, v]) => v.length > 0);
-  if (!aktif.length) return props.rows;
+  if (!aktif.length) {
+    cocok.value = null;
+    return;
+  }
   const byKey = new Map(props.columns.map((c) => [c.key, c]));
-  return props.rows.filter((r) =>
-    aktif.every(([key, values]) => {
+  const set = new Set<Record<string, any>>();
+  for (const r of props.rows) {
+    if (aktif.every(([key, values]) => {
       const c = byKey.get(key);
       if (!c) return true;
       return values.includes(filterKey(nilaiFilter(r, c)));
-    })
-  );
-});
+    })) {
+      set.add(r);
+    }
+  }
+  cocok.value = set;
+}
+
+watch([() => props.rows, () => JSON.stringify(filterSets)], bangunCocok, { immediate: true });
+
+const tersaring = computed(() =>
+  cocok.value ? props.rows.filter((r) => cocok.value!.has(r)) : props.rows
+);
 
 /** Urutan tampil: klik header -> naik -> turun -> semula (stabil). */
 const sortKey = ref<string | null>(null);
@@ -262,7 +306,11 @@ defineExpose({
         <tr v-else-if="!tampil.length">
           <td class="status" :colspan="columns.length">Belum ada data.</td>
         </tr>
-        <tr v-for="(row, i) in tampil" :key="row[primaryKey] ?? i">
+          <tr v-for="(row, i) in tampil" :key="row[primaryKey] ?? i">
+          <!--
+            Sel edit: check = checkbox; number = input teks (bukan
+            type="number", yang menghapus ketikan "50.000"/"12,5" saat blur).
+          -->
           <template v-for="c in columns" :key="c.key">
             <td
               :class="[
@@ -277,13 +325,18 @@ defineExpose({
                 :checked="!!Number(row[c.key])"
                 @change="commitCheck($event, row, c)"
               />
+              <!--
+                Editor teks (bukan type=number): browser menghapus ketikan
+                "50.000"/"12,5" yang tidak valid pada blur. Input menampilkan
+                semua tombol seperti cxGrid Delphi; parsing angka di commit.
+              -->
               <input
                 v-else-if="c.edit === 'number'"
                 class="cel"
-                type="number"
-                step="any"
+                type="text"
+                inputmode="decimal"
                 :value="row[c.key]"
-                @input="tandai(row, c)"
+                @input="tandaiMengetik"
                 @change="commit(row, c, $event)"
               />
               <span v-else class="txt">{{ c.money ? formatNumber(row[c.key]) : row[c.key] ?? "" }}</span>
