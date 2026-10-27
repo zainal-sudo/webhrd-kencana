@@ -47,6 +47,8 @@ const props = withDefaults(
     defaultStart?: string;
     /** Default "Sampai" untuk periode; kosong = hari ini. */
     defaultEnd?: string;
+    /** Isi awal kotak pencarian (mis. dari deep-link query tab lain); kosong = kosong. */
+    initialSearch?: string;
     /** Jumlah baris per halaman. Naikkan turunkan sesuai kepadatan tabel. */
     perPage?: number;
     /** tampilkan tombol Export Excel (GET endpoint + ?export=xlsx) */
@@ -82,6 +84,7 @@ const props = withDefaults(
   {
     moduleSubtitle: "",
     searchPlaceholder: "Cari...",
+    initialSearch: "",
     hasPeriod: false,
     periodStartKey: "start_date",
     periodEndKey: "end_date",
@@ -126,7 +129,7 @@ const tabsStore = useTabsStore();
 
 const rows = ref<Record<string, any>[]>([]);
 const loading = ref(false);
-const search = ref("");
+const search = ref(props.initialSearch || "");
 const startDate = ref(props.defaultStart || "");
 const endDate = ref(props.defaultEnd || todaySql());
 const page = ref(1);

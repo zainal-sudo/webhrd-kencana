@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import { reportRowKey } from "@/utils/reportRowKey";
 import MsIcon from "@/components/MsIcon.vue";
@@ -13,9 +13,17 @@ import { firstDayOfMonth } from "@/utils/format";
  * Tiap baris SPL + scan keluar absensi. Stat=1 bila scan keluar lebih awal
  * dari jam akhir SPL (baris merah di Delphi). Aksi baris: Buka SPL
  * (form Lembur mode ubah) dan Edit Absensi.
+ *
+ * Deep-link dari halaman lain (mis. Detail Lembur Double dikirim lewat
+ * query `start_date`/`end_date` + `search` sehingga halaman terbuka
+ * dengan sikon yang sudah terfilter.)
  */
 const router = useRouter();
+const route = useRoute();
 const tabsStore = useTabsStore();
+const qStart = String(route.query.start_date || "");
+const qEnd = String(route.query.end_date || "");
+const qSearch = String(route.query.search || "");
 
 const columns: BrowseColumn[] = [
   { key: "Nomor", label: "Nomor SPL", width: "140px" },
@@ -56,7 +64,9 @@ function editAbsensi(row: Record<string, any>) {
     primary-key="Nomor"
     :row-key="reportRowKey"
     has-period
-    :default-start="firstDayOfMonth()"
+    :default-start="qStart || firstDayOfMonth()"
+    :default-end="qEnd"
+    :initial-search="qSearch"
     :can-delete="false"
     search-placeholder="Cari nomor SPL / NIK / nama / bagian..."
     :per-page="50"

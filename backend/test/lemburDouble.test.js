@@ -83,3 +83,46 @@ test('Route lembur-double terdaftar dengan hak frmLapDetailLembur + view & tombo
     // Read-only: tidak ada mutasi di view baru.
     assert.doesNotMatch(view, /\.post\(|\.put\(|safeDelete/)
 })
+
+test('Tombol di kolom Nomor membuka Laporan Lembur terfilter (tanggal + NIK)', () => {
+    const double = readFileSync(new URL('../../frontend/src/views/laporan/LemburDoubleView.vue', import.meta.url), 'utf8')
+    assert.match(double, /bukaLembur/)
+    assert.match(double, /search: String\(row\.Nik \?\? ""\)/)
+    assert.match(double, /start_date: tanggal \|\| todaySql\(\)/)
+    assert.match(double, /end_date: tanggal \|\| todaySql\(\)/)
+    assert.match(double, /path: "\/laporan\/lembur"/)
+    // Tombol ditempatkan di kolom aksi sendiri (bukan di dalam sel Nomor),
+    // ikon panah menandakan merujuk ke halaman lain, keterangan hover
+    // memakai tanggal dd-mm-yyyy.
+    const cellSlot = double.match(/<template #cell[\s\S]*?<\/template>/)?.[0] ?? ""
+    assert.ok(cellSlot, "slot cell ada")
+    assert.doesNotMatch(cellSlot, /<button/)
+    const actionsSlot = double.match(/<template #row-actions[\s\S]*?<\/template>/)?.[0] ?? ""
+    assert.match(actionsSlot, /arrow_forward/)
+    assert.match(actionsSlot, /tanggalId\(String\(row\.Tanggal \|\| ''\)\)/)
+    assert.match(double, /expanded-action-hover/)
+    // Judul tab juga dd/mm/yyyy.
+    assert.match(double, /title: `Lembur \$\{tanggalId\(tanggal\)\}`/)
+    assert.match(double, /\$\{d\}\/\$\{m\}\/\$\{y\}/)
+    // Kolom aksi menyempit di view baru (satu tombol ikon saja).
+    assert.match(double, /\.action-col[\s\S]{0,80}width: 44px/)
+    // Ring fokus global tak memakai outline kaku di tombol kecil (klik mouse
+    // & balik ke tab ikut terpicu); ring dipindah ke pill hover (::before)
+    // sehingga lingkar fokus memenuhi ukuran sorotan hover.
+    assert.match(double, /go:focus\) \{[\s\S]{0,10}outline: none !important/)
+    assert.match(double, /go:focus-visible\) \{[\s\S]{0,10}outline: none !important/)
+    assert.match(double, /go:focus::before|go:focus-visible::before/)
+    assert.match(double, /outline: 2px solid currentColor/)
+    // Halaman lembur menerima sikon deep-link.
+    const lembur = readFileSync(new URL('../../frontend/src/views/laporan/LaporanLemburView.vue', import.meta.url), 'utf8')
+    assert.match(lembur, /route\.query\.start_date/)
+    assert.match(lembur, /route\.query\.end_date/)
+    assert.match(lembur, /route\.query\.search/)
+    assert.match(lembur, /:initial-search="qSearch"/)
+    assert.match(lembur, /:default-start="qStart \|\| firstDayOfMonth\(\)"/)
+    // BaseBrowse menyediakan pintu initialSearch (default kosong, aman halaman lain).
+    const base = readFileSync(new URL('../../frontend/src/components/BaseBrowse.vue', import.meta.url), 'utf8')
+    assert.match(base, /initialSearch\?: string/)
+    assert.match(base, /initialSearch: ""/)
+    assert.match(base, /ref\(props\.initialSearch \|\| ""\)/)
+})

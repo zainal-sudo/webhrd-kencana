@@ -86,7 +86,7 @@ function bukaDouble() {
     :per-page="50"
   >
     <template #toolbar-extra>
-      <button type="button" class="double-btn" title="NIK + tanggal sama di 2 nomor transaksi" @click="bukaDouble">
+      <button type="button" class="double-btn" title="NIK + tanggal sama di 2 nomor transaksi atau lebih" @click="bukaDouble">
         <MsIcon name="content_copy" :size="14" />
         <span>Indikasi Double</span>
       </button>
