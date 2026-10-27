@@ -2,6 +2,7 @@
 import { computed, reactive, ref, shallowRef } from "vue";
 import { formatNumber } from "@/utils/format";
 import { filterKey } from "@/utils/columnFilter";
+import { compareValues } from "@/utils/table";
 import MsIcon from "@/components/MsIcon.vue";
 import ColumnFilterPopup from "@/components/ColumnFilterPopup.vue";
 
@@ -117,7 +118,9 @@ function tipeFilter(c: GridCol) {
 function nilaiKolom(c: GridCol): Promise<(string | number | null)[]> {
   const ada = new Set<(string | number | null)>();
   for (const r of props.rows) ada.add(nilaiFilter(r, c));
-  return Promise.resolve([...ada]);
+  // Daftar nilai diurutkan (angka menaik, NULL paling akhir) supaya nilai
+  // kecil seperti 0 langsung terlihat tanpa menggulir.
+  return Promise.resolve([...ada].sort(compareValues));
 }
 
 function terapkanFilter(c: GridCol, values: string[]) {

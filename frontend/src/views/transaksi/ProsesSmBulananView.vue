@@ -9,7 +9,7 @@ import { safeGet, downloadFile } from "@/api";
 import { api, getErrorMessage } from "@/api/axios";
 import { formatTanggal, formatNumber } from "@/utils/format";
 import { filterKey } from "@/utils/columnFilter";
-import { nextSort, sortByKey, sortIconName, type SortDir } from "@/utils/table";
+import { nextSort, sortByKey, sortIconName, compareValues, type SortDir } from "@/utils/table";
 import { useTabNavigation } from "@/composables/useTabNavigation";
 
 /**
@@ -104,7 +104,7 @@ function klikFilter(kf: KolomFilter, event: MouseEvent) {
 function nilaiKolom(kf: KolomFilter): Promise<(string | number | null)[]> {
   const ada = new Set<(string | number | null)>();
   for (const r of rows.value) ada.add(r[kf.key] === undefined ? null : r[kf.key]);
-  return Promise.resolve([...ada]);
+  return Promise.resolve([...ada].sort(compareValues));
 }
 
 function terapkanFilter(kf: KolomFilter, values: string[]) {
