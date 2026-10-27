@@ -664,9 +664,9 @@ onActivated(() => {
         <slot name="toolbar-before-search"></slot>
         <div v-if="hasPeriod" class="period-fields">
           <label>Dari</label>
-          <DateInput v-model="startDate" aria-label="Tanggal awal" @change="refresh" />
+          <DateInput v-model="startDate" aria-label="Tanggal awal" />
           <label>Sampai</label>
-          <DateInput v-model="endDate" aria-label="Tanggal akhir" @change="refresh" />
+          <DateInput v-model="endDate" aria-label="Tanggal akhir" />
         </div>
 
         <div class="search-box">

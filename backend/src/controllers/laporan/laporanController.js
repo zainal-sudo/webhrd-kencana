@@ -1066,7 +1066,7 @@ const DL_DUR = `if( timediff(lemd_jamakhir, lemd_jammulai) < 0 ,
     + (time_to_sec((timediff(lemd_jamakhir, '00:00:00'))))/3600,
     (time_to_sec((timediff(lemd_jamakhir, lemd_jammulai))))/3600 )`
 
-const DL_INNER = `SELECT y.lem_jeniskerja AS Jenis_Kerja, y.lem_tanggal AS Tanggal, x.lemd_kar_nik AS Nik,
+const DL_INNER = `SELECT GROUP_CONCAT(DISTINCT y.lem_jeniskerja SEPARATOR ', ') AS Jenis_Kerja, y.lem_tanggal AS Tanggal, x.lemd_kar_nik AS Nik,
     IFNULL((SELECT LEAST(SUM(IF(tk.kar_bagian IN ('SATPAM', 'IPAL & B3') OR tk.kar_dep_kode = 'MKTR'
                 OR b.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1),
             ${DL_DUR}, 0)),
@@ -1086,7 +1086,8 @@ const DL_INNER = `SELECT y.lem_jeniskerja AS Jenis_Kerja, y.lem_tanggal AS Tangg
         WHERE b.lem_tanggal = y.lem_tanggal AND a.lemd_kar_nik = x.lemd_kar_nik AND a.lemd_panggilan = 1), 0) AS panggilan
     FROM tlembur_dtl x
     INNER JOIN tlembur_hdr y ON y.lem_nomor = x.lemd_lem_nomor
-      AND y.lem_tanggal BETWEEN ? AND ?`
+      AND y.lem_tanggal BETWEEN ? AND ?
+    GROUP BY y.lem_tanggal, x.lemd_kar_nik`
 
 const DL_COLUMNS = {
     Kode: 't.kar_kode_absensi',
@@ -1148,23 +1149,25 @@ export const getDetailLemburList = async (req, res, next) => {
 
         if (req.query.export === 'xlsx') {
             const [all] = await pool.query(`${DL_SELECT}${where} ${orderBy} LIMIT 50000`, params)
-            // Kolom jam diformat 1 desimal persis seperti tampilan web (0.0,
-            // 2.5) â€” bukan string mentah DECIMAL dari MySQL (0.0000). Kolom Kode
-            // dibuang: tabel web tidak menampilkannya.
             const angka = all.map((r) => {
                 const row = { ...r }
                 for (const c of DL_JAM_COLUMNS) {
                     const v = row[c]
                     if (v === null || v === undefined || v === '') continue
                     const num = Number(v)
-                    if (Number.isFinite(num)) row[c] = String(num.toFixed(1))
+                    if (Number.isFinite(num)) row[c] = num
                 }
                 return row
             })
             return sendExcel(res, 'Detail-Lembur',
                 Object.keys(DL_COLUMNS).filter((c) => c !== 'Kode'),
                 angka,
-                { headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', '2jam': '2 Jam Pertama', Lebih2Jam: 'Lebih 2 Jam', Lembur: 'Total Lembur', Jenis_Kerja: 'Jenis Kerja' }, requestedColumns: req.query.columns })
+                {
+                    headLabels: { Nik: 'NIK', Nama: 'Nama Lengkap', '2jam': '2 Jam Pertama', Lebih2Jam: 'Lebih 2 Jam', Panggilan: 'Panggilan', Lembur: 'Total Lembur', Jenis_Kerja: 'Jenis Kerja' },
+                    requestedColumns: req.query.columns,
+                    numericColumns: ['2jam', 'Lebih2Jam', 'Panggilan', 'Lembur'],
+                    numberFormats: { '2jam': '0.0', Lebih2Jam: '0.0', Panggilan: '0.0', Lembur: '0.0' }
+                })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total FROM (${DL_SELECT}${where}) x`, params)
