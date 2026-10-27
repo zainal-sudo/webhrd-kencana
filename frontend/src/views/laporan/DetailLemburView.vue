@@ -57,6 +57,17 @@ function editAbsensi(row: Record<string, any>) {
     },
   });
 }
+
+/** Buka laporan indikasi lembur double (NIK + tanggal sama di ≥2 nomor SPL). */
+function bukaDouble() {
+  tabsStore.stageTab({
+    title: "Detail Lembur Double",
+    path: "/laporan/lembur-double",
+    icon: "mdi mdi-content-copy",
+    closable: true,
+  });
+  router.push("/laporan/lembur-double");
+}
 </script>
 
 <template>
@@ -74,6 +85,12 @@ function editAbsensi(row: Record<string, any>) {
     search-placeholder="Cari NIK / nama / bagian / pabrik..."
     :per-page="50"
   >
+    <template #toolbar-extra>
+      <button type="button" class="double-btn" title="NIK + tanggal sama di 2 nomor transaksi" @click="bukaDouble">
+        <MsIcon name="content_copy" :size="14" />
+        <span>Indikasi Double</span>
+      </button>
+    </template>
     <template #cell="{ row, column, text }">
       {{ decimalColumns.has(column.key) ? formatJam(row[column.key]) : text }}
     </template>
@@ -87,4 +104,21 @@ function editAbsensi(row: Record<string, any>) {
 
 <style scoped>
 .row-btn.edit { color: var(--ds-primary, #3b5998); }
+.double-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--ds-border, #dbe2ee);
+  border-radius: 8px;
+  background: #fff;
+  color: #1b2d4a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.double-btn:hover {
+  background: #f3f6fb;
+}
+.double-btn span { white-space: nowrap; }
 </style>

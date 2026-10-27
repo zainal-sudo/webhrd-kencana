@@ -139,6 +139,8 @@ const routes = [
   { path: "/laporan/lembur-hari-libur", component: () => import("@/views/laporan/LemburHariLiburView.vue"), meta: { requiresAuth: true, title: "Laporan Lembur Hari Libur", form: "frmLapLemburHariLibur" } },
   { path: "/laporan/lembur-tanpa-spl", component: () => import("@/views/laporan/LemburTanpaSplView.vue"), meta: { requiresAuth: true, title: "Lembur Tanpa SPL", form: "frmLapLemburTanpaSPL" } },
   { path: "/laporan/detail-lembur", component: () => import("@/views/laporan/DetailLemburView.vue"), meta: { requiresAuth: true, title: "Detail Lembur", form: "frmLapDetailLembur" } },
+  /* Indikasi lembur double — hak akses mengikuti Detail Lembur. */
+  { path: "/laporan/lembur-double", component: () => import("@/views/laporan/LemburDoubleView.vue"), meta: { requiresAuth: true, title: "Detail Lembur Double", form: "frmLapDetailLembur" } },
 
   /* ── Penggajian (duplikat Delphi) ── */
   { path: "/gaji/setting", component: () => import("@/views/gaji/SettingGajiView.vue"), meta: { requiresAuth: true, title: "Setting Gaji", form: "frmSettingGaji" } },

@@ -1183,6 +1183,90 @@ export const getDetailLemburList = async (req, res, next) => {
     }
 }
 
+/* ── Detail Lembur Double (indikasi SPL ganda) ──
+ * Audit penggandaan: satu NIK pada satu tanggal tercatat di DUA nomor
+ * transaksi lembur (lem_nomor) berbeda — bisa SPL double input, atau SPL
+ * reguler yang bentrok dengan transaksi panggilan pada hari yang sama.
+ * Diperhitungkan dari tlembur_dtl + tlembur_hdr, kelompok per (Nik, tanggal),
+ * dan hanya baris berjumlah >1 nomor yang tampil. */
+const LDB_INNER = `SELECT x.lemd_kar_nik AS Nik, y.lem_tanggal AS Tanggal, y.lem_nomor AS Nomor
+    FROM tlembur_dtl x
+    INNER JOIN tlembur_hdr y ON y.lem_nomor = x.lemd_lem_nomor
+      AND y.lem_tanggal BETWEEN ? AND ?`
+
+const LDB_GROUPED = `SELECT dbl.Nik AS Nik, t.kar_kode_absensi AS Kode, t.kar_nama AS Nama,
+        t.kar_pab_kode AS Pabrik, t.kar_bagian AS Bagian, dbl.Tanggal AS Tanggal,
+        COUNT(*) AS Jumlah_SPL,
+        GROUP_CONCAT(DISTINCT dbl.Nomor ORDER BY dbl.Nomor SEPARATOR ', ') AS Nomor
+    FROM (${LDB_INNER}) dbl
+    INNER JOIN tkaryawan t ON t.kar_Nik = dbl.Nik
+    GROUP BY dbl.Nik, t.kar_kode_absensi, t.kar_nama, t.kar_pab_kode, t.kar_bagian, dbl.Tanggal
+    HAVING COUNT(*) > 1`
+
+const LDB_FROM = ` FROM (${LDB_GROUPED}) dbl`
+
+const LDB_SELECT = `SELECT dbl.Nik, dbl.Kode, dbl.Nama, dbl.Pabrik, dbl.Bagian, dbl.Tanggal,
+    dbl.Jumlah_SPL, dbl.Nomor ${LDB_FROM}`
+
+const LDB_COLUMNS = {
+    Kode: 'dbl.Kode',
+    Tanggal: 'dbl.Tanggal',
+    Nik: 'dbl.Nik',
+    Nama: 'dbl.Nama',
+    Pabrik: 'dbl.Pabrik',
+    Bagian: 'dbl.Bagian',
+    Jumlah_SPL: 'dbl.Jumlah_SPL',
+    Nomor: 'dbl.Nomor',
+}
+
+/** Daftar indikasi lembur double (Nik + tanggal sama di ≥2 nomor SPL) per periode. */
+export const getLemburDoubleList = async (req, res, next) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
+        const offset = (page - 1) * perPage
+        const [start, end] = periode(req)
+
+        let where = ''
+        let params = [start, end]
+        if (req.query.search) {
+            where += ' WHERE (dbl.Nik LIKE ? OR dbl.Nama LIKE ? OR dbl.Bagian LIKE ? OR dbl.Pabrik LIKE ?)'
+            params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
+        }
+
+        if (req.query.distinct && LDB_COLUMNS[req.query.distinct]) {
+            const dcol = LDB_COLUMNS[req.query.distinct]
+            const scoped = applyAllColumnFilters(where, params, req.query, LDB_COLUMNS, req.query.distinct)
+            const [drows] = await pool.query(
+                `SELECT DISTINCT ${dcol} AS value, OCTET_LENGTH(${dcol}) AS value_length ${LDB_FROM} ${scoped.clause} ORDER BY value`,
+                scoped.params
+            )
+            return success(res, drows.map((r) => r.value))
+        }
+
+        const f = applyAllColumnFilters(where, params, req.query, LDB_COLUMNS)
+        where = f.clause
+        params = f.params
+        const orderBy = buildOrderBy(req.query, LDB_COLUMNS, 'ORDER BY dbl.Tanggal DESC, dbl.Nik')
+
+        if (req.query.export === 'xlsx') {
+            const [all] = await pool.query(`${LDB_SELECT}${where} ${orderBy} LIMIT 50000`, params)
+            return sendExcel(res, 'Detail-Lembur-Double', Object.keys(LDB_COLUMNS), all)
+        }
+
+        const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${LDB_FROM}${where}`, params)
+        const total = cnt[0].total
+        const [rows] = await pool.query(`${LDB_SELECT}${where} ${orderBy} LIMIT ? OFFSET ?`, [
+            ...params,
+            perPage,
+            offset,
+        ])
+        paginated(res, rows, { page, per_page: perPage, total, last_page: Math.ceil(total / perPage) })
+    } catch (err) {
+        next(err)
+    }
+}
+
 /* â”€â”€ Absensi Periode (ufrmLapAbsensiPeriode) â”€â”€
  * Tabel kalender per karyawan aktif: satu kolom per tanggal dalam periode
  * berisi '0' (stat=0/tidak hadir), '0.5' (ada ijin 1/2 hari), atau '1'.

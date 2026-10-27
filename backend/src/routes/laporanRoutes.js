@@ -15,6 +15,7 @@ import {
     getTanpaIjinList,
     getStHariTanpaIjinList,
     getDetailLemburList,
+    getLemburDoubleList,
     getAbsensiPeriodeList,
 } from '../controllers/laporan/laporanController.js'
 
@@ -44,6 +45,9 @@ r.get('/setengah-hari-tanpa-ijin', wajibHak('frmLapStHariTanpaIjin'), getStHariT
 
 /* ── Detail Lembur (ufrmLapDetailLembur, `frmLapDetailLembur`) ── */
 r.get('/detail-lembur', wajibHak('frmLapDetailLembur'), getDetailLemburList)
+
+/* ── Detail Lembur Double — indikasi SPL ganda (hak sama frmLapDetailLembur) ── */
+r.get('/lembur-double', wajibHak('frmLapDetailLembur'), getLemburDoubleList)
 
 /* ── Laporan Lembur per SPL (ufrmLapLembur, `frmLapLembur`) ── */
 r.get('/lembur', wajibHak('frmLapLembur'), getLemburList)
