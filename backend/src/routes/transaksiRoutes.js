@@ -133,6 +133,10 @@ import {
     getProsesMPP,
     saveProsesMPP,
 } from '../controllers/transaksi/mppController.js'
+import {
+    getProsesSMBulanan,
+    getDetailSMBulanan,
+} from '../controllers/transaksi/smBulananController.js'
 
 const r = Router()
 r.get('/pinjaman/rekap-hutang', wajibHak('frmLapSaldo'), getRekapHutang)
@@ -308,5 +312,11 @@ r.put('/mpp/budget', wajibHak('frmSettingBudgetMPP', 'edit'), saveBudgetMPP)
 /* ── Proses MPP Bulanan (ufrmProsesMPPBulanan, hak form `frmprosesMPPBulanan`) ── */
 r.get('/mpp/proses', wajibHak('frmprosesMPPBulanan'), getProsesMPP)
 r.put('/mpp/proses', wajibHak('frmprosesMPPBulanan', 'edit'), saveProsesMPP)
+
+/* ── Staff Movement Bulanan (ufrmProsesSMBulanan, hak form `frmProsesSMBulanan`)
+ * Catatan: `tmenu` bawaan belum punya baris `frmProsesSMBulanan`; tambahkan
+ * lewat menu User agar modul muncul di sidebar dan haknya bisa diatur. ── */
+r.get('/sm/proses', wajibHak('frmProsesSMBulanan'), getProsesSMBulanan)
+r.get('/sm/detail', wajibHak('frmProsesSMBulanan'), getDetailSMBulanan)
 
 export default r

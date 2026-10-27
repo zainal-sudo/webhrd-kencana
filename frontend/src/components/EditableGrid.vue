@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, reactive, ref, shallowRef } from "vue";
 import { formatNumber } from "@/utils/format";
+import { filterKey } from "@/utils/columnFilter";
+import MsIcon from "@/components/MsIcon.vue";
+import ColumnFilterPopup from "@/components/ColumnFilterPopup.vue";
 
 /**
  * Grid standar untuk form berbasis spreadsheet (Setting Gaji / Proses Gaji).
@@ -14,6 +17,10 @@ import { formatNumber } from "@/utils/format";
  * Prop opsional:
  *   sortable  -> klik header mengurutkan baris (klik berulang: naik/turun/mati)
  *   showTotal -> baris kaki berisi jumlah kolom angka + hitungan baris tampil
+ *   filterable-> tombol filter di header; checklist nilai kolom (data sudah
+ *                utuh di memori, jadi penyaringan berjalan di sisi klien).
+ *                Baris tersaring tetap milik `rows` induk — penyimpanan
+ *                induk tetap mengirim semuanya, seperti CDS Delphi.
  */
 
 export interface GridCol {
@@ -42,8 +49,9 @@ const props = withDefaults(
     maxHeight?: string;
     sortable?: boolean;
     showTotal?: boolean;
+    filterable?: boolean;
   }>(),
-  { primaryKey: "nik", maxHeight: "62vh", sortable: false, showTotal: false }
+  { primaryKey: "nik", maxHeight: "62vh", sortable: false, showTotal: false, filterable: false }
 );
 
 const emit = defineEmits<{ (e: "update", payload: GridUpdate): void }>();
@@ -82,6 +90,60 @@ function commitCheck(ev: Event, row: Record<string, any>, col: GridCol) {
   emit("update", { row, col, oldValue, newValue });
 }
 
+/** Nilai baris untuk penyaringan: checkbox dinormalisasi ke 1/0. */
+function nilaiFilter(row: Record<string, any>, c: GridCol): string | number | null {
+  if (c.edit === "check") return Number(row[c.key]) ? 1 : 0;
+  const v = row[c.key];
+  return v === undefined ? null : v;
+}
+
+const filterSets = reactive<Record<string, string[]>>({});
+const openFilter = ref<string | null>(null);
+const filterAnchor = shallowRef<HTMLElement | null>(null);
+
+function isFilterActive(c: GridCol): boolean {
+  return !!filterSets[c.key]?.length;
+}
+
+function toggleFilter(c: GridCol, event: MouseEvent) {
+  filterAnchor.value = event.currentTarget as HTMLElement;
+  openFilter.value = openFilter.value === c.key ? null : c.key;
+}
+
+function tipeFilter(c: GridCol) {
+  return c.edit === "number" || c.money || c.align === "right" ? "number" : "string";
+}
+
+function nilaiKolom(c: GridCol): Promise<(string | number | null)[]> {
+  const ada = new Set<(string | number | null)>();
+  for (const r of props.rows) ada.add(nilaiFilter(r, c));
+  return Promise.resolve([...ada]);
+}
+
+function terapkanFilter(c: GridCol, values: string[]) {
+  if (values.length) filterSets[c.key] = values;
+  else delete filterSets[c.key];
+  openFilter.value = null;
+}
+
+function bersihkanFilter() {
+  for (const k of Object.keys(filterSets)) delete filterSets[k];
+  openFilter.value = null;
+}
+
+const tersaring = computed(() => {
+  const aktif = Object.entries(filterSets).filter(([, v]) => v.length > 0);
+  if (!aktif.length) return props.rows;
+  const byKey = new Map(props.columns.map((c) => [c.key, c]));
+  return props.rows.filter((r) =>
+    aktif.every(([key, values]) => {
+      const c = byKey.get(key);
+      if (!c) return true;
+      return values.includes(filterKey(nilaiFilter(r, c)));
+    })
+  );
+});
+
 /** Urutan tampil: klik header -> naik -> turun -> semula (stabil). */
 const sortKey = ref<string | null>(null);
 const sortDir = ref<1 | -1>(1);
@@ -110,8 +172,8 @@ function banding(a: any, b: any): number {
 }
 
 const tampil = computed(() => {
-  if (!props.sortable || !sortKey.value) return props.rows;
-  const salin = [...props.rows];
+  if (!props.sortable || !sortKey.value) return tersaring.value;
+  const salin = [...tersaring.value];
   const kunci = sortKey.value;
   const arah = sortDir.value;
   salin.sort((x, y) => banding(x[kunci], y[kunci]) * arah);
@@ -134,6 +196,10 @@ defineExpose({
     selDirty.value = new Set();
     meta.clear();
   },
+  bersihkanFilter,
+  hitungFilter() {
+    return Object.values(filterSets).filter((v) => v.length > 0).length;
+  },
 });
 </script>
 
@@ -152,9 +218,36 @@ defineExpose({
               :title="c.title || (props.sortable ? 'Klik untuk mengurutkan' : undefined)"
               @click="klikHeader(c)"
             >
-              {{ c.label }}<span v-if="props.sortable && sortKey === c.key" class="panah">{{
-                sortDir === 1 ? " ▲" : " ▼"
-              }}</span>
+              <span class="th-line">
+                <span class="th-label"
+                  >{{ c.label }}<span v-if="props.sortable && sortKey === c.key" class="panah">{{
+                    sortDir === 1 ? " ▲" : " ▼"
+                  }}</span></span
+                >
+                <button
+                  v-if="props.filterable"
+                  type="button"
+                  class="th-filter"
+                  :class="{ aktif: isFilterActive(c) || openFilter === c.key }"
+                  title="Filter kolom ini"
+                  @click.stop="toggleFilter(c, $event)"
+                >
+                  <MsIcon :name="isFilterActive(c) ? 'filter_alt' : 'filter_list'" :size="12" />
+                </button>
+              </span>
+              <ColumnFilterPopup
+                v-if="props.filterable && openFilter === c.key && filterAnchor"
+                :anchor="filterAnchor"
+                :col-label="c.label"
+                :column-type="tipeFilter(c)"
+                :filter-value-type="tipeFilter(c)"
+                combine-blank-values
+                :selected="filterSets[c.key] || []"
+                :fetch-values="() => nilaiKolom(c)"
+                @apply="terapkanFilter(c, $event)"
+                @close="openFilter = null"
+                @click.stop
+              />
             </th>
           </template>
         </tr>
@@ -246,6 +339,35 @@ defineExpose({
 }
 .grid th .panah {
   font-size: 10px;
+}
+.th-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.th-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.th-filter:hover {
+  border-color: var(--ds-border, #b0b8c4);
+  background: #fff;
+}
+.th-filter.aktif {
+  background: var(--ds-primary, #3b5998);
+  border-color: var(--ds-primary-dark, #2c4472);
+  color: #fff;
 }
 .grid tfoot td {
   position: sticky;

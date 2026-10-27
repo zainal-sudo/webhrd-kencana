@@ -72,6 +72,7 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   frmPenilaian3Bulan: { grup: "transaksi", path: "/transaksi/penilaian-3-bulan", label: "Penilaian 3 Bulanan", icon: "reviews", ready: true },
   frmSettingBudgetMPP: { grup: "transaksi", path: "/transaksi/setting-budget-mpp", label: "Setting Budget MPP", icon: "savings", ready: true },
   frmprosesMPPBulanan: { grup: "transaksi", path: "/transaksi/proses-mpp-bulanan", label: "Proses MPP Bulanan", icon: "fact_check", ready: true },
+  frmProsesSMBulanan: { grup: "transaksi", path: "/transaksi/staff-movement-bulanan", label: "Staff Movement Bulanan", icon: "swap_horiz", ready: true },
 
   /* ── Laporan ── */
   frmLapAbsensi: { grup: "laporan", path: "/laporan/absensi", label: "Laporan Absensi", icon: "summarize", ready: true },
@@ -103,7 +104,6 @@ export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
 /** Modul lain (penggajian lanjutan, pinjaman, dll.) belum dibuat. */
 export const MENU_DIABAIKAN = [
   "frmRekapGaji",
-  "frmProsesSMBulanan",
   "frmGajiHarianperBagian",
 ];
 

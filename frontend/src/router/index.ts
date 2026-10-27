@@ -123,6 +123,7 @@ const routes = [
   { path: "/transaksi/sp/form", component: () => import("@/views/transaksi/SPForm.vue"), meta: { requiresAuth: true, title: "Form SP", form: "frmSP" } },
   { path: "/transaksi/setting-budget-mpp", component: () => import("@/views/transaksi/SettingBudgetMppView.vue"), meta: { requiresAuth: true, title: "Setting Budget MPP", form: "frmSettingBudgetMPP" } },
   { path: "/transaksi/proses-mpp-bulanan", component: () => import("@/views/transaksi/ProsesMppBulananView.vue"), meta: { requiresAuth: true, title: "Proses MPP Bulanan", form: "frmprosesMPPBulanan" } },
+  { path: "/transaksi/staff-movement-bulanan", component: () => import("@/views/transaksi/ProsesSmBulananView.vue"), meta: { requiresAuth: true, title: "Staff Movement Bulanan", form: "frmProsesSMBulanan" } },
 
   /* ── Laporan kehadiran (duplikat Delphi) ── */
   { path: "/laporan/akhir-tahun", component: () => import("@/views/laporan/AkhirTahunView.vue"), meta: { requiresAuth: true, title: "Laporan Akhir Tahun", form: "frmLapAkhirTahun" } },

@@ -84,6 +84,12 @@ export const usePermissionStore = defineStore("permission", {
           const spIndex = transaksi.findIndex((m) => m.key === "frmSP");
           transaksi.splice(mutasiIndex !== -1 ? mutasiIndex + 1 : spIndex !== -1 ? spIndex : transaksi.length, 0, keluar);
         }
+        // Staff Movement Bulanan tepat setelah Proses MPP Bulanan (urutan Delphi).
+        const smIndex = transaksi.findIndex((m) => m.key === "frmProsesSMBulanan");
+        if (smIndex !== -1 && transaksi[smIndex - 1]?.key !== "frmprosesMPPBulanan") {
+          const [sm] = transaksi.splice(smIndex, 1);
+          transaksi.splice(transaksi.findIndex((m) => m.key === "frmprosesMPPBulanan") + 1, 0, sm);
+        }
       }
 
       // Jadwal / Shift tepat sebelum Hari Libur jika keduanya diizinkan.

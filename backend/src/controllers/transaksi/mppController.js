@@ -181,7 +181,7 @@ export const getProsesMPP = async (req, res, next) => {
             const [rows] = await pool.query(
                 `SELECT mpp_bagian AS bagian, mpp_tetap AS tetap, mpp_pkwt AS pkwt, mpp_casual AS casual,
                         mpp_pihak3 AS pihak3, mpp_pkwt + mpp_casual + mpp_tetap + mpp_pihak3 AS totalbudget,
-                        mpp_tetap2, mpp_pkwt2, mpp_casual2, mpp_pihak32,
+                        mpp_tetap2 AS tetap2, mpp_pkwt2 AS pkwt2, mpp_casual2 AS casual2, mpp_pihak32 AS pihak32,
                         mpp_pkwt2 + mpp_casual2 + mpp_tetap2 + mpp_pihak32 AS total2,
                         (mpp_pkwt + mpp_casual + mpp_tetap + mpp_pihak3)
                             - (mpp_pkwt2 + mpp_casual2 + mpp_tetap2 + mpp_pihak32) AS kurang
@@ -190,7 +190,10 @@ export const getProsesMPP = async (req, res, next) => {
                   ORDER BY mpp_bagian`,
                 [pabrik, tahun, periode]
             )
-            if (req.query.export === 'xlsx') return sendExcel(res, 'Proses MPP Bulanan', COLS, rows)
+            if (req.query.export === 'xlsx') return sendExcel(res, 'Proses MPP Bulanan', COLS, rows, {
+                numericColumns: ['tetap', 'pkwt', 'casual', 'pihak3', 'totalbudget',
+                    'tetap2', 'pkwt2', 'casual2', 'pihak32', 'total2', 'kurang'],
+            })
             return success(res, { sumber: 'simpan', rows })
         }
 

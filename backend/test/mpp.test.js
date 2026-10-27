@@ -105,6 +105,7 @@ test('Proses: ?sumber=simpan membaca tmppbulanan per periode', async () => {
     await handlers.getProsesMPP({ query: { pabrik: 'P01', tahun: 2026, periode: 10, sumber: 'simpan' } }, res, next)
     assert.equal(res.body.data.sumber, 'simpan')
     assert.match(calls[0].sql, /WHERE mpp_pab_kode = \? AND mpp_tahun = \? AND mpp_periode = \?/)
+    assert.match(calls[0].sql, /mpp_tetap2 AS tetap2/, 'realisasi waJib ber-alias kolom FE/export')
 })
 
 test('Proses: proses ulang menolak bila budget belum di-set', async () => {

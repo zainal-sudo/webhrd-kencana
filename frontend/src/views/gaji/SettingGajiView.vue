@@ -194,6 +194,7 @@ onActivated(() => {
         :columns="columns"
         :rows="rows"
         :loading="loading || liveSearch.pending.value || menyimpan"
+        :filterable="true"
         primary-key="nik"
         max-height="100%"
       />
