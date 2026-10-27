@@ -5,7 +5,7 @@ import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import type { BrowseColumn } from "@/types";
 import { api, getErrorMessage } from "@/api/axios";
-import { awalCutoff, akhirCutoff, formatTanggal } from "@/utils/format";
+import { firstDayOfMonth, todaySql, formatTanggal } from "@/utils/format";
 
 /**
  * Browse Absensi — padanan `ufrmBrowseAbsensi`.
@@ -104,8 +104,8 @@ async function hapus() {
     primary-key="Nik"
     :row-key="absensiRowKey"
     has-period
-    :default-start="awalCutoff()"
-    :default-end="akhirCutoff()"
+    :default-start="firstDayOfMonth()"
+    :default-end="todaySql()"
     :can-delete="false"
     search-placeholder="Cari NIK / nama / bagian / kode absensi..."
     :per-page="50"
