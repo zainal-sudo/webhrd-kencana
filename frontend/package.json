@@ -16,6 +16,7 @@
     "html2canvas": "^1.4.1",
     "jsbarcode": "^3.12.3",
     "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "jszip": "^3.10.2",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",

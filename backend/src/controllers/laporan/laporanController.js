@@ -58,7 +58,7 @@ const TM_SELECT = `SELECT ${Object.entries(TM_COLUMNS)
     .map(([alias, expr]) => `${expr} AS \`${alias}\``)
     .join(', ')} ${TM_FROM}`
 
-function periode(req) {
+export function periode(req) {
     const start = req.query.start_date || req.body?.start_date || `${new Date().toISOString().slice(0, 7)}-01`
     const end = req.query.end_date || req.body?.end_date || new Date().toISOString().slice(0, 10)
     return [start, end]
@@ -657,7 +657,7 @@ const RA_LABELS = {
     KetLainLain: 'Ket Lain-lain',
 }
 
-function rekapAbsensiSql() {
+export function rekapAbsensiSql() {
     return `SELECT Nik,Nama,Pabrik,Departemen,Jabatan,Bagian,Sistem,Total_hari,
         2_Jam_Pertama "2_Jam_Pertama",Lebih_dari_2_Jam "Lebih dari 2 Jam",
         Panggilan,TotalLembur,Bonus_Malam_Libur,Bonus_Libur,Terlambat,
@@ -837,7 +837,7 @@ export const getAbsensiRekapList = async (req, res, next) => {
 }
 
 /** Isi kolom Ket* halaman aktif (checkbox Delphi). */
-async function isiKet(rows, start, end) {
+export async function isiKet(rows, start, end) {
     const berlabel = async (nik, jiId, ket, label) => {
         const tgl = await tanggalIjinList(start, end, nik, jiId, ket)
         return tgl.length ? `${label} :` + tgl.join(',') + '.' : ''
