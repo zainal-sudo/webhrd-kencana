@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MsIcon from "@/components/MsIcon.vue";
 import { useTabsStore } from "@/stores/tabsStore";
@@ -12,6 +12,7 @@ const { closeAllTabs, closeTab } = useTabNavigation();
 
 const draggedTabId = ref<string | null>(null);
 const dropIndex = ref<number | null>(null);
+const stripRef = ref<HTMLElement | null>(null);
 
 function startDrag(event: DragEvent, tabId: string) {
   if (!event.dataTransfer) return;
@@ -72,6 +73,17 @@ function activate(tabId: string) {
   }
 }
 
+/* Pastikan tab aktif selalu terlihat: begitu tab aktif berubah (buka baru,
+   klik dari luar pandangan, atau tutup tab → pindah ke tetangga), geser strip
+   minimum sampai tab aktif masuk viewport. Hanya strip yang digulir — halaman
+   tidak ikut item vertikal (block: "nearest"). */
+watch(() => tabsStore.activeTabId, async () => {
+  await nextTick(); // tab baru harus sudah terpasang di DOM
+  stripRef.value
+    ?.querySelector<HTMLElement>(".tab-btn.active")
+    ?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+});
+
 function close(tabId: string) {
   void closeTab(tabId);
 }
@@ -86,7 +98,7 @@ function refresh() {
 
 <template>
   <div class="tab-strip-wrap">
-    <div class="tab-strip" @dragover="dragOver" @drop="drop" @dragleave="leaveStrip">
+    <div ref="stripRef" class="tab-strip" @dragover="dragOver" @drop="drop" @dragleave="leaveStrip">
       <button
         v-for="(tab, index) in tabsStore.tabs"
         :key="tab.id"
