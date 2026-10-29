@@ -20,6 +20,9 @@ const now = new Date();
 const bulan = ref(now.getMonth() + 1), tahun = ref(now.getFullYear());
 const years = Array.from({ length: now.getFullYear() + 6 - 2000 }, (_, i) => now.getFullYear() + 5 - i);
 const search = ref(''), rows = ref<PotonganRow[]>([]), selected = ref(new Set<string>());
+const selection = ref(new Map<string, PotonganRow>()), selectingAll = ref(false);
+let sweepId = 0;
+const activeSweeps = new Set<number>();
 const page = ref(1), lastPage = ref(1), total = ref(0);
 const perPage = ref(25), pageInput = ref<number | string>(1);
 const pageSizes = [25, 50, 100];
@@ -31,7 +34,8 @@ watch(page, value => { pageInput.value = value; });
 const loading = ref(false), processing = ref(false), ready = ref(false), loadError = ref(false);
 const exporting = ref(false);
 async function exportExcel() {
-  if (exporting.value || !ready.value || loading.value || processing.value || !chosen.value.length) return;
+  if (exporting.value || !ready.value || loading.value || processing.value || selectingAll.value || !chosen.value.length) return;
+  if (exportBlocked.value) return toast.error('Export maksimum 100 potongan sekali unduh. Hilangkan sebagian pilihan dulu.');
   exporting.value = true;
   const items = chosen.value.map(row => ({ nomor_pinjam: row.Nomor, potongan_ke: row.PotonganKe }));
   const params = new URLSearchParams({ bulan: String(bulan.value), tahun: String(tahun.value), search: search.value, export: 'xlsx', items: JSON.stringify(items) });
@@ -50,35 +54,81 @@ function eligible(row: PotonganRow) {
     && row.SisaBayar != null && Number.isFinite(Number(row.Potongan)) && Number(row.Potongan) > 0
     && Number(row.Potongan) <= Number(row.SisaBayar);
 }
-const chosen = computed(() => rows.value.filter(row => selected.value.has(row.Key)));
-const canProcessSelection = computed(() => canProcess.value && chosen.value.length > 0 && chosen.value.every(eligible));
+const chosen = computed(() => [...selection.value.values()]);
+const canProcessSelection = computed(() => canProcess.value && chosen.value.length > 0
+  && chosen.value.every(eligible) && chosen.value.length <= 500);
 const amount = computed(() => chosen.value.reduce((sum, row) => sum + Number(row.Potongan), 0));
-const allSelected = computed(() => rows.value.length > 0 && rows.value.every(row => selected.value.has(row.Key)));
+const exportBlocked = computed(() => chosen.value.length > 100);
+const allSelected = computed(() => ready.value && total.value > 0 && selection.value.size >= total.value);
+function clearSelection() { selected.value = new Set(); selection.value = new Map(); }
+/** Simpan data terkini baris yang masih terpilih (mis. status proses berubah). */
+function syncSelection(rows: PotonganRow[]) {
+  if (!selected.value.size) return;
+  const map = new Map(selection.value);
+  for (const row of rows) if (selected.value.has(row.Key)) map.set(row.Key, row);
+  selection.value = map;
+}
 function toggle(row: PotonganRow) {
-  if (processing.value || loading.value || !ready.value) return;
+  if (selectingAll.value || processing.value || loading.value || !ready.value) return;
   const next = new Set(selected.value);
-  if (next.has(row.Key)) next.delete(row.Key); else next.add(row.Key);
+  if (next.has(row.Key)) {
+    next.delete(row.Key);
+    const map = new Map(selection.value); map.delete(row.Key); selection.value = map;
+  } else {
+    next.add(row.Key);
+    selection.value = new Map(selection.value).set(row.Key, row);
+  }
   selected.value = next;
 }
-function selectAll() {
-  if (processing.value || loading.value || !ready.value) return;
-  selected.value = allSelected.value ? new Set() : new Set(rows.value.map(row => row.Key));
+/**
+ * Header centang = tandai SELURUH potongan sesuai filter aktif (semua halaman):
+ * halaman ditelusuri satu per satu (per_page maksimum) sampai total terpenuhi.
+ * Klik lagi saat sudah penuh mengosongkan pilihan. Navigasi halaman tidak
+ * membatalkan pilihan; perubahan periode/pencarian tetap mengosongkan.
+ */
+async function selectAll() {
+  if (selectingAll.value || processing.value || loading.value || !ready.value) return;
+  if (allSelected.value || total.value === 0) return clearSelection();
+  const sweep = ++sweepId;
+  activeSweeps.add(sweep);
+  selectingAll.value = true;
+  try {
+    const per = 100;
+    const pages = Math.max(1, lastPage.value, Math.ceil(total.value / per));
+    for (let p = 1; p <= pages; p++) {
+      const { data } = await api.get('/transaksi/pinjaman/pelunasan',
+        { params: { bulan: bulan.value, tahun: tahun.value, search: search.value, page: p, per_page: per } });
+      if (sweep !== sweepId || !data?.data?.length) return;
+      selected.value = new Set([...selected.value, ...data.data.map((row: PotonganRow) => row.Key)]);
+      const map = new Map(selection.value);
+      for (const row of data.data) map.set(row.Key, row);
+      selection.value = map;
+    }
+  } catch (e) {
+    if (sweep === sweepId) toast.error(getErrorMessage(e));
+  } finally {
+    // Sweep yang dibatalkan (reload/perubahan filter) melepaskan dirinya sendiri;
+    // selekai benar-benar tidak ada sweep, kursor "menandai" dimatikan.
+    activeSweeps.delete(sweep);
+    if (!activeSweeps.size) selectingAll.value = false;
+  }
 }
 async function load(target = 1) {
-  const current = ++request;
-  selected.value = new Set(); ready.value = false; loading.value = true; loadError.value = false;
+  const current = ++request; sweepId++;   // sweep select-all lama tidak berlaku setelah reload
+  ready.value = false; loading.value = true; loadError.value = false;
   try {
     const { data } = await api.get('/transaksi/pinjaman/pelunasan', { params: { bulan: bulan.value, tahun: tahun.value, search: search.value, page: target, per_page: perPage.value } });
     if (current !== request) return;
     rows.value = data.data || []; page.value = data.pagination.page;
     lastPage.value = Math.max(1, Number(data.pagination.last_page) || 1); total.value = data.pagination.total; ready.value = true;
+    syncSelection(rows.value);
     if (!rows.value.length && total.value > 0 && target > lastPage.value) await load(lastPage.value);
   } catch (e) {
     if (current === request) { rows.value = []; total.value = 0; loadError.value = true; toast.error(getErrorMessage(e)); }
   } finally { if (current === request) loading.value = false; }
 }
 function goToPage(target: number) {
-  if (loading.value || processing.value || !ready.value) return;
+  if (selectingAll.value || loading.value || processing.value || !ready.value) return;
   if (!Number.isInteger(target) || target < 1 || target > lastPage.value || target === page.value) {
     pageInput.value = page.value;
     return;
@@ -89,13 +139,13 @@ function jumpToPage() {
   return goToPage(Number(pageInput.value));
 }
 function changePerPage(value: number) {
-  if (loading.value || processing.value || !ready.value || !pageSizes.includes(value) || value === perPage.value) return;
+  if (selectingAll.value || loading.value || processing.value || !ready.value || !pageSizes.includes(value) || value === perPage.value) return;
   perPage.value = value;
   pageInput.value = 1;
   return load(1);
 }
 function invalidate() {
-  ++request; rows.value = []; selected.value = new Set(); ready.value = false;
+  ++request; sweepId++; rows.value = []; clearSelection(); ready.value = false;
   loading.value = false; total.value = 0; page.value = 1; lastPage.value = 1;
 }
 watch(search, invalidate);
@@ -110,12 +160,12 @@ async function processSelected() {
     toast.success(`Pelunasan ${data.data.periode} berhasil: ${rupiah(data.data.total)}.`);
     await load(page.value);
   } catch (e) { toast.error(getErrorMessage(e)); await load(page.value); }
-  finally { processing.value = false; }
+  finally { processing.value = false; clearSelection(); }
 }
 onMounted(() => load());
 onActivated(() => { if (firstActivation) { firstActivation = false; return; } if (!processing.value && !selected.value.size) load(page.value); });
 const liveSearch = useLiveSearch(() => load(1), { enabled: () => !processing.value, invalidate });
-watch([bulan, tahun], () => { void liveSearch.run(); });
+watch([bulan, tahun], () => { if (ready.value) clearSelection(); sweepId++; void liveSearch.run(); });
 </script>
 
 <template>
@@ -123,31 +173,31 @@ watch([bulan, tahun], () => { void liveSearch.run(); });
     <header class="page-title"><MsIcon name="payments" :size="22" /><h1>Proses Pelunasan Pinjaman</h1></header>
     <form class="period-tools" @submit.prevent="liveSearch.run">
       <label>Bulan<span class="period-select month-select">
-        <select v-model="bulan" :disabled="loading || processing"><option v-for="(name, i) in bulanNames" :key="name" :value="i + 1">{{ name }}</option></select>
+        <select v-model="bulan" :disabled="loading || processing || selectingAll"><option v-for="(name, i) in bulanNames" :key="name" :value="i + 1">{{ name }}</option></select>
         <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
       </span></label>
       <label>Tahun<span class="period-select year-select">
-        <select v-model="tahun" :disabled="loading || processing"><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select>
+        <select v-model="tahun" :disabled="loading || processing || selectingAll"><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select>
         <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
       </span></label>
-      <label class="search">Cari<input v-model="search" :disabled="processing" placeholder="NIK / nama / nomor pinjaman" @input="liveSearch.schedule" /></label>
-      <button type="submit" :disabled="loading || processing"><MsIcon name="refresh" :size="16" />Refresh</button>
-      <button type="button" :disabled="exporting || !ready || loading || processing || !chosen.length" @click="exportExcel"><MsIcon name="download" :size="16" />{{ exporting ? 'Mengunduh…' : 'Export Excel Terpilih' }}</button>
+      <label class="search">Cari<input v-model="search" :disabled="processing || selectingAll" placeholder="NIK / nama / nomor pinjaman" @input="liveSearch.schedule" /></label>
+      <button type="submit" :disabled="loading || processing || selectingAll"><MsIcon name="refresh" :size="16" />Refresh</button>
+      <button type="button" :disabled="exporting || selectingAll || !ready || loading || processing || !chosen.length || exportBlocked" :title="exportBlocked ? 'Maksimum 100 potongan sekali unduh — hilangkan sebagian pilihan' : undefined" @click="exportExcel"><MsIcon name="download" :size="16" />{{ exporting ? 'Mengunduh…' : 'Export Excel Terpilih' }}</button>
     </form>
-    <div class="selection-tools"><span>Dipilih: <strong>{{ chosen.length }}</strong> potongan · Total: <strong>{{ rupiah(amount) }}</strong></span>
-      <button v-if="canProcess" class="process-btn" type="button" :disabled="!ready || loading || processing || !canProcessSelection" @click="processSelected">{{ processing ? 'Memproses…' : 'Proses' }}</button>
+    <div class="selection-tools"><span>Dipilih: <strong>{{ chosen.length }}</strong> potongan · Total: <strong>{{ rupiah(amount) }}</strong><template v-if="selectingAll"> · Menandai semua halaman…</template><template v-else-if="chosen.length > 500"> · Proses maksimum 500 potongan sekali proses</template><template v-else-if="exportBlocked"> · Export maksimum 100 potongan sekali unduh</template></span>
+      <button v-if="canProcess" class="process-btn" type="button" :disabled="!ready || loading || processing || selectingAll || !canProcessSelection" :title="chosen.length > 500 ? 'Maksimum 500 potongan sekali proses — hilangkan sebagian pilihan' : undefined" @click="processSelected">{{ processing ? 'Memproses…' : 'Proses' }}</button>
     </div>
-    <p class="note">Pilihan berlaku untuk halaman ini. Semua baris dapat dipilih untuk export. Proses hanya aktif jika seluruh pilihan belum diproses dan saldonya valid.</p>
+    <p class="note">Centang header menandai seluruh potongan sesuai filter aktif (semua halaman). Navigasi halaman mempertahankan pilihan; perubahan periode/pencarian mengosongkan. Proses hanya aktif jika seluruh pilihan belum diproses dan saldonya valid.</p>
     <p v-if="loadError" role="alert">Daftar gagal dimuat. Klik Refresh untuk mencoba lagi.</p>
     <div class="table-scroll">
       <table><thead><tr>
-        <th class="check"><input type="checkbox" aria-label="Pilih semua potongan pada halaman ini" :checked="allSelected" :indeterminate="chosen.length > 0 && !allSelected" :disabled="!ready || loading || processing || !rows.length" @change="selectAll" /></th>
+        <th class="check"><input type="checkbox" aria-label="Pilih semua potongan (semua halaman)" title="Pilih semua potongan sesuai filter aktif, semua halaman" :checked="allSelected" :indeterminate="chosen.length > 0 && !allSelected" :disabled="!ready || loading || processing || selectingAll || !rows.length" @change="selectAll" /></th>
         <th>NIK</th><th>Nama Karyawan</th><th>Nomor Pinjaman</th><th class="money">Nominal Pinjaman</th><th class="money">Potongan</th><th class="money">Sudah Dibayar</th><th class="money">Sisa Pinjaman</th><th>Status Proses</th>
       </tr></thead><tbody>
         <tr v-if="loading"><td colspan="9" role="status">Memuat {{ periode }}…</td></tr>
         <tr v-else-if="!rows.length"><td colspan="9">{{ ready ? 'Tidak ada jadwal tersimpan untuk periode ini.' : 'Menunggu data periode yang dipilih.' }}</td></tr>
         <tr v-for="row in rows" v-else :key="row.Key" :class="{ processed: row.DiprosesPada != null }">
-          <td class="check"><input type="checkbox" :aria-label="`Pilih ${row.Nomor} potongan ke-${row.PotonganKe}`" :checked="selected.has(row.Key)" :disabled="loading || processing || !ready" @change="toggle(row)" /></td>
+          <td class="check"><input type="checkbox" :aria-label="`Pilih ${row.Nomor} potongan ke-${row.PotonganKe}`" :checked="selected.has(row.Key)" :disabled="loading || processing || !ready || selectingAll" @change="toggle(row)" /></td>
           <td class="nowrap">{{ row.Nik }}</td><td>{{ row.Nama || '—' }}</td><td class="nowrap">{{ row.Nomor }}<small>Potongan ke-{{ row.PotonganKe }}</small></td>
           <td class="money">{{ rupiah(row.Pinjam) }}</td><td class="money">{{ rupiah(row.Potongan) }}</td><td class="money">{{ rupiah(row.Bayar) }}</td><td class="money">{{ rupiah(row.SisaBayar) }}</td>
           <td><span class="status">{{ row.StatusProses }}</span><small v-if="!eligible(row) && row.DiprosesPada == null">Saldo tidak valid / tidak mencukupi</small><small v-if="row.DiprosesPada">{{ row.DiprosesPada.replace('T', ' ').slice(0, 19) }}</small></td>
@@ -165,7 +215,7 @@ watch([bulan, tahun], () => { void liveSearch.run(); });
         <label class="page-jump">Ke <input v-model.number="pageInput" type="number" min="1" :max="lastPage" aria-label="Nomor halaman tujuan" :disabled="loading || processing || !ready" @keydown.enter.prevent="jumpToPage" /></label>
         <button type="button" :disabled="loading || processing || !ready" @click="jumpToPage">Go</button>
         <label class="page-size">Baris <span class="period-select">
-          <select :value="perPage" aria-label="Jumlah baris per halaman" :disabled="loading || processing || !ready" @change="changePerPage(Number(($event.target as HTMLSelectElement).value))"><option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option></select>
+          <select :value="perPage" aria-label="Jumlah baris per halaman" :disabled="loading || processing || !ready || selectingAll" @change="changePerPage(Number(($event.target as HTMLSelectElement).value))"><option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option></select>
           <span class="select-chevron" aria-hidden="true"><MsIcon name="expand_more" :size="18" /></span>
         </span></label>
       </nav>

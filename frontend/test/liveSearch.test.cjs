@@ -112,7 +112,8 @@ test('All formerly manual employee/section popup searches are wired to shared de
 test('Pelunasan live search only GET-loads list, invalidates selected items and remains blocked during processing', () => {
   const source = fs.readFileSync(path.join(root, 'views/transaksi/ProsesPelunasanPinjamanView.vue'), 'utf8');
   assert.match(source, /useLiveSearch\(\(\) => load\(1\), \{ enabled: \(\) => !processing.value, invalidate \}\)/);
-  assert.match(source, /selected.value = new Set\(\); ready.value = false/);
+  assert.match(source, /rows.value = \[\]; clearSelection\(\); ready.value = false/);
+  assert.match(source, /selected.value = new Set\(\); selection.value = new Map\(\);/);
   assert.match(source, /@input="liveSearch.schedule"/);
   assert.match(source, /@click="processSelected"/);
 });

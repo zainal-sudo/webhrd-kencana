@@ -30,7 +30,7 @@ test('Excel download uses current period and selected slots without pagination; 
     }
     assert.equal(f.calls.filter(c => c.method === 'download').length, 0);
     await f.load();
-    f.selectAll();
+    await f.selectAll();
     await f.exportExcel();
     const call = f.calls.find(c => c.method === 'download');
     const url = new URL(call.url, 'http://localhost');
@@ -51,7 +51,7 @@ test('Excel download blocks duplicate clicks and restores button after failure f
   const settings = { downloadFail: true, downloadDeferred: new Promise(resolve => { release = resolve; }) };
   const f = fixture(settings);
   try {
-    await f.mount(); f.selectAll();
+    await f.mount(); await f.selectAll();
     const selected = [...f.selected.value];
     const pending = f.exportExcel();
     assert.equal(f.exporting.value, true);
@@ -76,6 +76,7 @@ function fixture(settings = {}) {
     async get(url, config) {
       calls.push({ method: 'get', url, config });
       if (failGet) throw Error('load failed');
+      if (settings.pages) return { data: { data: settings.pages[config.params.page - 1] || [], pagination: { page: config.params.page, last_page: settings.pages.length, total: settings.total ?? settings.pages.flat().length } } };
       if (typeof settings.deferredGet === 'function') return await settings.deferredGet(config);
       if (settings.deferredGet) return await settings.deferredGet;
       return { data: { data: dataRows, pagination: { page: config.params.page, last_page: settings.lastPage ?? 2, total: settings.total ?? dataRows.length + 25 } } };
@@ -120,7 +121,7 @@ function fixture(settings = {}) {
     return module.exports;
   };
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1];
-  const state = evaluate(script + '\nexport { exportExcel, exporting, load, processSelected, selectAll, toggle, rows, selected, chosen, amount, eligible, bulan, tahun, search, ready, loadError, loading, processing, liveSearch, page, lastPage, perPage, pageInput, visiblePages, goToPage, jumpToPage, changePerPage };');
+  const state = evaluate(script + '\nexport { exportExcel, exporting, load, processSelected, selectAll, toggle, rows, selected, chosen, amount, eligible, bulan, tahun, search, ready, loadError, loading, processing, liveSearch, page, lastPage, perPage, pageInput, visiblePages, goToPage, jumpToPage, changePerPage, selection, selectingAll, allSelected, total, exportBlocked };');
   return { ...state, calls, messages, cancel() { confirm = false; }, fail() { failGet = true; },
     async mount() { for (const fn of mounted) await fn(); }, async activate() { for (const fn of activated) await fn(); },
     async render() {
@@ -131,12 +132,12 @@ function fixture(settings = {}) {
 }
 
 test('Select All includes processed/invalid slots for export and toggles each row independently', async () => {
-  const f = fixture();
+  const f = fixture({ total: 3, lastPage: 1 });
   try {
-    await f.mount(); f.selectAll();
+    await f.mount(); await f.selectAll();
     assert.equal(f.chosen.value.length, 3); assert.equal(f.amount.value, 600000);
     assert.equal(f.selected.value.has(f.rows.value[1].Key), true);
-    f.selectAll(); assert.equal(f.chosen.value.length, 0);
+    await f.selectAll(); assert.equal(f.chosen.value.length, 0);
     f.toggle(f.rows.value[1]); assert.equal(f.chosen.value.length, 1);
     f.toggle(f.rows.value[1]); assert.equal(f.chosen.value.length, 0);
   } finally { f.dispose(); }
@@ -202,11 +203,11 @@ test('Conflict reloads list, failed list cannot process, period/search changes i
     await f.mount(); f.toggle(f.rows.value[0]); await f.processSelected();
     assert.ok(f.messages.some(message => message.includes('batch dibatalkan')));
     assert.equal(f.selected.value.size, 0);
-    f.selectAll(); f.bulan.value = 12; await settle();
+    await f.selectAll(); f.bulan.value = 12; await settle();
     assert.equal(f.ready.value, true); assert.equal(f.selected.value.size, 0);
     assert.equal(f.calls.at(-1).config.params.bulan, 12);
     await f.processSelected(); assert.equal(f.calls.filter(c => c.method === 'post').length, 1);
-    await f.load(); f.selectAll(); f.search.value = 'Riri'; await settle();
+    await f.load(); await f.selectAll(); f.search.value = 'Riri'; await settle();
     assert.equal(f.selected.value.size, 0);
     f.fail(); await f.load(); assert.equal(f.ready.value, false); assert.equal(f.loadError.value, true);
   } finally { f.dispose(); }
@@ -232,12 +233,12 @@ test('Pending POST blocks duplicate clicks and late list response after period c
   } finally { late.dispose(); }
 });
 test('Initial entry and month/year changes automatically load page 1; Refresh remains available', async () => {
-  const f = fixture();
+  const f = fixture({ total: 3, lastPage: 1 });
   try {
     await f.mount();
     assert.equal(f.calls.filter(c => c.method === 'get').length, 1);
     assert.equal(f.ready.value, true);
-    f.selectAll();
+    await f.selectAll();
     f.bulan.value = f.bulan.value === 12 ? 1 : f.bulan.value + 1;
     await settle();
     assert.equal(f.calls.at(-1).config.params.bulan, f.bulan.value);
@@ -245,9 +246,9 @@ test('Initial entry and month/year changes automatically load page 1; Refresh re
     assert.equal(f.selected.value.size, 0);
     f.tahun.value += 1; await settle();
     assert.equal(f.calls.at(-1).config.params.tahun, f.tahun.value);
-    assert.equal(f.calls.filter(c => c.method === 'get').length, 3);
-    await f.liveSearch.run();
     assert.equal(f.calls.filter(c => c.method === 'get').length, 4);
+    await f.liveSearch.run();
+    assert.equal(f.calls.filter(c => c.method === 'get').length, 5);
     const html = await f.render();
     assert.match(html, />Refresh<\/button>/);
     assert.ok(!html.includes('Tampilkan'));
@@ -255,12 +256,17 @@ test('Initial entry and month/year changes automatically load page 1; Refresh re
   } finally { f.dispose(); }
 });
 
-test('Pagination clears selection; reactivation preserves an unfinished selection', async () => {
+test('Pagination preserves cross-page selection; period change and process run clears it', async () => {
   const f = fixture();
   try {
-    await f.mount(); await f.activate(); f.selectAll(); await f.load(2);
-    assert.equal(f.calls.at(-1).config.params.page, 2); assert.equal(f.selected.value.size, 0);
-    f.selectAll(); const count=f.selected.value.size; await f.activate(); assert.equal(f.selected.value.size, count);
+    await f.mount(); await f.activate(); await f.selectAll();
+    assert.equal(f.selected.value.size, 3);
+    await f.load(2);
+    assert.equal(f.calls.at(-1).config.params.page, 2);
+    // Navigasi halaman TIDAK lagi membatalkan pilihan lintas halaman.
+    assert.equal(f.selected.value.size, 3);
+    await f.activate();
+    assert.equal(f.selected.value.size, 3);
   } finally { f.dispose(); }
 });
 test('Actual page keeps processed/invalid rows selectable, status colors and permission hides Proses', async () => {
@@ -287,7 +293,7 @@ test('Actual page keeps processed/invalid rows selectable, status colors and per
 test('Live typing automatically GET-loads page 1 and clears payment selection without POST', async () => {
   const f = fixture();
   try {
-    await f.mount(); f.selectAll(); assert.equal(f.selected.value.size, 3);
+    await f.mount(); await f.selectAll(); assert.equal(f.selected.value.size, 3);
     const initial = f.calls.length;
     f.search.value = 'Ri'; f.liveSearch.schedule();
     f.search.value = 'Riri'; f.liveSearch.schedule();
@@ -302,6 +308,53 @@ test('Live typing automatically GET-loads page 1 and clears payment selection wi
     f.liveSearch.schedule(); await f.liveSearch.run();
     assert.equal(f.calls.length, before);
   } finally { f.liveSearch.cancel(); f.dispose(); }
+});
+
+test('Select All walks ALL pages of the active filter and keeps checks across pages', async () => {
+  const pageOne = baseRows();
+  const pageTwo = [
+    { Key: '["PJ.2610.0009",1]', Nomor: 'PJ.2610.0009', Nik: '004', Nama: 'Ani', Pinjam: 500000, Bayar: 250000, SisaBayar: 250000, PotonganKe: 1, Potongan: 250000, DiprosesPada: null, StatusProses: 'Belum Diproses' },
+    { Key: '["PJ.2610.0010",2]', Nomor: 'PJ.2610.0010', Nik: '005', Nama: 'Sari', Pinjam: 300000, Bayar: 100000, SisaBayar: 200000, PotonganKe: 2, Potongan: 200000, DiprosesPada: null, StatusProses: 'Belum Diproses' },
+  ];
+  const f = fixture({ pages: [pageOne, pageTwo] });
+  try {
+    await f.mount();
+    assert.equal(f.rows.value.length, 3); // tampilan tetap halaman 1
+    assert.equal(f.total.value, 5);
+    await f.selectAll();
+    assert.equal(f.selectingAll.value, false);
+    assert.equal(f.allSelected.value, true);
+    assert.equal(f.selected.value.size, 5);        // lintas halaman
+    assert.equal(f.chosen.value.length, 5);
+    assert.equal(f.amount.value, 1050000);
+    // Export dari UI memakai seluruh pilihan lintas halaman
+    await f.exportExcel();
+    const items = JSON.parse(new URL(f.calls.find(c => c.method === 'download').url, 'http://localhost').searchParams.get('items'));
+    assert.equal(items.length, 5);
+    assert.ok(items.some(item => item.nomor_pinjam === 'PJ.2610.0010' && item.potongan_ke === 2));
+    // Navigasi: baris halaman 2 tampil, tetap terpilih lintas halaman
+    await f.load(2);
+    assert.equal(f.page.value, 2);
+    assert.ok(f.rows.value.every(row => f.selected.value.has(row.Key)));
+    assert.equal(f.chosen.value.length, 5);
+  } finally { f.dispose(); }
+});
+
+test('Select-all beyond caps disables Export (maks 100) while Proses (maks 500) still allowed', async () => {
+  const many = Array.from({ length: 120 }, (_, i) => ({ Key: `["PJ.2610.${String(i + 1).padStart(4, '0')}",1]`, Nomor: `PJ.2610.${String(i + 1).padStart(4, '0')}`, Nik: String(i), Nama: `N${i}`, Pinjam: 400000, Bayar: 0, SisaBayar: 400000, PotonganKe: 1, Potongan: 100000, DiprosesPada: null, StatusProses: 'Belum Diproses' }));
+  const f = fixture({ pages: [many.slice(0, 100), many.slice(100)] });
+  try {
+    await f.mount(); await f.selectAll();
+    assert.equal(f.chosen.value.length, 120);
+    assert.equal(f.exportBlocked.value, true);
+    // Export terkunci, tombol proses tetap hidup.
+    await f.exportExcel();
+    assert.equal(f.calls.filter(c => c.method === 'download').length, 0);
+    await f.processSelected();
+    assert.equal(f.calls.filter(c => c.method === 'post').length, 1);
+    const post = f.calls.find(c => c.method === 'post');
+    assert.equal(JSON.parse(JSON.stringify(post.body.items)).length, 120);
+  } finally { f.dispose(); }
 });
 
 test('Single/empty page hides navigation; multiple pages render numbered buttons, jump and row size', async () => {
@@ -328,9 +381,11 @@ test('Single/empty page hides navigation; multiple pages render numbered buttons
 test('Navigation/jump/page size preserve filters and clear selected checkboxes, invalid targets do not load', async () => {
   const f = fixture({ lastPage: 23, total: 552 });
   try {
-    f.search.value = 'Riri'; await settle(); await f.mount(); f.selectAll();
+    f.search.value = 'Riri'; await settle(); await f.mount(); await f.selectAll();
     await f.goToPage(3); await settle();
-    assert.equal(f.page.value, 3); assert.equal(f.selected.value.size, 0);
+    assert.equal(f.page.value, 3);
+    // Pilih-semua lintas halaman: pilihan bertahan saat pindah halaman.
+    assert.equal(f.selected.value.size, 3);
     assert.equal(f.calls.at(-1).config.params.search, 'Riri');
     assert.deepEqual(Array.from(f.visiblePages.value), [1, 2, 3, 4, 5]);
     f.pageInput.value = 23; await f.jumpToPage(); await settle();
@@ -339,10 +394,10 @@ test('Navigation/jump/page size preserve filters and clear selected checkboxes, 
     for (const target of [0, -1, 24, 1.5, NaN, 23]) await f.goToPage(target);
     f.pageInput.value = ''; await f.jumpToPage();
     assert.equal(f.calls.length, before); assert.equal(f.pageInput.value, 23);
-    f.selectAll(); await f.changePerPage(50); await settle();
+    await f.selectAll(); await f.changePerPage(50); await settle();
     assert.equal(f.page.value, 1); assert.equal(f.perPage.value, 50);
     assert.equal(f.calls.at(-1).config.params.per_page, 50);
-    assert.equal(f.selected.value.size, 0);
+    assert.equal(f.selected.value.size, 3);
     const after = f.calls.length;
     await f.changePerPage(999); assert.equal(f.calls.length, after);
     f.processing.value = true; await f.goToPage(2); await f.changePerPage(100);
