@@ -26,7 +26,10 @@ function fixture() {
     } }
     // ExcelJS uses instanceof Array: bridge VM arrays to this realm for workbook writing.
     const scope = { pool, success, error, paginated, applyAllColumnFilters, buildOrderBy,
-        sendExcel: (res, title, columns, rows) => sendExcel(res, title, Array.from(columns), Array.from(rows, row => ({ ...row }))) }
+        // ExcelJS checks Array.isArray across realms; opts juga harus diteruskan
+        // (requestedColumns dipakai uji kolom export UI).
+        sendExcel: (res, title, columns, rows, opts) => sendExcel(res, title, Array.from(columns),
+            Array.from(rows, row => ({ ...row })), opts ? { ...opts } : undefined) }
     vm.createContext(scope)
     const source = readFileSync(new URL('../src/controllers/master/karyawanController.js', import.meta.url), 'utf8')
     vm.runInContext(source.replace(/^import .*\r?\n/gm, '').replace(/^export /gm, '') + '\nglobalThis.handler = getKaryawanList;', scope)
@@ -79,6 +82,31 @@ test('List JSON keys stay compatible; export preserves search, filters and sorti
     assert.match(exportCall.sql, /ORDER BY k.kar_kode_absensi desc LIMIT 50000$/)
     assert.ok(exportCall.params.includes('Jamkesmas'))
     assert.ok(exportCall.params.includes('0001234567890'))
+})
+
+test('Export UI (param columns alias) tetap 30 kolom, urut sesuai tampilan browse', async () => {
+    const f = fixture()
+    // Persis seperti BaseBrowse mengirim: columns= orderedCols key alias.
+    const uiColumns = definitions.map((column) => column.key).join(',')
+    const res = await f.run({ export: 'xlsx', columns: uiColumns })
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(res.buffer)
+    const sheet = workbook.worksheets[0]
+    assert.equal(sheet.columnCount, 30, 'semua 30 kolom harus terbawa')
+    assert.deepEqual(sheet.getRow(1).values.slice(1), expected, 'header sesuai urutan browse')
+    // Setiap kolom terisi nilainya (kecuali sample-nya memang null di sumber)
+    for (const column of definitions) {
+        if (sample[column.key] == null) continue
+        const label = expected[definitions.findIndex((d) => d.key === column.key)]
+        const value = sheet.getRow(2).getCell(label == null ? 1 : expected.indexOf(label) + 1).value
+        assert.ok(value !== undefined && String(value) !== '', `kolom ${label} terisi`)
+    }
+    // Alias saja tanpa label: tidak ada yang terbuang (mis. 'Sistem').
+    const res2 = await f.run({ export: 'xlsx', columns: 'Sistem,TglLahir,TglMasuk' })
+    const book2 = new ExcelJS.Workbook()
+    await book2.xlsx.load(res2.buffer)
+    const head2 = book2.worksheets[0].getRow(1).values.slice(1).map(String)
+    assert.deepEqual(head2, ['Sistem Gaji', 'Tgl Lahir', 'Tgl Masuk'])
 })
 
 test('All 30 original keys remain available to the column choice and sorting endpoints', async () => {

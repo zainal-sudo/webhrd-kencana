@@ -127,7 +127,18 @@ export const getKaryawanList = async (req, res, next) => {
             const rows = all.map(row => Object.fromEntries(keys.map((key, index) => [headers[index],
                 row[key] != null && EXPORT_TEXT_KEYS.has(key) ? String(row[key]) : row[key],
             ])))
-            return sendExcel(res, 'Karyawan', headers, rows, { requestedColumns: req.query.columns })
+            return sendExcel(res, 'Karyawan', headers, rows, {
+                // UI mengirim param columns berupa key alias (tombol Export BaseBrowse);
+                // terjemahkan ke label agar requestedExportColumns tidak membuang
+                // kolom berlabel berbeda (Sistem→'Sistem Gaji', TglLahir→'Tgl Lahir', dll).
+                // Urutan permintaan dipertahankan → file sesuai urutan tampilan browse.
+                requestedColumns: req.query.columns
+                    ? String(req.query.columns).split(',').map((alias) => {
+                        const index = keys.indexOf(alias.trim())
+                        return index >= 0 ? headers[index] : alias.trim()
+                    })
+                    : undefined
+            })
         }
 
         const [cnt] = await pool.query(`SELECT COUNT(*) AS total ${FROM_SQL}${where}`, params)
