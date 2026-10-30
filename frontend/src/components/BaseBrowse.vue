@@ -1110,7 +1110,8 @@ onActivated(() => {
   overscroll-behavior: contain;
 }
 .browse-table {
-  width: max-content;
+  width: 100%;
+  min-width: max-content; /* isi > halaman → tetap scroll; isi < halaman → bentang penuh */
   table-layout: auto;
   /* Collapsed borders scroll with the body and expose a seam above sticky th. */
   border-collapse: separate;
