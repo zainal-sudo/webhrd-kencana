@@ -568,7 +568,7 @@ onUnmounted(() => {
             <FSelect searchable v-model="values.kar_pab_kode" label="Pabrik" :options="opsiPabrik" required />
             <FSelect searchable v-model="values.kar_dep_kode" label="Departemen" :options="opsiDepartemen" />
             <FSelect searchable v-model="values.kar_jab_kode" label="Jabatan" :options="opsiJabatan" required />
-            <FSelect searchable v-model="values.kar_bagian" label="Bagian" :options="opsiBagian" show-clear />
+            <FText v-model="values.kar_bagian" label="Bagian" :suggestions="opsiBagian.map((o: any) => o.label)" placeholder="Ketik bagian (bebas, boleh belum terdaftar)" />
             <FSelect searchable v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" />
             <FSelect searchable v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" />
             <div class="field atasan-field">

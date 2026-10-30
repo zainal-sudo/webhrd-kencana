@@ -1,5 +1,7 @@
 <script setup lang="ts">
-withDefaults(
+import { computed, getCurrentInstance } from "vue";
+
+const props = withDefaults(
   defineProps<{
     label: string;
     modelValue: string | null | undefined;
@@ -8,10 +10,13 @@ withDefaults(
     placeholder?: string;
     /** native input type: text | password | number */
     type?: string;
+    /** daftar saran (datalist); nilai bebas di luar daftar tetap boleh */
+    suggestions?: string[];
   }>(),
-  { required: false, disabled: false, placeholder: "", type: "text" }
+  { required: false, disabled: false, placeholder: "", type: "text", suggestions: undefined }
 );
 const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
+const listId = props.suggestions?.length ? `ftext-datalist-${getCurrentInstance()?.uid}` : undefined;
 </script>
 
 <template>
@@ -25,8 +30,12 @@ const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
       :type="type"
       :disabled="disabled"
       :placeholder="placeholder"
+      :list="listId"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
+    <datalist v-if="listId" :id="listId">
+      <option v-for="s in suggestions" :key="s" :value="s" />
+    </datalist>
   </div>
 </template>
 
