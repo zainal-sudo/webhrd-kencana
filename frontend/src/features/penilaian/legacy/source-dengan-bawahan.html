@@ -284,6 +284,23 @@ body {
     background: #fff5f5;
 }
 
+/* Dropdown modern: panah custom + kontrol rapi.
+   Daftar popup-nya tetap milik OS (select native tidak bisa distyling). */
+.field select, .usulan-box select {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%236b7a8f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+.field select:hover, .usulan-box select:hover {
+    border-color: var(--primary-light);
+}
+
 .field .error-msg {
     font-size: 10px;
     color: var(--danger);
@@ -296,143 +313,192 @@ body {
 }
 
 .aspek-section {
-    margin-top: 20px;
+    margin-top: 24px;
 }
 
 .aspek-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 
 .aspek-item {
-    background: var(--bg);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    border: 1.5px solid var(--border);
-    transition: all 0.3s ease;
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 16px rgba(13, 60, 120, 0.06);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
     cursor: default;
+    overflow: hidden;
+}
+
+.aspek-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: transparent;
 }
 
 .aspek-item:hover {
     border-color: var(--primary-light);
-    background: #f5f9ff;
+    box-shadow: 0 8px 20px rgba(13, 60, 120, 0.10);
 }
 
 .aspek-item.has-selected {
-    border-color: var(--primary);
-    background: #f0f7ff;
+    border-color: #c4d9f8;
+    background: #fbfdff;
+    box-shadow: 0 6px 18px rgba(13, 60, 120, 0.08);
 }
 
-.aspek-item.no-selected {
-    border-color: #ffe0b0;
-    background: #fffcf5;
+.aspek-item.has-selected::before {
+    background: linear-gradient(180deg, var(--primary-light), var(--primary));
 }
 
 .aspek-header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 4px;
+    gap: 6px;
+    margin-bottom: 6px;
 }
 
 .aspek-nama {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text);
+    letter-spacing: -0.01em;
 }
 
 .aspek-nama .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--primary-lighter);
     color: var(--primary);
-    margin-right: 4px;
+    font-size: 12px;
+    font-weight: 800;
+    vertical-align: 1px;
 }
 
 .bobot {
     font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     background: var(--accent-light);
-    padding: 2px 10px;
-    border-radius: 20px;
+    border: 1px solid #f0e0a0;
+    padding: 3px 10px;
+    border-radius: 999px;
     color: var(--secondary);
-    font-weight: 600;
 }
 
 .aspek-detail {
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--text-light);
-    margin-bottom: 10px;
-    padding-left: 20px;
+    margin-bottom: 12px;
+    padding-left: 34px;
 }
 
 .radio-group {
     display: flex;
     gap: 6px;
+    background: #f2f6fb;
+    padding: 5px;
+    border-radius: 16px;
 }
 
 .radio-option {
     flex: 1;
     text-align: center;
-    background: white;
-    border-radius: 30px;
-    padding: 6px 4px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 9px 4px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    border: 1.5px solid var(--border);
-    transition: all 0.2s ease;
+    gap: 3px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.2s ease;
     cursor: pointer;
+    --sel: var(--primary);
+    --sel-bg: #e8f0fe;
 }
 
+/* Warna sorot per skor: 5 hijau muda..3 biru..1 merah (urut nilai 5,4,3,2,1). */
+.radio-group .radio-option:nth-child(1) { --sel: #16a34a; --sel-bg: #e9f9ef; }
+.radio-group .radio-option:nth-child(2) { --sel: #059669; --sel-bg: #e6faf4; }
+.radio-group .radio-option:nth-child(3) { --sel: #0d6efd; --sel-bg: #e8f0fe; }
+.radio-group .radio-option:nth-child(4) { --sel: #d97706; --sel-bg: #fef3e2; }
+.radio-group .radio-option:nth-child(5) { --sel: #dc3545; --sel-bg: #fdecec; }
+
 .radio-option:hover {
-    border-color: var(--primary-light);
+    border-color: var(--sel);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
 }
 
 .radio-option input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--primary);
+    width: 17px;
+    height: 17px;
+    accent-color: var(--sel);
     cursor: pointer;
 }
 
 .radio-option span {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
     color: var(--text);
+    line-height: 1;
 }
 
 .radio-label-text {
-    font-size: 7px;
+    font-size: 8px;
     color: var(--text-light);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
+    font-weight: 700;
 }
 
 .radio-option.selected {
-    border-color: var(--primary);
-    background: #e8f0fe;
-    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
+    border-color: var(--sel);
+    background: var(--sel-bg);
+    box-shadow: inset 0 0 0 1px var(--sel);
+}
+
+.radio-option.selected span,
+.radio-option.selected .radio-label-text {
+    color: var(--sel);
 }
 
 .nilai-bobot {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding: 9px 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+    gap: 12px;
 }
 
 .nilai-skor {
-    font-weight: 700;
+    font-weight: 800;
     font-size: 15px;
     color: var(--primary);
 }
 
 .nilai-skor.empty {
-    color: #b0b8c0;
+    color: #9aa7b8;
     font-size: 13px;
     font-weight: 500;
 }
@@ -442,12 +508,12 @@ body {
     color: var(--text-light);
     font-style: italic;
     text-align: right;
-    line-height: 1.3;
+    line-height: 1.45;
     max-width: 60%;
 }
 
 .keterangan.empty {
-    color: #b0b8c0;
+    color: #9aa7b8;
     font-style: normal;
 }
 

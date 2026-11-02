@@ -22,7 +22,12 @@ let disposeDraftBrowserHooks: (() => void) | undefined;
 // Terapkan preferensi tema sejak awal, termasuk pada layout Login.
 useThemeToggle();
 
-const layout = computed(() => route.meta?.layout === "PublicPenilaianLayout" ? PublicPenilaianLayout : route.meta?.layout === "BlankLayout" ? BlankLayout : DefaultLayout);
+const layout = computed(() => {
+  // Navigasi awal belum resolve: jangan render shell apa pun agar tidak
+  // berkedip layout salah (shell HRIS) sebelum halaman tujuan siap.
+  if (!route.matched.length) return null;
+  return route.meta?.layout === "PublicPenilaianLayout" ? PublicPenilaianLayout : route.meta?.layout === "BlankLayout" ? BlankLayout : DefaultLayout;
+});
 
 const showExpiredDialog = ref(false);
 
@@ -35,9 +40,13 @@ function onAuthExpired() {
 
 onMounted(() => {
   disposeDraftBrowserHooks = installDraftBrowserHooks(message => toast.info(message));
-  if (!route.meta?.publicPenilaian && authStore.isAuthenticated && !permissionStore.loaded) {
-    permissionStore.fetchAll().catch(() => undefined);
-  }
+  // Tunggu navigasi awal selesai agar keputusan fetch menu tidak diambil
+  // saat route masih kosong (mis. pembuka link penilaian publik).
+  router.isReady().then(() => {
+    if (!route.meta?.publicPenilaian && authStore.isAuthenticated && !permissionStore.loaded) {
+      permissionStore.fetchAll().catch(() => undefined);
+    }
+  });
   window.addEventListener("auth:expired", onAuthExpired);
 });
 
@@ -56,7 +65,7 @@ const goToLogin = () => {
 </script>
 
 <template>
-  <component :is="layout" />
+  <component v-if="layout" :is="layout" />
 
   <v-dialog v-if="!route.meta.publicPenilaian" v-model="showExpiredDialog" max-width="380" persistent>
     <v-card rounded="false">
