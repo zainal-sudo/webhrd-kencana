@@ -67,15 +67,7 @@ const SQL_NILAI = `SELECT kar_nik Nik,kar_nama Nama,kar_pab_kode Pabrik,jab_kode
  + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600  ,(time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 )))  lembur
  from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor where lem_tanggal
  between %START% and %END% and lemd_kar_nik=kar_nik),0) lembur,
- ifnull((select sum(g.c) from (select b2.lem_tanggal, least(sum(if(b2.lem_tanggal not in (select hl_tanggal from tharilibur where hl_status=1)
- or tk2.kar_bagian in ("SATPAM","IPAL & B3"), if ( timediff(a2.lemd_jamakhir,a2.lemd_jammulai) < 0 ,
-(time_to_sec((timediff("24:00:00",a2.lemd_jammulai))))/3600 + (time_to_sec((timediff(a2.lemd_jamakhir,"00:00:00"))))/3600  ,
-(time_to_sec((timediff(a2.lemd_jamakhir,a2.lemd_jammulai))))/3600 ), 0)),
- if(max(tk2.kar_sistem_gaji)="Harian",1,2)) c
- from tlembur_dtl a2 inner join tlembur_hdr b2 on b2.lem_nomor=a2.lemd_lem_nomor and a2.lemd_panggilan <> 1
- left join tkaryawan tk2 on tk2.kar_nik=a2.lemd_kar_nik
- where b2.lem_tanggal between %START% and %END%  and a2.lemd_kar_nik=kar_nik
- group by b2.lem_tanggal) g ),0) 2jam ,
+ ifnull(j2.c,0) 2jam ,
  ifnull((select (sum(if ( timediff(lemd_jamakhir,lemd_jammulai) < 0 , (time_to_sec((timediff("24:00:00",lemd_jammulai))))/3600
  + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600  ,(time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 )))  panggilan
  from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor and lemd_panggilan = 1 where lem_tanggal  between %START% and %END%
@@ -112,14 +104,26 @@ const SQL_NILAI = `SELECT kar_nik Nik,kar_nama Nama,kar_pab_kode Pabrik,jab_kode
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=0) sakit,
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=1) Ijin,
  (select count(*) from zijin where ij_tanggal between %START% and %END% and ij_ji_id=3 and ij_nik=kar_nik and ij_keterangan=2) Alpha
-  from tkaryawan left join tabsensi a
-  on kar_kode_absensi=nik
-  left join tjabatan on kar_jab_kode=jab_kode
+  from tkaryawan tkp left join tabsensi a
+  on tkp.kar_kode_absensi=nik
+  left join tjabatan on tkp.kar_jab_kode=jab_kode
+  left join (
+  select d2.lemd_kar_nik n, sum(d2.c) c from (
+  select a2.lemd_kar_nik, b2.lem_tanggal, least(sum(if(b2.lem_tanggal not in (select hl_tanggal from tharilibur where hl_status=1)
+  or tk2.kar_bagian in ("SATPAM","IPAL & B3") or tk2.kar_dep_kode = "MKTR", if ( timediff(a2.lemd_jamakhir,a2.lemd_jammulai) < 0 ,
+(time_to_sec((timediff("24:00:00",a2.lemd_jammulai))))/3600 + (time_to_sec((timediff(a2.lemd_jamakhir,"00:00:00"))))/3600  ,
+(time_to_sec((timediff(a2.lemd_jamakhir,a2.lemd_jammulai))))/3600 ), 0)),
+  if(max(tk2.kar_sistem_gaji)="Harian",1,2)) c
+  from tlembur_dtl a2 inner join tlembur_hdr b2 on b2.lem_nomor=a2.lemd_lem_nomor and a2.lemd_panggilan <> 1
+  left join tkaryawan tk2 on tk2.kar_nik=a2.lemd_kar_nik
+  where b2.lem_tanggal between %START% and %END%
+  group by a2.lemd_kar_nik, b2.lem_tanggal) d2
+  group by d2.lemd_kar_nik) j2 on j2.n=tkp.kar_nik
   where tanggal between %START% and %END%
   and scan1 <> "00:00:00"
   and status <> 0 and kar_status_aktif =1 and kar_gapok > 0
   AND kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
-  group by kar_nik) final`
+  group by tkp.kar_nik) final`
 
 /** Kolom `tgajibulanan` yang diisi InsertNilai (urutan sama seperti Delphi). */
 const KOL_INSERT = [

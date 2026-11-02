@@ -22,7 +22,7 @@ function muatLaporan() {
         },
     }
     const source = readFileSync(new URL('../src/controllers/laporan/laporanController.js', import.meta.url), 'utf8')
-        .replace(/^import .*$/gm, '').replace(/export const /g, 'const ')
+        .replace(/^import .*$/gm, '').replace(/^export (const|let|var) /gm, 'const ').replace(/^export (async )?function /gm, '$1function ')
     const context = { pool, applyAllColumnFilters, buildOrderBy,
         success: () => {}, paginated: () => {}, error: () => {},
         sendExcel: () => {},
