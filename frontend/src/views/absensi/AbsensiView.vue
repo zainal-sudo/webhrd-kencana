@@ -38,7 +38,6 @@ const columns: BrowseColumn[] = [
   { key: "Keluar", label: "Jam Keluar", width: "90px", align: "center" },
   { key: "Scan2", label: "Scan Keluar", width: "90px", align: "center" },
   { key: "Status", label: "Status", width: "110px", align: "center" },
-  { key: "Nonaktif", label: "Sudah Keluar", width: "95px", align: "center" },
 ];
 
 /** Status absensi: 0 = tidak masuk (kuning), 1 = masuk, 2 = terlambat (hijau). */
@@ -114,9 +113,6 @@ async function hapus() {
     <template #cell="{ row, column, text }">
       <span v-if="column.key === 'Status'" :class="['status-badge', statusAbsensi(row).cls]">{{
         statusAbsensi(row).label
-      }}</span>
-      <span v-else-if="column.key === 'Nonaktif'" :class="['keluar-badge', String(row.Nonaktif ?? '').trim() === '1' ? 'ya' : 'tidak']">{{
-        String(row.Nonaktif ?? '').trim() === '1' ? "Sudah Keluar" : "–"
       }}</span>
       <template v-else>{{ text }}</template>
     </template>
@@ -213,22 +209,6 @@ async function hapus() {
   color: #166534;
   background: #dff3e5;
   border-color: #8ed0a4;
-}
-/* Kolom Sudah Keluar: hanya sel bernilai 1 yang merah. */
-.keluar-badge {
-  display: inline-block;
-  padding: 1px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.keluar-badge.ya {
-  color: #b91c1c;
-  background: #fde2e2;
-  border: 1px solid #f0a8a8;
-}
-.keluar-badge.tidak {
-  color: #9aa7b8;
 }
 :deep(tbody tr.absen-0 td) {
   background: #fff8e1;

@@ -14,8 +14,8 @@ import { bacaBerkasAbsensi, simpanScanStaging, ringkasScanStaging, parseBaris, n
  *   ufrmImportAbsensi  -> tarik data mesin absensi ke `tabsensi2`, lalu
  *                         salin ke `tabsensi` (disebut "proses" di bawah)
  *
- * Tabel: `tabsensi` (nik = kar_kode_absensi, bukan NIK), `tabsensi2` (staging),
- *        `tkeluar` (untuk penanda Nonaktif di browse).
+ * Tabel: `tabsensi` (nik = kar_kode_absensi, bukan NIK), `tabsensi2` (staging).
+ *        Browse hanya menampilkan karyawan yang status aktifnya masih 1.
  *
  * Catatan tentang langkah pertama Import Absensi: program Delphi membaca
  * `absensi.mdb` (Jet OLEDB) langsung dari folder tiap mesin absensi. Node tidak
@@ -47,8 +47,6 @@ const LIST_COLUMNS = {
     Scan2: 'a.scan2',
     Status: 'a.status',
     Verifikasi: 'a.verifikasi',
-    Nonaktif: `(SELECT IF(COUNT(*) > 0, 1, 0) FROM tkeluar kl
-                 WHERE kl.kl_nik = k.kar_Nik AND kl.kl_tanggal <= a.tanggal)`,
 }
 
 const FROM_SQL = `FROM tabsensi a
@@ -84,17 +82,15 @@ export const getAbsensiList = async (req, res, next) => {
 
         // Karyawan tanpa kode absensi tidak ditampilkan: kode NULL/kosong
         // bisa ikut ter-join bila tabsensi.nik juga kosong ('').
+        // Hanya karyawan yang masih aktif (master) yang tampil di browse.
         let where = ` WHERE a.tanggal BETWEEN ? AND ?
-            AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''`
+            AND k.kar_kode_absensi IS NOT NULL AND k.kar_kode_absensi <> ''
+            AND k.kar_status_aktif = 1`
         let params = [start, end]
 
         if (req.query.search) {
             where += ' AND (k.kar_Nik LIKE ? OR k.kar_nama LIKE ? OR a.nik LIKE ? OR k.kar_bagian LIKE ?)'
             params = [...params, ...Array(4).fill(`%${req.query.search}%`)]
-        }
-        if (req.query.status_aktif !== undefined && req.query.status_aktif !== '') {
-            where += ' AND k.kar_status_aktif = ?'
-            params.push(parseInt(req.query.status_aktif))
         }
         if (req.query.pabrik) {
             where += ' AND k.kar_pab_kode = ?'
@@ -131,7 +127,7 @@ export const getAbsensiList = async (req, res, next) => {
             // Export = tampilan web: buang kolom internal (duplikat Nik,
             // kode absensi, jabatan mentah, flag verifikasi) dan urutkan
             // seperti AbsensiView.
-            const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status', 'Nonaktif']
+            const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status']
             return sendExcel(res, 'Absensi', exportColumns, all, {
                 requestedColumns: req.query.columns,
                 headLabels: {
@@ -141,7 +137,6 @@ export const getAbsensiList = async (req, res, next) => {
                     Scan1: 'Scan Masuk',
                     Keluar: 'Jam Keluar',
                     Scan2: 'Scan Keluar',
-                    Nonaktif: 'Sudah Keluar',
                 },
             })
         }
