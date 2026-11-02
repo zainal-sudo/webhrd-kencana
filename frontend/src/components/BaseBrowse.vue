@@ -365,6 +365,28 @@ function rowIdentity(row: Record<string, any>, index: number) {
   return props.rowKey ? props.rowKey(row) : row[props.primaryKey] ?? index;
 }
 
+// Periode berubah (Dari/Sampai, salah satu pun) -> muat ulang otomatis,
+// debounce untuk menggabungkan dua ganti tanggal sekaligus. Syarat kedua
+// tanggal terisi: rentang tidak lengkap tidak dikirim ke server.
+watch(
+  () => [startDate.value, endDate.value],
+  () => {
+    if (!props.hasPeriod || !startDate.value || !endDate.value) return;
+    ++loadRequest;
+    if (timeoutId.value !== undefined) window.clearTimeout(timeoutId.value);
+    rows.value = [];
+    expandedKeys.value = new Set();
+    loading.value = true;
+    page.value = 1;
+    total.value = 0;
+    lastPage.value = 1;
+    timeoutId.value = window.setTimeout(() => {
+      timeoutId.value = undefined;
+      fetchData();
+    }, 350);
+  }
+);
+
 // Proyeksi join bisa identik tanpa ID detail di API. Pertahankan semua baris,
 // tetapi beri ordinal per identitas (bukan index global) agar key Vue unik.
 // Hanya opt-in rowKey; identitas/action browse lain tetap seperti sebelumnya.
