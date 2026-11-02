@@ -445,11 +445,40 @@ export const getStaging = async (req, res, next) => {
              FROM tabsensi2${where}`,
             params
         )
-        const [perHari] = await pool.query(
+        const [perData] = await pool.query(
             `SELECT tanggal, COUNT(*) AS jml FROM tabsensi2${where} GROUP BY tanggal ORDER BY tanggal DESC LIMIT 60`,
             params
         )
-        success(res, { ringkasan: rows[0], perHari })
+
+        // Rentang terpilih sampai 60 hari: daftar per hari dilengkapi semua
+        // tanggal kalender (termasuk yang kosong) supaya pas dengan Dari/Sampai.
+        // Lebih panjang dari itu LIMIT 60 "tanggal berisi data" dibiarkan
+        // berlaku seperti semula dan frontend memberi catatan terpotong.
+        const mulai = normTanggal(start)
+        const sampai = normTanggal(end)
+        let perHari = perData
+        let terpotong = false
+        if (mulai && sampai && mulai <= sampai) {
+            const jumlahHari =
+                Math.round((new Date(`${sampai}T00:00:00`) - new Date(`${mulai}T00:00:00`)) / 86400000) + 1
+            if (jumlahHari > 0 && jumlahHari <= 60) {
+                const jmlByTanggal = new Map(perData.map((r) => [String(r.tanggal).slice(0, 10), Number(r.jml)]))
+                const isoHari = (d) =>
+                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                const daftar = []
+                const awal = new Date(`${mulai}T00:00:00`)
+                const akhir = new Date(`${sampai}T00:00:00`)
+                for (let d = awal; d <= akhir; d.setDate(d.getDate() + 1)) {
+                    const tanggal = isoHari(d)
+                    daftar.push({ tanggal, jml: jmlByTanggal.get(tanggal) || 0, adaData: jmlByTanggal.has(tanggal) })
+                }
+                // Urut tanggal terbaru di atas, seperti GROUP BY ... DESC.
+                perHari = daftar.reverse()
+            } else if (jumlahHari > 60) {
+                terpotong = true
+            }
+        }
+        success(res, { ringkasan: rows[0], perHari, terpotong })
     } catch (err) {
         next(err)
     }

@@ -33,7 +33,8 @@ const memuat = ref(false);
 const mengunggah = ref(false);
 const memproses = ref(false);
 const ringkasan = ref<{ jml: number; karyawan: number; dari: string; sampai: string } | null>(null);
-const perHari = ref<{ tanggal: string; jml: number }[]>([]);
+const perHari = ref<{ tanggal: string; jml: number; adaData?: boolean }[]>([]);
+const terpotong = ref(false);
 
 async function muatPabrik() {
   try {
@@ -51,6 +52,7 @@ async function muatStaging() {
     });
     ringkasan.value = data.data?.ringkasan ?? null;
     perHari.value = data.data?.perHari ?? [];
+    terpotong.value = !!data.data?.terpotong;
   } catch (e) {
     toast.error(getErrorMessage(e, "Gagal memuat data staging"));
   }
@@ -276,6 +278,10 @@ async function bersihkan() {
             </div>
           </div>
 
+          <p v-if="terpotong" class="catatan-terpotong">
+            Rentang melebihi 60 hari — daftar menampilkan 60 tanggal terdata terbaru saja.
+            Kecilkan Dari/Sampai untuk melihat semua tanggal (termasuk yang kosong).
+          </p>
           <table v-if="perHari.length" class="mini mt">
             <thead>
               <tr><th>Tanggal</th><th style="width: 110px">Jumlah Scan</th><th style="width: 150px; text-align: center">Aksi</th></tr>
@@ -283,9 +289,14 @@ async function bersihkan() {
             <tbody>
               <tr v-for="d in perHari" :key="d.tanggal">
                 <td>{{ formatTanggal(d.tanggal) }}</td>
-                <td class="ctr">{{ d.jml }}</td>
+                <td class="ctr">
+                  {{ d.jml }}
+                  <span v-if="!d.adaData" class="badge-kosong">tidak ada data</span>
+                </td>
                 <td>
-                  <button class="btn-mini" type="button" :disabled="memproses || mengunggah" @click="prosesSatuTanggal(d.tanggal)">
+                  <button class="btn-mini" type="button" :disabled="memproses || mengunggah || !d.adaData"
+                    :title="d.adaData ? 'Proses tanggal ini ke tabel absensi' : 'Tidak ada data staging pada tanggal ini'"
+                    @click="prosesSatuTanggal(d.tanggal)">
                     Proses tanggal ini
                   </button>
                 </td>
@@ -430,6 +441,28 @@ async function bersihkan() {
 .note code {
   background: #eef1f6;
   padding: 0 3px;
+}
+.catatan-terpotong {
+  font-size: 11.5px;
+  color: #854d0e;
+  background: #fdf6e3;
+  border: 1px solid #e8c547;
+  border-radius: 4px;
+  padding: 6px 9px;
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.badge-kosong {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9aa7b8;
+  background: #eef1f6;
+  border: 1px solid #d5dbe3;
+  border-radius: 8px;
+  padding: 0 6px;
+  vertical-align: 1px;
 }
 .pick-baris {
   display: flex;
