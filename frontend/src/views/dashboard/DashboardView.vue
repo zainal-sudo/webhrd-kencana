@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onActivated, onUnmounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import MsIcon from "@/components/MsIcon.vue";
@@ -69,15 +69,63 @@ const BULAN_NAMA = [
   "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
-const PABRIK_OPTIONS = [
-  { value: "ALL", label: "🏭 ALL (Semua Pabrik)" },
-  { value: "STORE", label: "🏬 STORE (K*)" },
-  { value: "HO", label: "🏢 HO" },
-  { value: "P01", label: "🏭 P01" },
-  { value: "P02", label: "🏭 P02" },
-  { value: "P04", label: "🏭 P04" },
-  { value: "P05", label: "🏭 P05" },
+const PABRIK_DASAR = [
+  { value: "ALL", label: "🏭 ALL (Semua Pabrik)", anak: false },
+  { value: "STORE", label: "🏬 STORE (K*)", anak: false },
+  { value: "HO", label: "🏢 HO", anak: false },
+  { value: "P01", label: "🏭 P01", anak: false },
+  { value: "P02", label: "🏭 P02", anak: false },
+  { value: "P04", label: "🏭 P04", anak: false },
+  { value: "P05", label: "🏭 P05", anak: false },
 ];
+
+/** Sumber dropdown pabrik: ALL/STORE statis + unit master `tpabrik`
+    (dimuat begitu halaman dibuka; status aktif) + kode pabrik dari data rekap.
+    Hierarki `anak` mengikuti kolom Induk (`pab_pabrik`) — mis. P012 anak P01,
+    bukan seluruh kode tergabung menggantung di bawah STORE. */
+interface PabrikMaster { Kode: string; Nama: string; Induk?: string }
+const daftarPabrik = ref<PabrikMaster[]>([]);
+const pabrikOptions = computed<{ value: string; label: string; nama: string; anak: boolean }[]>(() => {
+  const dasarAda = new Set(PABRIK_DASAR.map((o) => o.value));
+  /* Unit master aktif + kode statis yang tidak ada di master (HO/P05 non-aktif) sebagai fallback. */
+  const unit = new Map<string, { kode: string; nama: string; induk: string }>();
+  const masukkan = (kode: string, nama: string, induk: string) => {
+    kode = kode.trim();
+    if (kode && !unit.has(kode)) unit.set(kode, { kode, nama: nama || kode, induk: induk.trim() });
+  };
+  for (const d of daftarPabrik.value) masukkan(d.Kode, String(d.Nama || ""), String(d.Induk || ""));
+  for (const o of PABRIK_DASAR.slice(2)) if (!unit.has(o.value)) masukkan(o.value, o.value, "");
+  /* Kode dari data rekap yang tak ada di master pun ikut daftar (unit baru). */
+  for (const k of [...new Set(cleanData.value.map((r) => String(r.Pabrik || "").trim()).filter(Boolean))]) {
+    if (!unit.has(k)) masukkan(k, k, "");
+  }
+  const daftar = [...unit.values()].sort((a, b) => a.kode.localeCompare(b.kode));
+  const adaKode = new Set(daftar.map((u) => u.kode));
+  const anakDari = (u: { kode: string; induk: string }) =>
+    u.induk && u.induk !== u.kode && adaKode.has(u.induk);
+  /* Top-level: toko (K*) maju setelah STORE, lalu unit lain urut kode.
+     Anak ditempel tepat setelah induknya. */
+  const hasil: { value: string; label: string; nama: string; anak: boolean }[] = [];
+  const toko = daftar.filter((u) => u.kode.startsWith("K"));
+  const lianLain = daftar.filter((u) => !u.kode.startsWith("K") && !anakDari(u));
+  for (const u of [...toko, ...lianLain]) {
+    hasil.push({ value: u.kode, label: `${u.kode.startsWith("K") ? "🏪" : "🏭"} ${u.kode}`, nama: u.nama, anak: false });
+    for (const c of daftar.filter((o) => anakDari(o) && o.induk === u.kode)) {
+      hasil.push({ value: c.kode, label: `🏭 ${c.kode}`, nama: c.nama, anak: true });
+    }
+  }
+  return hasil;
+});
+
+/** Daftar pabrik aktif (tpabrik) — dimuat begitu halaman dibuka. */
+async function muatDaftarPabrik() {
+  try {
+    const res = await api.get("/dashboard/daftar-pabrik");
+    daftarPabrik.value = (res.data?.data as PabrikMaster[]) || [];
+  } catch {
+    /* Gagal memuat master → dropdown tetap memakai opsi data-driven. */
+  }
+}
 
 const now0 = new Date();
 const bulan = ref(now0.getMonth() + 1);
@@ -91,7 +139,33 @@ const analisisTercoba = ref(false);
 /* ── Dropdown custom (bulan & pabrik) — daftar native tak bisa distyle, jadi diganti custom ── */
 const ddBulan = ref(false);
 const ddPabrik = ref(false);
-const labelPabrik = computed(() => PABRIK_OPTIONS.find((o) => o.value === pabrik.value)?.label ?? pabrik.value);
+const ddBulanBtn = ref<HTMLElement>();
+const ddPabrikBtn = ref<HTMLElement>();
+const styleMenuBulan = ref<Record<string, string>>({});
+const styleMenuPabrik = ref<Record<string, string>>({});
+
+/** Menu tak melewati batas layar: bila ruang di bawah tombol sempit,
+    buka ke atas; tinggi menu ikut di-cukp sesuai sisa ruang viewport. */
+function hitungMenuStyle(btn: HTMLElement): Record<string, string> {
+  const rect = btn.getBoundingClientRect();
+  const sisa = Math.max(window.innerHeight - rect.bottom - 12, 0);
+  if (sisa >= 300) return {};
+  if (rect.top - 12 > sisa) {
+    return { top: "auto", bottom: "calc(100% + 6px)", maxHeight: `${Math.max(Math.min(rect.top - 12, 420), 160)}px` };
+  }
+  return { maxHeight: `${Math.max(sisa, 160)}px` };
+}
+function bukaDd(w: "bulan" | "pabrik") {
+  const buka = w === "bulan" ? !ddBulan.value : !ddPabrik.value;
+  ddBulan.value = w === "bulan" && buka;
+  ddPabrik.value = w === "pabrik" && buka;
+  const btn = (w === "bulan" ? ddBulanBtn : ddPabrikBtn).value;
+  if (!buka || !btn) return;
+  const st = hitungMenuStyle(btn);
+  if (w === "bulan") styleMenuBulan.value = st;
+  else styleMenuPabrik.value = st;
+}
+const labelPabrik = computed(() => pabrikOptions.value?.find((o) => o.value === pabrik.value)?.label ?? pabrik.value);
 async function pilihBulan(b: number) {
   bulan.value = b;
   ddBulan.value = false;
@@ -473,7 +547,7 @@ async function exportPelanggaranPDF() {
       row.Jabatan || "-",
       `${row.Terlambat_Count || 0}x / ${row.Alpha_Count || 0}x`,
       detailPelanggaranWA(row),
-      row.rekom || "-",
+      labelRekom(row) || "-",
     ]),
     theme: "striped",
     headStyles: { fillColor: [26, 26, 46], textColor: [255, 255, 255], fontSize: 8 },
@@ -494,11 +568,82 @@ async function exportPelanggaranPDF() {
 
 /* ── Modal WhatsApp (pola openWAModal/sendWA master) ── */
 const PUNISHMENTS = ["Pembinaan", "SP 1", "SP 2", "SP 3"];
+/** Peringkat tiap pilihan modal WA (rendah → tinggi), pas dengan data /dashboard/sp-terakhir. */
+const RANK_PUNISHMENT: Record<string, number> = { Pembinaan: 0, "SP 1": 1, "SP 2": 2, "SP 3": 3 };
 const waModal = ref(false);
 const waTarget = ref<BarisRekom | null>(null);
 const waPunishment = ref("Pembinaan");
 const waPhone = ref("");
 const waRekomAsal = ref("");
+/** Rekam jejak punishment karyawan (GET /dashboard/sp-terakhir, HRD & SUPER). */
+interface RekamSP { nik: string; ada: boolean; label: string; tingkat: number; tanggal: string; nomor: string; }
+const waRiwayat = ref<RekamSP | null>(null);
+const waRiwayatLoading = ref(false);
+/** Peta rekam jejak batch: nik → rekam (dipakai label kartu + modal WA). */
+const mapRekam = ref<Record<string, RekamSP>>({});
+
+/** Peringkat minimal yang boleh dipilih = punishment terakhir + 1. */
+const waTingkatMinimal = computed(() => (waRiwayat.value?.ada ? (waRiwayat.value.tingkat ?? 0) + 1 : 0));
+/** Opsi dropdown terfilter: hanya tingkat di atas punishment terakhir. */
+const punishmentTersedia = computed(() => PUNISHMENTS.filter((p) => (RANK_PUNISHMENT[p] ?? 0) >= waTingkatMinimal.value));
+const waTerhalang = computed(() => punishmentTersedia.value.length === 0);
+
+/** Angkat preselect ke minimal yang sah bila rekomendasi berada di bawah batas rekam jejak. */
+function terapkanPreselectBatas() {
+  if (RANK_PUNISHMENT[waPunishment.value] < waTingkatMinimal.value) {
+    waPunishment.value = punishmentTersedia.value[0] || "";
+  }
+}
+
+async function muatRiwayatSp(nik: string) {
+  waRiwayat.value = null;
+  waRiwayatLoading.value = true;
+  try {
+    const res = await api.get("/dashboard/sp-terakhir", { params: { nik } });
+    waRiwayat.value = (res.data?.data as RekamSP) || null;
+    terapkanPreselectBatas();
+  } catch {
+    // Gagal memuat rekam jejak → dropdown tetap lengkap (jangan blokir pengiriman).
+    waRiwayat.value = null;
+  } finally {
+    waRiwayatLoading.value = false;
+  }
+}
+
+/** Muat rekam jejak batch untuk NIK yang belum ada di peta (kartu rekomendasi). */
+async function muatRekamBatch(niks: string[]) {
+  const perlu = [...new Set(niks.map(String).filter(Boolean))].filter((n) => !(n in mapRekam.value));
+  if (!perlu.length) return;
+  try {
+    const res = await api.post("/dashboard/sp-rekam", { niks: perlu });
+    mapRekam.value = { ...mapRekam.value, ...(res.data?.data || {}) };
+  } catch {
+    /* Rekaman gagal → label rekomendasi tetap memakai teks lama. */
+  }
+}
+
+/* Label rekomendasi kartu = rekomendasi aturan periode ini disesuaikan rekam jejak
+   SP sungguhan (POST /dashboard/sp-rekam) — karyawan yang sudah pernah dipunished
+   hanya bisa tingkatan di atasnya (Pembinaan → SP 1 → SP 2 → SP 3). */
+/** Barku teks statis "(Punishment Terakhir"/"(Sesuai Punishment)" dilepas. */
+function labelRekom(r: BarisRekom): string {
+  const dasar = String(r.rekom || "").split(" (")[0];
+  const rekam = mapRekam.value[String(r.Nik || "")];
+  if (!rekam?.ada) return dasar;
+  const berikut = PUNISHMENTS[rekam.tingkat + 1];
+  if (!berikut) return `Sudah SP 3 — perlu tindak lanjut lain (${dasar})`;
+  return `${berikut} (terakhir: ${rekam.label})`;
+}
+
+/* Muat rekam jejak untuk karyawan yang punya pelanggaran (kartu + ranking yang
+   bisa diklik buka modal WA) setiap daftar berubah (filter pabrik/periode). */
+watch(
+  () => allDataWithRekom.value
+    .filter((r) => r.Adaform_Count > 0 || r.Tanpaform_Count > 0 || r.Alpha_Count > 0)
+    .map((r) => String(r.Nik || "")),
+  (niks) => void muatRekamBatch(niks),
+  { immediate: true },
+);
 
 function bukaWaModal(r: BarisRekom) {
   waTarget.value = r;
@@ -507,6 +652,14 @@ function bukaWaModal(r: BarisRekom) {
   waPhone.value = "";
   waRekomAsal.value = r.rekom;
   waModal.value = true;
+  const rekam = mapRekam.value[String(r.Nik || "")];
+  if (rekam) {
+    // Sudah termuat saat memuat kartu → langsung terapkan batas.
+    waRiwayat.value = rekam;
+    terapkanPreselectBatas();
+  } else {
+    void muatRiwayatSp(String(r.Nik || ""));
+  }
 }
 function cetak() {
   window.print();
@@ -514,9 +667,19 @@ function cetak() {
 function tutupWaModal() {
   waModal.value = false;
   waTarget.value = null;
+  waRiwayat.value = null;
 }
 function kirimWa() {
   if (!waTarget.value) return;
+  // Rekam jejak: tingkatan yang dipilih harus di atas punishment terakhir.
+  if (waTerhalang.value) {
+    toast.warning(`${waTarget.value.Nama} sudah pernah mendapat ${waRiwayat.value?.label || "SP tertinggi"} — tidak ada tingkatan yang bisa dikirim.`);
+    return;
+  }
+  if ((RANK_PUNISHMENT[waPunishment.value] ?? 0) < waTingkatMinimal.value) {
+    toast.warning(`${waTarget.value.Nama} sudah pernah mendapat ${waRiwayat.value?.label} — pilih ${punishmentTersedia.value.join(" / ")}.`);
+    return;
+  }
   const phone = waPhone.value.replace(/[+\s]/g, "");
   if (!phone) { toast.warning("Silakan masukkan nomor WhatsApp tujuan!"); return; }
   let clean = phone;
@@ -536,7 +699,7 @@ Berdasarkan data kehadiran periode ${BULAN_NAMA[bulan.value]} ${tahun.value}, An
 
 Detail Pelanggaran:
 ${detailPelanggaranWA(t)}
-
+${waRiwayat.value?.ada ? `\nRiwayat punishment terakhir: ${waRiwayat.value.label} (${formatTanggal(waRiwayat.value.tanggal)}).\n` : ""}
 Mohon untuk segera melakukan perbaikan lebih baik lagi agar tidak berulang.
 Terima kasih.
 
@@ -858,6 +1021,7 @@ async function onTerapkan() {
 
 onMounted(() => {
   load();
+  void muatDaftarPabrik();
   document.addEventListener("click", tutupDropdown);
   document.addEventListener("keydown", tutupDropdown);
   window.addEventListener("resize", hitungBaris);
@@ -1029,11 +1193,11 @@ onActivated(() => {
     <div class="ana-filter">
       <MsIcon name="tune" :size="15" class="ana-filter-ico" />
       <div class="ana-dd" :class="{ open: ddBulan }">
-        <button type="button" class="ana-select dd-btn" aria-label="Bulan" @click.stop="ddBulan = !ddBulan">
+        <button ref="ddBulanBtn" type="button" class="ana-select dd-btn" aria-label="Bulan" @click.stop="bukaDd('bulan')">
           <span>{{ BULAN_NAMA[bulan] }}</span>
           <MsIcon name="expand_more" :size="16" class="ana-arr" />
         </button>
-        <div v-if="ddBulan" class="dd-menu">
+        <div v-if="ddBulan" class="dd-menu" :style="styleMenuBulan">
           <button
             v-for="b in 12"
             :key="b"
@@ -1049,17 +1213,18 @@ onActivated(() => {
       </div>
       <input v-model.number="tahun" type="number" min="2000" max="2100" class="ana-select ana-tahun" aria-label="Tahun" />
       <div class="ana-dd" :class="{ open: ddPabrik }">
-        <button type="button" class="ana-select dd-btn" aria-label="Pabrik" @click.stop="ddPabrik = !ddPabrik">
+        <button ref="ddPabrikBtn" type="button" class="ana-select dd-btn" aria-label="Pabrik" @click.stop="bukaDd('pabrik')">
           <span>{{ labelPabrik }}</span>
           <MsIcon name="expand_more" :size="16" class="ana-arr" />
         </button>
-        <div v-if="ddPabrik" class="dd-menu">
+        <div v-if="ddPabrik" class="dd-menu" :style="styleMenuPabrik">
           <button
-            v-for="o in PABRIK_OPTIONS"
+            v-for="o in pabrikOptions"
             :key="o.value"
             type="button"
             class="dd-opt"
-            :class="{ aktif: o.value === pabrik }"
+            :class="{ aktif: o.value === pabrik, anak: o.anak }"
+            :title="o.nama"
             @click.stop="pilihPabrik(o.value)"
           >
             <span>{{ o.label }}</span>
@@ -1293,7 +1458,7 @@ onActivated(() => {
                   <span v-if="item.detail !== '-'" class="plg-tgl"> ({{ item.detail }})</span>
                 </span>
               </div>
-              <div class="plg-rekom"><MsIcon name="gavel" :size="12" /> Rekomendasi: {{ row.rekom }}</div>
+              <div class="plg-rekom"><MsIcon name="gavel" :size="12" /> Rekomendasi: {{ labelRekom(row) }}</div>
               <div class="plg-foot">
                 <span>Total Terlambat: {{ row.Terlambat_Count }}x | Alpha: {{ row.Alpha_Count }}x</span>
                 <span class="plg-wa"><MsIcon name="send" :size="11" /> Klik untuk kirim via WhatsApp</span>
@@ -1368,16 +1533,27 @@ onActivated(() => {
           {{ detailPelanggaranWA(waTarget) }}
         </div>
         <template v-if="waTarget">
+          <div class="wa-riwayat">
+            <template v-if="waRiwayatLoading">Memuat rekam jejak punishment…</template>
+            <template v-else-if="waRiwayat?.ada">
+              Punishment terakhir: <strong>{{ waRiwayat.label }}</strong> ({{ formatTanggal(waRiwayat.tanggal) }})
+            </template>
+            <template v-else>Belum ada riwayat punishment — semua tingkatan tersedia.</template>
+          </div>
           <label class="wa-label" for="waPunishment">Pilih Punishment:</label>
-          <select id="waPunishment" v-model="waPunishment" class="ana-select" style="width: 100%">
-            <option v-for="p in PUNISHMENTS" :key="p" :value="p">{{ p }}</option>
+          <select id="waPunishment" v-model="waPunishment" class="ana-select" style="width: 100%" :disabled="waTerhalang || !punishmentTersedia.length">
+            <option v-if="!punishmentTersedia.length" value="" disabled>— Tingkatan tertinggi sudah tercapai —</option>
+            <option v-for="p in punishmentTersedia" :key="p" :value="p">{{ p }}</option>
           </select>
+          <div v-if="waTerhalang" class="wa-hint" style="color: #d64550;">
+            {{ waTarget.Nama }} sudah mencapai SP 3 — gunakan modul SP untuk tindak lanjut berikutnya.
+          </div>
 
           <label class="wa-label" for="waPhone">Nomor WhatsApp Tujuan:</label>
           <input id="waPhone" v-model="waPhone" type="text" class="ana-select" style="width: 100%" placeholder="Contoh: 6281234567890" />
           <div class="wa-hint">*Masukkan nomor dengan kode negara (contoh: 6281234567890)</div>
 
-          <button class="wa-send" @click="kirimWa">
+          <button class="wa-send" :disabled="waTerhalang || waRiwayatLoading || !waPunishment" @click="kirimWa">
             <MsIcon name="send" :size="14" /> Kirim ke WhatsApp
           </button>
           <button class="wa-batal" @click="tutupWaModal">Batal</button>
@@ -1606,6 +1782,11 @@ onActivated(() => {
   background: #3b5998;
   color: #fff;
   font-weight: 700;
+}
+/* Detail toko (K01, K02, …) menggantung/mengindent di bawah STORE (K*). */
+.dd-opt.anak {
+  padding-left: 26px;
+  font-size: 12px;
 }
 .ana-select:focus {
   border-color: #3b5998;
@@ -2414,6 +2595,15 @@ onActivated(() => {
   color: #1b2d4a;
   margin-bottom: 12px;
 }
+.wa-riwayat {
+  font-size: 12px;
+  color: #6b7280;
+  background: #fff8f1;
+  border: 1px solid #fdeeda;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
 .wa-label {
   display: block;
   font-size: 11px;
@@ -2444,6 +2634,10 @@ onActivated(() => {
 }
 .wa-send:hover {
   background: #1eb857;
+}
+.wa-send:disabled {
+  background: #c7d0dc;
+  cursor: not-allowed;
 }
 .wa-batal {
   display: block;

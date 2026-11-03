@@ -1,5 +1,5 @@
 import pool from '../../config/database.js'
-import { success } from '../../helpers/response.js'
+import { success, error } from '../../helpers/response.js'
 
 /**
  * GET /dashboard/analisis-absensi?bulan=&tahun=&pabrik=&refresh=1
@@ -269,6 +269,111 @@ export const getAnalisisAbsensi = async (req, res, next) => {
         const data = { bulan, tahun, start, end, pabrik, rows }
         cache.set(kunci, { pada: Date.now(), data })
         success(res, data)
+    } catch (err) {
+        next(err)
+    }
+}
+
+/**
+ * GET /dashboard/sp-terakhir?nik=NNN
+ *
+ * Rekam jejak punishment seorang NIK: baris SP terbaru di `tsp`
+ * (sepanjang riwayat, bukan hanya yang masih aktif). Dipakai modal
+ * WhatsApp dashboard untuk membatasi dropdown punishment — karyawan
+ * yang sudah pernah dipunished hanya boleh diberi tingkat di atasnya
+ * (Pembinaan → SP 1 → SP 2 → SP 3, aturan tingkatan modul SP Delphi).
+ *
+ * Akses: HRD & SUPER (digardi hanyaHrSuper di dashboardRoutes), karena
+ * rekap SP ini dilihat dari dashboard tanpa hak form `frmSP`.
+ */
+
+/** Peta sp_ke database → label & peringkat (label = pilihan modal WA). */
+const REKAM_SP_KE = {
+    'Pembinaan': { label: 'Pembinaan', tingkat: 0 },
+    '1 (Satu)': { label: 'SP 1', tingkat: 1 },
+    '2 (Dua)': { label: 'SP 2', tingkat: 2 },
+    '3 (Tiga)': { label: 'SP 3', tingkat: 3 },
+}
+
+/** Peta satu baris tsp → { label, tingkat, tanggal, nomor } (label = pilihan modal WA). */
+function petakanSp(r) {
+    const peta = REKAM_SP_KE[String(r.sp_ke || '').trim()] || { label: String(r.sp_ke || ''), tingkat: 0 }
+    return {
+        label: peta.label,
+        tingkat: peta.tingkat,
+        tanggal: String(r.sp_tanggal || '').slice(0, 10),
+        nomor: String(r.sp_nomor || ''),
+    }
+}
+
+export const getSpTerakhir = async (req, res, next) => {
+    try {
+        const nik = String(req.query.nik || '').trim()
+        if (!nik) return error(res, 'NIK wajib diisi', 400)
+        const [rows] = await pool.query(
+            `SELECT sp_nomor, sp_ke, sp_tanggal, sp_periode2
+             FROM tsp WHERE sp_nik = ?
+             ORDER BY sp_tanggal DESC, sp_periode2 DESC
+             LIMIT 1`,
+            [nik]
+        )
+        const r = rows[0]
+        if (!r) {
+            return success(res, { nik, ada: false, label: '', tingkat: -1, tanggal: '', nomor: '' })
+        }
+        success(res, { nik, ada: true, ...petakanSp(r) })
+    } catch (err) {
+        next(err)
+    }
+}
+
+/**
+ * POST /dashboard/sp-rekam — body { niks: [..] } (versi batch getSpTerakhir).
+ *
+ * Rekam jejak punishment untuk banyak NIK sekaligus (dipakai label rekomendasi
+ * kartu analisis HR). Baris paling baru per NIK yang menang (masuk ASC, ditimpa
+ * berulang). NIK tanpa riwayat tidak dikembalikan = berarti "belum pernah".
+ */
+export const getSpRekam = async (req, res, next) => {
+    try {
+        const masuk = req.body?.niks
+        const niks = [...new Set((Array.isArray(masuk) ? masuk : String(masuk || req.query?.niks || '').split(','))
+            .map((s) => String(s).trim()).filter(Boolean))]
+        if (!niks.length) return error(res, 'Daftar NIK wajib diisi', 400)
+        const [rows] = await pool.query(
+            `SELECT sp_nik, sp_ke, sp_tanggal, sp_nomor
+             FROM tsp WHERE sp_nik IN (?)
+             ORDER BY sp_tanggal ASC`,
+            [niks]
+        )
+        const peta = {}
+        for (const r of rows) {
+            const nik = String(r.sp_nik || '').trim()
+            if (!nik) continue
+            peta[nik] = petakanSp(r)
+        }
+        success(res, peta)
+    } catch (err) {
+        next(err)
+    }
+}
+
+/**
+ * GET /dashboard/daftar-pabrik — kode & nama pabrik aktif (`tpabrik`,
+ * `pab_status = 1`, query sama getPabrikMesin absensiController).
+ *
+ * Dipakai dropdown pabrik dashboard agar detail unit (K01, K02, …) tampil
+ * sejak halaman dibuka, tanpa menunggu analisis absensi termuat. Akses:
+ * HRD & SUPER (hanyaHrSuper) — dashboard tidak punya frm di tmenu, dan
+ * master /pabrik memakai hak frmPabrik yang tidak perlu untuk filter ini.
+ */
+export const getDaftarPabrik = async (req, res, next) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT p.pab_kode AS Kode, p.pab_nama AS Nama, p.pab_pabrik AS Induk
+             FROM tpabrik p WHERE p.pab_status = 1 ORDER BY p.pab_kode`
+        )
+        success(res, rows)
     } catch (err) {
         next(err)
     }

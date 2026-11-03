@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getPeringatan, getEksekusiPkwt } from '../controllers/dashboardController.js'
-import { getAnalisisAbsensi } from '../controllers/dashboard/analisisController.js'
+import { getAnalisisAbsensi, getSpTerakhir, getSpRekam, getDaftarPabrik } from '../controllers/dashboard/analisisController.js'
 import { issuePenilaianLink } from '../controllers/penilaianController.js'
 
 const r = Router()
@@ -18,6 +18,15 @@ r.get('/peringatan', hanyaHrSuper, getPeringatan)
 
 /* Analisis HR (dashboard gaya HR Analytics): rekap absensi satu periode. */
 r.get('/analisis-absensi', hanyaHrSuper, getAnalisisAbsensi)
+
+/* Rekam jejak punishment terakhir satu NIK (modal WA analytics). */
+r.get('/sp-terakhir', hanyaHrSuper, getSpTerakhir)
+
+/* Rekam jejak punishment batch banyak NIK (label rekomendasi kartu analisis). */
+r.post('/sp-rekam', hanyaHrSuper, getSpRekam)
+
+/* Daftar pabrik aktif (tpabrik) — dropdown analisis siap sejak halaman dibuka. */
+r.get('/daftar-pabrik', hanyaHrSuper, getDaftarPabrik)
 
 /* Halaman Eksekusi PKWT (dari card "Masa PKWT Akan Habis") — ikut kunci HR. */
 r.get('/eksekusi-pkwt', hanyaHrSuper, getEksekusiPkwt)
