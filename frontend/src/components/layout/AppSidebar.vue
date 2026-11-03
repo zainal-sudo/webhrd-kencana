@@ -183,6 +183,9 @@ function go(routePath?: string) {
         <span v-if="!collapsed" class="menu-item-text">Dashboard</span>
         <span v-if="!collapsed && isActive('/dashboard')" class="menu-item-mark"></span>
       </button>
+      <button class="sidebar-collapse" @click="collapsed = !collapsed">
+        <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
+      </button>
       <button v-if="punyaPocokan" type="button" class="menu-item dashboard-item pocokan-item"
         :class="{ active: isPocokanAktif() }"
         :aria-current="isPocokanAktif() ? 'page' : undefined" aria-label="Dashboard Pocokan" title="Dashboard Pocokan"
@@ -190,9 +193,6 @@ function go(routePath?: string) {
         <span class="menu-item-dot"><MsIcon name="storefront" :size="17" /></span>
         <span v-if="!collapsed" class="menu-item-text">Dashboard Pocokan</span>
         <span v-if="!collapsed && isPocokanAktif()" class="menu-item-mark"></span>
-      </button>
-      <button class="sidebar-collapse" @click="collapsed = !collapsed">
-        <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
       </button>
     </div>
 
@@ -330,12 +330,14 @@ function go(routePath?: string) {
   min-width: 54px;
 }
 .sidebar-head {
-  height: 40px;
+  position: relative; /* jangkar untuk tombol panah (collapse) yang melayang */
   flex-shrink: 0;
   display: flex;
+  flex-direction: column; /* Dashboard & Dashboard Pocokan ditumpuk ke bawah */
   align-items: center;
-  justify-content: flex-end;
-  padding: 0 8px;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .sidebar-collapse {
@@ -486,18 +488,51 @@ function go(routePath?: string) {
   color: rgba(255, 255, 255, 0.45);
 }
 .flyout-item-nested { padding-left: 26px; }
-.dashboard-item { flex: 1; min-width: 0; height: 100%; padding: 9px 6px; font-weight: 600; }
+/* Tombol dashboard BERKOTAK hanya saat aktif — saat idle border transparan
+   (lebar tetap 1px supaya tidak menggeser layout). */
+.dashboard-item {
+  min-width: 0;
+  width: 100%;
+  margin-right: 30px;
+  padding: 8px 26px 8px 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.dashboard-item:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.dashboard-item.active {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+}
 .dashboard-item:focus-visible { outline: 2px solid var(--ds-primary, #5b79b8); outline-offset: -2px; }
-/* Dua tab dashboard berdampingan: label rapat + elipsis bila sempit. */
+/* Satu tombol per baris: lebar penuh, label tak terpotong (elipsis hanya
+   jaring pengaman kalau teks ekstra panjang). */
 .dashboard-item .menu-item-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 12px;
 }
-.sidebar-collapse { flex-shrink: 0; }
-.sidebar.collapsed .sidebar-head { flex-direction: column; height: auto; padding: 4px 0; gap: 2px; }
-.sidebar.collapsed .dashboard-item { flex: none; width: 38px; height: 32px; padding: 6px 7px; }
+/* Panah ciutkan: mengambang di tepi kanan, tepat di celah antara dua baris
+   dashboard — tidak memakan ruang baris tersendiri. */
+/* Panah ciutkan: mengambang di tepi kanan, tepat di celah antara dua baris
+   dashboard — tidak memakan ruang baris tersendiri. */
+.sidebar-collapse {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+.sidebar.collapsed .sidebar-head { height: auto; padding: 4px 0; }
+.sidebar.collapsed .sidebar-collapse { position: static; transform: none; align-self: center; }
+.sidebar.collapsed .dashboard-item { flex: none; width: 38px; height: 32px; margin-right: 0; padding: 6px 7px; }
 .menu-item-dot {
   display: flex;
   align-items: center;

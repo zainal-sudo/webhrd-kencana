@@ -1,0 +1,68 @@
+/* ── Global reset & base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Inter",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+/* ── Scrollbar biru Finance ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 255, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 255, 0.55);
+}
+
+/* ── Vuetify overrides ── */
+.v-application {
+  font-family: inherit !important;
+}
+
+/* Vuetify navigation drawer item */
+.finance-drawer .v-list-item {
+  min-height: 36px !important;
+}
+.finance-drawer .v-list-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Toast Finance override */
+.finance-toast {
+  font-family: "Inter", system-ui, sans-serif !important;
+  font-size: 13px !important;
+  border-radius: 8px !important;
+}
+
+/* Vuetify dense table override */
+.v-data-table.base-table .v-data-table__wrapper {
+  overflow: auto;
+}
+
+/* Selection color Finance (biru) */
+::selection {
+  background: rgba(0, 0, 255, 0.2);
+}
+
+.v-application {
+  background-color: #f0f6fb !important; /* Atau #ffffff */
+}

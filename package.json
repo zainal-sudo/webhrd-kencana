@@ -1,0 +1,13 @@
+{
+  "name": "webhrd-kencana",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:hris": "npm --prefix backend run dev & npm --prefix frontend run dev",
+    "dev:pocokan": "npm --prefix modules/pocokan/be-pocokan run dev & npm --prefix modules/pocokan/fe-pocokan run dev",
+    "build:hris": "npm --prefix frontend run build",
+    "build:pocokan": "npm --prefix modules/pocokan/fe-pocokan run build",
+    "build:all": "node scripts/build-all.mjs",
+    "dist:compose": "node scripts/build-all.mjs --compose-only"
+  }
+}

@@ -109,17 +109,19 @@ export const MENU_DIABAIKAN = [
 ];
 
 /**
- * Subgrup menu modul Pocokan — meniru sidebar aplikasi pocokan
- * (modules/pocokan/fe-pocokan DefaultLayout): Setting / Master / Transaksi /
- * Laporan, masing-masing berisi halamannya. Setiap item dipetakan ke baris
- * `hrd2.tmenu` dengan men_nama "pocokanM<N>" (mis. filsafat: menuId FE
- * pocokan "5" Bagian → "pocokanM5"), jadi hak aksesnya diatur dari
- * Hak Akses HRIS seperti menu lain. `path` = rute deep-link iframe ke FE
- * pocokan (base '/pocokan/'). Item `ready: false` tidak punya halaman FE
- * yang layak (Company Profile & Relogin belum ada rute FE pocokan;
- * pocokanM8 hanya default API) — disembunyikan dari sidebar.
+ * Menu modul Pocokan untuk grup sidebar "Pocokan" — sekarang FLAT (tanpa
+ * subgrup Setting/Master/Transaksi/Laporan): grup Pocokan langsung berisi
+ * 8 item halaman. Setiap item dipetakan ke baris `hrd2.tmenu` dengan
+ * men_nama "pocokanM<N>" (mis. menuId FE pocokan "5" Bagian → "pocokanM5"),
+ * jadi hak aksesnya diatur dari Hak Akses HRIS seperti menu lain.
+ * `path` = rute deep-link iframe ke FE pocokan (base '/pocokan/').
+ * Item `ready: false`/tanpa rute tidak ditaruh (Setting pocokan dihilangkan:
+ * User/Company Profile/Relogin; pocokanM8 hanya default API).
+ *
+ * Catatan: pocokanM10 = hak tunggal untuk Proses Gaji *&* Lap. Gaji
+ * (satu baris tmenu).
  */
-export interface PocokanSubItemDef {
+export interface PocokanItemDef {
   menNama: string;
   path: string;
   label: string;
@@ -127,55 +129,15 @@ export interface PocokanSubItemDef {
   ready: boolean;
 }
 
-export interface PocokanSubGrupDef {
-  key: string;
-  label: string;
-  icon: string;
-  items: PocokanSubItemDef[];
-}
-
-export const POCOKAN_SUBGRUP: PocokanSubGrupDef[] = [
-  {
-    key: "pocokanSetting",
-    label: "Setting",
-    icon: "settings",
-    items: [
-      { menNama: "pocokanM1", path: "/pocokan/tools/users", label: "User", icon: "manage_accounts", ready: true },
-      { menNama: "pocokanM2", path: "/pocokan/tools/perusahaan", label: "Company Profile", icon: "business", ready: false },
-      { menNama: "pocokanM3", path: "", label: "Relogin", icon: "restart_alt", ready: false },
-    ],
-  },
-  {
-    key: "pocokanMaster",
-    label: "Master",
-    icon: "inventory_2",
-    items: [
-      { menNama: "pocokanM4", path: "/pocokan/master/karyawan", label: "Karyawan", icon: "badge", ready: true },
-      { menNama: "pocokanM5", path: "/pocokan/master/bagian", label: "Bagian", icon: "list_alt", ready: true },
-      { menNama: "pocokanM6", path: "/pocokan/master/unit", label: "Unit", icon: "list_alt", ready: true },
-      { menNama: "pocokanM7", path: "/pocokan/master/hari-libur", label: "Hari Libur", icon: "event_busy", ready: true },
-      { menNama: "pocokanM8", path: "", label: "Hari Libur (BE API)", icon: "event_busy", ready: false },
-    ],
-  },
-  {
-    key: "pocokanTransaksi",
-    label: "Transaksi",
-    icon: "swap_horiz",
-    items: [
-      { menNama: "pocokanM9", path: "/pocokan/transaksi/absensi", label: "Absensi", icon: "fact_check", ready: true },
-      { menNama: "pocokanM10", path: "/pocokan/transaksi/proses-gaji", label: "Proses Gaji", icon: "payments", ready: true },
-    ],
-  },
-  {
-    key: "pocokanLaporan",
-    label: "Laporan",
-    icon: "assessment",
-    items: [
-      // pocokanM10 = hak tunggal untuk Proses Gaji *&* Lap. Gaji (satu baris tmenu).
-      { menNama: "pocokanM10", path: "/pocokan/laporan/lap-gaji", label: "Lap. Gaji", icon: "summarize", ready: true },
-      { menNama: "pocokanM11", path: "/pocokan/laporan/lap-absensi", label: "Lap. Absensi", icon: "summarize", ready: true },
-    ],
-  },
+export const POCOKAN_ITEMS: PocokanItemDef[] = [
+  { menNama: "pocokanM4", path: "/pocokan/master/karyawan", label: "Karyawan", icon: "badge", ready: true },
+  { menNama: "pocokanM5", path: "/pocokan/master/bagian", label: "Bagian", icon: "list_alt", ready: true },
+  { menNama: "pocokanM6", path: "/pocokan/master/unit", label: "Unit", icon: "list_alt", ready: true },
+  { menNama: "pocokanM7", path: "/pocokan/master/hari-libur", label: "Hari Libur", icon: "event_busy", ready: true },
+  { menNama: "pocokanM9", path: "/pocokan/transaksi/absensi", label: "Absensi", icon: "fact_check", ready: true },
+  { menNama: "pocokanM10", path: "/pocokan/transaksi/proses-gaji", label: "Proses Gaji", icon: "payments", ready: true },
+  { menNama: "pocokanM10", path: "/pocokan/laporan/lap-gaji", label: "Lap. Gaji", icon: "summarize", ready: true },
+  { menNama: "pocokanM11", path: "/pocokan/laporan/lap-absensi", label: "Lap. Absensi", icon: "summarize", ready: true },
 ];
 
 export function definisiMenu(menNama: string): (MenuDef & { grup: keyof typeof GRUP }) | undefined {

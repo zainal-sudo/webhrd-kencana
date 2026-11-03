@@ -18,7 +18,13 @@ const route = useRoute();
 
 const src = computed(() => {
   const s = route.meta?.pocokanSrc;
-  return typeof s === "string" && s ? s : "/pocokan/";
+  const base = typeof s === "string" && s ? s : "/pocokan/";
+  // Cache-buster: beri query unik per siklus hidup tab supaya browser tidak
+  // menyajikan index.html pocokan bekas cache (penyebab modul tampil versi
+  // lama setelah update build). Query diabaikan server static — file sama.
+  // Date.now() tidak reaktif → nilai stabil selama tab hidup, berganti
+  // setiap tab dibuat ulang.
+  return `${base}${base.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
 });
 
 const loading = ref(true);

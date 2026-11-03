@@ -5,3 +5,7 @@ temp/
 backend/.env
 backend/.env
 backend/.env
+
+staging/
+
+staging/

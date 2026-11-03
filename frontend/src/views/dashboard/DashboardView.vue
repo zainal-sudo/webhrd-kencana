@@ -819,8 +819,9 @@ const greeting = computed(() => {
 const todayLabel = computed(() => formatTanggal(todaySql()));
 
 const userName = computed(() => authStore.user?.user_nama || authStore.user?.user_kode || "User");
-/* Analisis HR & Peringatan khusus HRD & SUPER (dashboard tidak punya frm di tmenu). */
-const bolehAnalisis = computed(() => ["hrd", "super"].includes(String(authStore.user?.user_kode || "").toLowerCase()));
+/* Analisis HR & Peringatan: HRD & SUPER semua pabrik; P1, P2, P4 ikut
+   dibuka sesuai permintaan manajemen (dashboard tidak punya frm di tmenu). */
+const bolehAnalisis = computed(() => ["hrd", "super", "p1", "p2", "p4"].includes(String(authStore.user?.user_kode || "").toLowerCase()));
 
 interface PeringatanBagian {
   total: number;

@@ -5,11 +5,13 @@ import { issuePenilaianLink } from '../controllers/penilaianController.js'
 
 const r = Router()
 
-/* Analisis HR & Peringatan = data sensitif kepegawaian → khusus HRD & SUPER
-   (dashboard tidak punya frm di tmenu, jadi user_kode dicek langsung). */
+/* Analisis HR & Peringatan = data sensitif kepegawaian → data dilindungi,
+   bukan lewat thakuser (dashboard tidak punya frm di tmenu, jadi user_kode
+   dicek langsung). HRD & SUPER melihat semua pabrik; P1, P2, P4 ikut dibuka
+   sesuai permintaan manajemen (tanpa pembatasan pabrik). */
 export function hanyaHrSuper(req, res, next) {
   const kode = String(req.user?.user || '').toUpperCase().trim()
-  if (kode === 'HRD' || kode === 'SUPER') return next()
+  if (['HRD', 'SUPER', 'P1', 'P2', 'P4'].includes(kode)) return next()
   return res.status(403).json({ success: false, message: 'Modul ini khusus HR' })
 }
 

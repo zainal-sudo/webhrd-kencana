@@ -103,13 +103,15 @@ export const useTabsStore = defineStore("tabs", {
         icon: dashboard?.icon || "mdi mdi-view-dashboard-outline",
         closable: false,
       });
+      const dashId = this.activeTabId;
       if (punyaHakPocokan()) {
         this.openTab({
           title: "Dashboard Pocokan",
           path: "/dashboard-pocokan",
-          icon: pocokan?.icon || "mdi mdi-view-dashboard-variant-outline",
+          icon: pocokan?.icon || "mdi mdi-storefront",
           closable: false,
         });
+        this.activeTabId = dashId;
       }
       this.cacheVersion += 1;
     },
@@ -138,20 +140,24 @@ export const useTabsStore = defineStore("tabs", {
 
     initDefaultTabs() {
       if (this.tabs.length > 0) return;
-      if (punyaHakPocokan()) {
-        this.openTab({
-          title: "Dashboard Pocokan",
-          path: "/dashboard-pocokan",
-          icon: "mdi mdi-view-dashboard-variant-outline",
-          closable: false,
-        });
-      }
+      // Dashboard HRIS selalu paling kiri (tab pertama), Dashboard Pocokan
+      // di kanannya. Landing tetap Dashboard HRIS.
       this.openTab({
         title: "Dashboard",
         path: "/dashboard",
         icon: "mdi mdi-view-dashboard-outline",
         closable: false,
       });
+      const dashId = this.activeTabId;
+      if (punyaHakPocokan()) {
+        this.openTab({
+          title: "Dashboard Pocokan",
+          path: "/dashboard-pocokan",
+          icon: "mdi mdi-storefront",
+          closable: false,
+        });
+        this.activeTabId = dashId;
+      }
     },
 
     resetTabs() {

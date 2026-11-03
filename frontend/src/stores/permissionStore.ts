@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { GRUP, POCOKAN_SUBGRUP, definisiMenu } from "@/utils/menuMap";
+import { GRUP, POCOKAN_ITEMS, definisiMenu } from "@/utils/menuMap";
 import type { SidebarNode } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -149,38 +149,30 @@ export const usePermissionStore = defineStore("permission", {
         }
       }
 
-      // Modul Pocokan (Koperasi): subgrup meniru sidebar aplikasi pocokan
-      // (Setting / Master / Transaksi / Laporan dengan anaknya — lihat
-      // POCOKAN_SUBGRUP di utils/menuMap). Tiap anak = halaman pocokan via
-      // iframe deep-link, dipetakan ke tmenu "pocokanM<N>" — terlihat hanya
-      // bila user punya hak view-nya.
+      // Modul Pocokan (Koperasi): daftar FLAT (tanpa subgrup Setting/Master/
+      // Transaksi/Laporan — lihat POCOKAN_ITEMS di utils/menuMap). Tiap anak =
+      // halaman pocokan via iframe deep-link, dipetakan ke tmenu "pocokanM<N>"
+      // — terlihat hanya bila user punya hak view-nya.
       const pocokan = byKey.get("pocokan");
       if (pocokan) {
         const hakam = new Map(
           (auth.menus || []).map((m) => [String(m.men_nama || ""), m] as const),
         );
-        const subgrup: SidebarNode[] = [];
-        for (const sp of POCOKAN_SUBGRUP) {
-          const anak = sp.items
-            .filter((it) => it.ready && hakam.has(it.menNama))
-            .map<SidebarNode>((it) => {
-              const m = hakam.get(it.menNama)!;
-              return {
-                key: `${it.menNama}:${it.path}`,
-                label: it.label,
-                icon: it.icon,
-                route: it.path,
-                form: it.menNama,
-                can_insert: !!m.can_insert,
-                can_edit: !!m.can_edit,
-                can_delete: !!m.can_delete,
-              };
-            });
-          if (anak.length > 0) {
-            subgrup.push({ key: sp.key, label: sp.label, icon: sp.icon, children: anak });
-          }
-        }
-        pocokan.children = subgrup;
+        pocokan.children = POCOKAN_ITEMS
+          .filter((it) => it.ready && hakam.has(it.menNama))
+          .map<SidebarNode>((it) => {
+            const m = hakam.get(it.menNama)!;
+            return {
+              key: `${it.menNama}:${it.path}`,
+              label: it.label,
+              icon: it.icon,
+              route: it.path,
+              form: it.menNama,
+              can_insert: !!m.can_insert,
+              can_edit: !!m.can_edit,
+              can_delete: !!m.can_delete,
+            };
+          });
       }
 
       this.menuTree = groups.filter((g) => g.children && g.children.length > 0);

@@ -1,0 +1,631 @@
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { useToast } from "vue-toastification";
+import { IconBox, IconSearch, IconTrash } from "@tabler/icons-vue";
+import { barangJadiApi, type BarangJadi, type KomposisiItem } from "@/api/master/barangJadiApi";
+import { kategoriApi } from "@/api/master/kategoriApi";
+import { gudangApi } from "@/api/master/gudangApi";
+import { supplierApi } from "@/api/master/supplierApi";
+import { barangApi as bahanApi } from "@/api/master/barangApi";
+
+const toast = useToast();
+
+// ── Mode: browse (list) atau form (tambah/ubah) ───────────────────────
+const mode = ref<"browse" | "form">("browse");
+const isLoading = ref(false);
+const items = ref<BarangJadi[]>([]);
+const searchQuery = ref("");
+
+// filter periode (mengikuti tanggal dibuat, ala PO)
+const today = new Date().toISOString().slice(0, 10);
+const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const periodeStart = ref(firstOfMonth);
+const periodeEnd = ref(today);
+
+const filteredItems = computed(() => {
+  let result = items.value;
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase();
+    result = result.filter((i) => i.brg_nama?.toLowerCase().includes(q));
+  }
+  return result;
+});
+
+const fetchData = async () => {
+  isLoading.value = true;
+  try {
+    items.value = await barangJadiApi.getAll();
+  } catch (e: any) {
+    toast.error("Gagal memuat data barang jadi.");
+  } finally {
+    isLoading.value = false;
+  }
+};
+fetchData();
+
+const formatRupiah = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v || 0);
+
+// ── Dropdown lookup data ──────────────────────────────────────────────
+const kategoriList = ref<any[]>([]);
+const gudangList = ref<any[]>([]);
+const supplierList = ref<any[]>([]);
+const bahanList = ref<any[]>([]);
+const lookupsLoaded = ref(false);
+
+// PENTING: semua lookup (termasuk bahan) dimuat SEBELUM form dibuka,
+// biar totalHpp langsung akurat begitu user mulai isi komposisi —
+// ini yang kemarin bikin HPP kadang tampil 0/salah karena race condition.
+const loadLookups = async () => {
+  if (lookupsLoaded.value) return;
+  try {
+    const [k, g, s, b] = await Promise.all([
+      kategoriApi.getAll(),
+      gudangApi.getAll(),
+      supplierApi.getAll(),
+      bahanApi.getAll(),
+    ]);
+    kategoriList.value = k;
+    gudangList.value = g;
+    supplierList.value = s;
+    bahanList.value = b;
+    lookupsLoaded.value = true;
+  } catch (e) {
+    toast.error("Gagal memuat data referensi (kategori/gudang/supplier/bahan).");
+  }
+};
+
+const satuanOptions = ["Pcs", "Box", "Kg", "Liter", "Set", "Dus", "Lbr", "Roll"];
+
+// ── Form State ──────────────────────────────────────────────────────
+const isSaving = ref(false);
+const isDeleting = ref(false);
+const selectedItem = ref<BarangJadi | null>(null);
+const formTanggal = ref(today);
+
+const emptyForm = (): Partial<BarangJadi> => ({
+  brg_nama: "", brg_satuan: "Pcs", brg_ktg_kode: "", brg_gdg_default: "",
+  brg_merk: "", brg_isstok: 0, brg_isaktif: 1,
+  brg_hrgbeli: 0, brg_hrgjual: 0, brg_MIN_STOK: 0, brg_MAX_STOK: 0,
+  brg_sup_kode: "", brg_spesifikasi: "",
+});
+const form = ref<Partial<BarangJadi>>(emptyForm());
+const komposisi = ref<KomposisiItem[]>([]);
+
+const errors = ref<{ nama?: string; satuan?: string; hrgJual?: string }>({});
+
+const validateForm = (): boolean => {
+  const e: typeof errors.value = {};
+  if (!form.value.brg_nama?.trim()) e.nama = "Nama barang wajib diisi.";
+  else if (form.value.brg_nama.trim().length < 3) e.nama = "Nama minimal 3 karakter.";
+  if (!form.value.brg_satuan?.trim()) e.satuan = "Satuan wajib dipilih.";
+  if (form.value.brg_hrgjual === undefined || form.value.brg_hrgjual < 0) {
+    e.hrgJual = "Harga jual tidak boleh minus.";
+  }
+  errors.value = e;
+  return Object.keys(e).length === 0;
+};
+const clearError = (f: keyof typeof errors.value) => { if (errors.value[f]) delete errors.value[f]; };
+
+const makeRupiahModel = (key: "brg_hrgbeli" | "brg_hrgjual") =>
+  computed({
+    get: () => (form.value[key] ? new Intl.NumberFormat("id-ID").format(form.value[key] as number) : ""),
+    set: (val: string) => {
+      if (key === "brg_hrgjual") clearError("hrgJual");
+      const numeric = val.replace(/\D/g, "").slice(0, 15);
+      form.value[key] = numeric ? parseInt(numeric, 10) : 0;
+    },
+  });
+const hrgBeliDisplay = makeRupiahModel("brg_hrgbeli");
+const hrgJualDisplay = makeRupiahModel("brg_hrgjual");
+
+// ── Komposisi: tabel dinamis (pola "Detail Item Barang" PO) ────────────
+const lookupBahanDialog = ref(false);
+const searchBahan = ref("");
+const activeRowIndex = ref<number | null>(null);
+
+const addKomposisiRow = () => {
+  komposisi.value.push({
+    bk_brg_kode: form.value.brg_kode || 0,
+    bk_bhn_kode: 0,
+    bk_qty: 1,
+    bk_satuan: "Pcs",
+    bk_spesifikasi: "",
+    bhn_nama: "",
+  });
+};
+
+const removeKomposisiRow = (idx: number) => {
+  komposisi.value.splice(idx, 1);
+};
+
+const openBahanLookup = (idx: number) => {
+  if (isSaving.value) return;
+  activeRowIndex.value = idx;
+  lookupBahanDialog.value = true;
+};
+
+const selectBahan = (b: any) => {
+  if (activeRowIndex.value === null) return;
+
+  const alreadyUsed = komposisi.value.some(
+    (r, idx) => idx !== activeRowIndex.value && r.bk_bhn_kode === b.kode
+  );
+  if (alreadyUsed) {
+    toast.warning(`Bahan "${b.nama}" sudah dipakai di baris lain.`);
+    return;
+  }
+
+  const row = komposisi.value[activeRowIndex.value];
+  row.bk_bhn_kode = b.kode;
+  row.bhn_nama = b.nama;
+  row.bk_satuan = b.satuan || "Pcs"; // auto-fill dari satuan asli bahan
+  lookupBahanDialog.value = false;
+};
+
+const filteredBahanList = computed(() => {
+  if (!searchBahan.value.trim()) return bahanList.value;
+  const q = searchBahan.value.toLowerCase();
+  return bahanList.value.filter((b) => b.nama?.toLowerCase().includes(q));
+});
+
+// Harga satuan bahan diambil langsung dari bahanList yang SUDAH pasti ter-load
+// (karena loadLookups() selalu di-await sebelum form dibuka).
+const bahanHarga = (bhnKode: number) => {
+  if (!bhnKode) return 0;
+  const bahan = bahanList.value.find((b) => b.kode === bhnKode);
+  return bahan?.hrgBeli ?? 0;
+};
+
+const rowSubtotal = (row: KomposisiItem) => Math.round((row.bk_qty || 0) * bahanHarga(row.bk_bhn_kode));
+
+// HPP = total biaya seluruh bahan untuk 1 unit barang jadi, dibulatkan ke rupiah penuh.
+const totalHpp = computed(() =>
+  komposisi.value.reduce((sum, row) => sum + rowSubtotal(row), 0)
+);
+
+// ── Navigasi antar mode ─────────────────────────────────────────────
+const openCreate = async () => {
+  isLoading.value = true;
+  await loadLookups();
+  isLoading.value = false;
+  form.value = emptyForm();
+  komposisi.value = [];
+  errors.value = {};
+  selectedItem.value = null;
+  formTanggal.value = today;
+  mode.value = "form";
+};
+
+const openEdit = async (item: BarangJadi) => {
+  isLoading.value = true;
+  try {
+    await loadLookups();
+    const [data, kmp] = await Promise.all([
+      barangJadiApi.getById(item.brg_kode),
+      barangJadiApi.getKomposisi(item.brg_kode),
+    ]);
+    form.value = data;
+    komposisi.value = kmp;
+    errors.value = {};
+    selectedItem.value = item;
+    formTanggal.value = today;
+    mode.value = "form";
+  } catch (e: any) {
+    toast.error(e.response?.data?.message ?? "Gagal memuat detail barang.");
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const backToBrowse = () => {
+  mode.value = "browse";
+};
+
+const handleSave = async () => {
+  if (isSaving.value) return;
+  if (!validateForm()) {
+    toast.warning("Periksa kembali data yang diisi.");
+    return;
+  }
+
+  const invalidRow = komposisi.value.find((r) => !r.bk_bhn_kode || !r.bk_qty || r.bk_qty <= 0);
+  if (invalidRow) {
+    toast.warning("Ada baris komposisi yang belum lengkap (bahan/qty).");
+    return;
+  }
+
+  const bhnKodes = komposisi.value.map((r) => r.bk_bhn_kode);
+  const hasDuplicate = new Set(bhnKodes).size !== bhnKodes.length;
+  if (hasDuplicate) {
+    toast.warning("Ada bahan yang dipilih lebih dari sekali. Hapus salah satu baris duplikat.");
+    return;
+  }
+
+  isSaving.value = true;
+  try {
+    // kirim HPP terhitung sekalian, biar tersimpan sebagai brg_hpp_terakhir di backend
+    const payload = { ...form.value, brg_hpp_terakhir: totalHpp.value };
+    const result = await barangJadiApi.save(payload);
+    const kode = form.value.brg_kode || result.data?.brg_kode;
+    if (kode) {
+      await barangJadiApi.saveKomposisi(kode, komposisi.value);
+    }
+    toast.success("Barang jadi berhasil disimpan.");
+    mode.value = "browse";
+    await fetchData();
+  } catch (e: any) {
+    toast.error(e.response?.data?.message ?? "Gagal menyimpan. Silakan coba lagi.");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// ── Delete dari list ──────────────────────────────────────────────────
+const confirmDeleteItem = ref<BarangJadi | null>(null);
+const confirmDeleteDialog = ref(false);
+const askDelete = (item: BarangJadi) => {
+  if (isDeleting.value) return;
+  confirmDeleteItem.value = item;
+  confirmDeleteDialog.value = true;
+};
+const handleDelete = async () => {
+  if (isDeleting.value || !confirmDeleteItem.value) return;
+  isDeleting.value = true;
+  try {
+    await barangJadiApi.delete(confirmDeleteItem.value.brg_kode);
+    toast.success("Barang jadi berhasil dihapus.");
+    confirmDeleteDialog.value = false;
+    await fetchData();
+  } catch (e: any) {
+    toast.error(e.response?.data?.message ?? "Gagal menghapus.");
+  } finally {
+    isDeleting.value = false;
+  }
+};
+</script>
+
+<template>
+  <!-- ═══════════════ MODE: BROWSE (list, ala PO) ═══════════════ -->
+  <div v-if="mode === 'browse'" class="page-wrap">
+    <div class="page-toolbar">
+      <div class="toolbar-title"><IconBox :size="20" /> <span>Master Barang Jadi</span></div>
+      <div class="toolbar-actions">
+        <v-btn color="primary" variant="flat" size="small" @click="openCreate" :disabled="isLoading">+ BARU</v-btn>
+        <v-btn variant="outlined" size="small" disabled>UBAH</v-btn>
+        <v-btn variant="outlined" size="small" disabled color="error">HAPUS</v-btn>
+        <v-btn variant="tonal" size="small" @click="fetchData" :loading="isLoading">EXPORT</v-btn>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="filter-row">
+        <label class="f-label mb-0">Periode</label>
+        <input type="date" v-model="periodeStart" class="date-input" />
+        <span class="text-caption">s/d</span>
+        <input type="date" v-model="periodeEnd" class="date-input" />
+        <v-text-field
+          v-model="searchQuery" placeholder="Cari data..."
+          density="compact" variant="outlined" prepend-inner-icon="mdi-magnify"
+          hide-details style="max-width:280px;"
+        />
+        <v-btn icon size="small" variant="text" @click="fetchData" :loading="isLoading">
+          <IconSearch :size="16" />
+        </v-btn>
+      </div>
+
+      <v-table density="compact" class="browse-table">
+        <thead>
+          <tr>
+            <th>Kode</th><th>Nama</th><th>Satuan</th><th>Kategori</th>
+            <th class="text-end">HPP Terakhir</th><th class="text-end">Harga Jual</th>
+            <th class="text-end">Stok</th><th class="text-end">Min</th>
+            <th class="text-end">Last Cost</th><th class="text-end">Harga Beli</th>
+            <th>Supplier</th><th class="text-center">Komposisi</th><th style="width:90px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="isLoading">
+            <td colspan="13" class="text-center pa-6"><v-progress-circular indeterminate size="24" color="primary" /></td>
+          </tr>
+          <tr v-else-if="filteredItems.length === 0">
+            <td colspan="13" class="text-center text-grey pa-6">
+              Belum ada data tersedia<br />
+              <span class="text-caption">Klik tombol + Baru untuk menambah data pertama</span>
+            </td>
+          </tr>
+          <tr v-for="item in filteredItems" :key="item.brg_kode">
+            <td>{{ String(item.brg_kode).padStart(5, '0') }}</td>
+            <td>{{ item.brg_nama }}</td>
+            <td>{{ item.brg_satuan }}</td>
+            <td>{{ item.ktg_nama || '-' }}</td>
+            <td class="text-end">{{ formatRupiah(item.brg_hpp_terakhir || 0) }}</td>
+            <td class="text-end">{{ formatRupiah(item.brg_hrgjual) }}</td>
+            <td class="text-end">{{ item.brg_stok ?? 0 }}</td>
+            <td class="text-end">{{ item.brg_MIN_STOK ?? 0 }}</td>
+            <td class="text-end">{{ formatRupiah(item.brg_lastcost || 0) }}</td>
+            <td class="text-end">{{ formatRupiah(item.brg_hrgbeli) }}</td>
+            <td>{{ item.sup_nama || '-' }}</td>
+            <td class="text-center">
+              <v-chip :color="item.brg_isboom ? 'success' : 'grey'" size="x-small" variant="flat">
+                {{ item.brg_isboom ? "Ya" : "-" }}
+              </v-chip>
+            </td>
+            <td>
+              <v-btn size="x-small" variant="text" @click="openEdit(item)" :disabled="isDeleting">Ubah</v-btn>
+              <v-btn size="x-small" variant="text" color="error" @click="askDelete(item)" :disabled="isDeleting">Hapus</v-btn>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+
+      <div class="footer-total">Total Barang Jadi &nbsp; {{ filteredItems.length }}</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODE: FORM (ala Tambah PO) ═══════════════ -->
+  <div v-else class="page-wrap">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <IconBox :size="20" /> <span>{{ selectedItem ? "Ubah Barang Jadi" : "Tambah Barang Jadi Baru" }}</span>
+      </div>
+      <div class="toolbar-actions">
+        <v-btn color="primary" variant="flat" size="small" @click="handleSave" :loading="isSaving" :disabled="isSaving">SIMPAN</v-btn>
+        <v-btn variant="outlined" size="small" @click="backToBrowse" :disabled="isSaving">BATAL</v-btn>
+        <v-btn variant="text" size="small" @click="backToBrowse" :disabled="isSaving">TUTUP</v-btn>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div v-if="isLoading" class="text-center pa-8">
+        <v-progress-circular indeterminate size="28" color="primary" />
+      </div>
+
+      <template v-else>
+        <v-row dense>
+          <!-- Kolom kiri: field header (ala No PO / Supplier / Tanggal) -->
+          <v-col cols="12" md="8">
+            <v-row dense>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Kode Barang</label>
+                  <v-text-field
+                    :model-value="selectedItem ? String(form.brg_kode).padStart(5,'0') : '[ OTOMATIS ]'"
+                    density="compact" variant="outlined" readonly bg-color="#eee" hide-details
+                  />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Tanggal Dibuat</label>
+                  <input type="date" v-model="formTanggal" class="date-input date-input-full" :disabled="isSaving" />
+                </div>
+              </v-col>
+
+              <v-col cols="12">
+                <div class="f-row mb-3">
+                  <label class="f-label">Nama Barang <span class="req">*</span></label>
+                  <v-text-field v-model="form.brg_nama" density="compact" variant="outlined"
+                    placeholder="Nama barang jadi..."
+                    :error="!!errors.nama" :error-messages="errors.nama" :disabled="isSaving"
+                    @update:model-value="clearError('nama')" hide-details="auto" />
+                </div>
+              </v-col>
+
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Satuan <span class="req">*</span></label>
+                  <v-select v-model="form.brg_satuan" :items="satuanOptions"
+                    density="compact" variant="outlined"
+                    :error="!!errors.satuan" :error-messages="errors.satuan" :disabled="isSaving"
+                    @update:model-value="clearError('satuan')" hide-details="auto" />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Merk</label>
+                  <v-text-field v-model="form.brg_merk" density="compact" variant="outlined" :disabled="isSaving" hide-details />
+                </div>
+              </v-col>
+
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Kategori</label>
+                  <v-select v-model="form.brg_ktg_kode" :items="kategoriList" item-title="nama" item-value="kode"
+                    density="compact" variant="outlined" :disabled="isSaving" hide-details clearable placeholder="Pilih kategori..." />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Gudang Default</label>
+                  <v-select v-model="form.brg_gdg_default" :items="gudangList" item-title="nama" item-value="kode"
+                    density="compact" variant="outlined" :disabled="isSaving" hide-details clearable placeholder="Pilih gudang..." />
+                </div>
+              </v-col>
+
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Pemasok Utama</label>
+                  <v-select v-model="form.brg_sup_kode" :items="supplierList" item-title="nama" item-value="kode"
+                    density="compact" variant="outlined" :disabled="isSaving" hide-details clearable placeholder="Pilih supplier..." />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Status</label>
+                  <div class="d-flex align-center gap-4" style="height:40px;">
+                    <v-checkbox v-model="form.brg_isaktif" :true-value="1" :false-value="0" label="Aktif" density="compact" hide-details :disabled="isSaving" />
+                    <v-checkbox v-model="form.brg_isstok" :true-value="1" :false-value="0" label="IsStok" density="compact" hide-details :disabled="isSaving" />
+                  </div>
+                </div>
+              </v-col>
+
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Min Stok</label>
+                  <v-text-field v-model.number="form.brg_MIN_STOK" type="number" density="compact" variant="outlined" :disabled="isSaving" hide-details />
+                </div>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <div class="f-row mb-3">
+                  <label class="f-label">Max Stok</label>
+                  <v-text-field v-model.number="form.brg_MAX_STOK" type="number" density="compact" variant="outlined" :disabled="isSaving" hide-details />
+                </div>
+              </v-col>
+
+              <v-col cols="12">
+                <div class="f-row mb-3">
+                  <label class="f-label">Spesifikasi / Catatan</label>
+                  <v-textarea v-model="form.brg_spesifikasi" density="compact" variant="outlined" rows="2" :disabled="isSaving" hide-details />
+                </div>
+              </v-col>
+            </v-row>
+          </v-col>
+
+          <!-- Kolom kanan: ringkasan HPP (ala Grand Total PO) -->
+          <v-col cols="12" md="4">
+            <div class="summary-box">
+              <div class="summary-title">HPP (dari komposisi bahan)</div>
+              <div class="summary-value">{{ formatRupiah(totalHpp) }}</div>
+            </div>
+
+            <div class="f-row mb-3 mt-4">
+              <label class="f-label">Harga Beli</label>
+              <v-text-field v-model="hrgBeliDisplay" prefix="Rp" density="compact" variant="outlined" :disabled="isSaving" hide-details />
+            </div>
+            <div class="f-row mb-3">
+              <label class="f-label">Harga Jual</label>
+              <v-text-field v-model="hrgJualDisplay" prefix="Rp" density="compact" variant="outlined"
+                :error="!!errors.hrgJual" :error-messages="errors.hrgJual" :disabled="isSaving" hide-details="auto" />
+            </div>
+          </v-col>
+        </v-row>
+
+        <!-- Detail Item Barang (Komposisi) — persis pola PO -->
+        <div class="d-flex align-center justify-space-between mt-4 mb-2">
+          <span class="section-title">DETAIL KOMPOSISI BAHAN</span>
+          <v-btn size="small" color="primary" variant="flat" @click="addKomposisiRow" :disabled="isSaving">
+            + TAMBAH BARIS
+          </v-btn>
+        </div>
+
+        <v-table density="compact" class="komposisi-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">No</th>
+              <th>Kode/Nama Bahan</th>
+              <th style="width:100px;">Satuan</th>
+              <th style="width:100px;">Qty</th>
+              <th style="width:130px;">Harga Satuan</th>
+              <th style="width:130px;">Subtotal</th>
+              <th style="width:50px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="komposisi.length === 0">
+              <td colspan="7" class="text-center text-grey pa-4">Belum ada bahan ditambahkan.</td>
+            </tr>
+            <tr v-for="(row, idx) in komposisi" :key="idx">
+              <td>{{ idx + 1 }}</td>
+              <td>
+                <v-text-field
+                  :model-value="row.bhn_nama || 'Klik cari bahan...'"
+                  density="compact" variant="outlined" readonly hide-details
+                  class="rek-clickable" bg-color="#fafafa" prepend-inner-icon="mdi-magnify"
+                  @click="openBahanLookup(idx)" :disabled="isSaving"
+                />
+              </td>
+              <td>
+                <v-select v-model="row.bk_satuan" :items="satuanOptions" density="compact" variant="outlined" hide-details :disabled="isSaving" />
+              </td>
+              <td>
+                <v-text-field v-model.number="row.bk_qty" type="number" density="compact" variant="outlined" hide-details :disabled="isSaving" />
+              </td>
+              <td class="text-end">{{ formatRupiah(bahanHarga(row.bk_bhn_kode)) }}</td>
+              <td class="text-end font-weight-medium">{{ formatRupiah(rowSubtotal(row)) }}</td>
+              <td>
+                <v-btn icon size="small" variant="text" color="error" @click="removeKomposisiRow(idx)" :disabled="isSaving">
+                  <IconTrash :size="16" />
+                </v-btn>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </template>
+    </div>
+  </div>
+
+  <!-- Lookup Bahan -->
+  <v-dialog v-model="lookupBahanDialog" max-width="450" scrollable>
+    <v-card rounded="lg">
+      <v-card-title class="pa-3 font-weight-bold" style="font-size:14px; background-color:#f5f5f5;">Pilih Bahan</v-card-title>
+      <div class="pa-2">
+        <v-text-field v-model="searchBahan" label="Cari Bahan..." density="compact" variant="outlined" append-inner-icon="mdi-magnify" hide-details clearable />
+      </div>
+      <v-divider />
+      <v-card-text class="pa-0" style="height: 350px;">
+        <v-list density="compact" hover>
+          <v-list-item v-for="b in filteredBahanList" :key="b.kode" @click="selectBahan(b)">
+            <template #title><strong>{{ b.kode }}</strong> - {{ b.nama }} ({{ b.satuan }}) — {{ formatRupiah(b.hrgBeli) }}</template>
+          </v-list-item>
+          <v-list-item v-if="bahanList.length === 0"><div class="text-center text-grey text-caption pa-4">Data bahan kosong.</div></v-list-item>
+        </v-list>
+      </v-card-text>
+      <v-divider />
+      <v-card-actions class="pa-2"><v-spacer/><v-btn size="small" variant="text" @click="lookupBahanDialog = false">Tutup</v-btn></v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Konfirmasi Hapus -->
+  <v-dialog v-model="confirmDeleteDialog" max-width="400" persistent>
+    <v-card rounded="lg">
+      <v-card-title class="pa-4 pb-2" style="font-size:15px; font-weight:700;">Konfirmasi Hapus</v-card-title>
+      <v-card-text class="pa-4 pt-0">Yakin ingin menghapus barang <strong>{{ confirmDeleteItem?.brg_nama }}</strong>?</v-card-text>
+      <v-divider />
+      <v-card-actions class="pa-3">
+        <v-spacer />
+        <v-btn variant="text" @click="confirmDeleteDialog = false" :disabled="isDeleting">Batal</v-btn>
+        <v-btn color="error" variant="flat" @click="handleDelete" :loading="isDeleting" :disabled="isDeleting">Ya, Hapus</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<style scoped>
+.page-wrap { padding: 16px; }
+.page-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #f1f8f1; border: 1px solid #c8e6c9; border-radius: 8px;
+  padding: 10px 16px; margin-bottom: 12px;
+}
+.toolbar-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #1b1b1b; }
+.toolbar-actions { display: flex; gap: 8px; }
+.page-body { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; }
+
+.filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.date-input {
+  height: 40px; border: 1px solid #d1d5db; border-radius: 6px;
+  padding: 0 10px; font-size: 13px; outline: none;
+}
+.date-input-full { width: 100%; box-sizing: border-box; }
+.date-input:focus { border-color: #2e7d32; box-shadow: 0 0 0 3px rgba(46,125,50,0.1); }
+
+.footer-total {
+  background: #1b5e20; color: white; font-weight: 700; font-size: 13px;
+  text-align: right; padding: 10px 16px; border-radius: 6px; margin-top: 8px;
+}
+
+.f-row { display: flex; flex-direction: column; gap: 4px; }
+.f-label { font-size: 12px; font-weight: 600; color: #374151; }
+.req { color: red; }
+
+.summary-box { background: #1b5e20; color: white; border-radius: 8px; padding: 16px; text-align: right; }
+.summary-title { font-size: 12px; opacity: 0.85; }
+.summary-value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+
+.section-title { font-size: 13px; font-weight: 700; color: #1b5e20; }
+
+.browse-table :deep(th) { background: #1b5e20; color: white; font-size: 12px; }
+.komposisi-table :deep(th) { background: #f5f5f5; font-size: 12px; }
+.komposisi-table :deep(td) { padding: 4px 8px !important; }
+.rek-clickable :deep(input) { cursor: pointer; }
+</style>

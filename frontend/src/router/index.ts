@@ -38,12 +38,9 @@ const routes = [
     meta: { requiresAuth: true, title: "Dashboard" },
   },
   /* ── Modul Pocokan (Koperasi): aplikasi pocokan ditempel via iframe same-origin ── */
-  {
-    path: "/pocokan",
-    name: "pocokan",
-    component: () => import("@/views/pocokan/PocokanEmbedView.vue"),
-    meta: { requiresAuth: true, title: "Pocokan", pocokanModul: true },
-  },
+  /* /pocokan (SPA fallback di web root) hanya alias → landing Dashboard
+     Pocokan, supaya tidak muncul tab "Pocokan" ekstra di tab bar HRIS. */
+  { path: "/pocokan", redirect: "/dashboard-pocokan" },
   /* Tab kedua di samping Dashboard HRIS — dashboard aplikasi pocokan. */
   {
     path: "/dashboard-pocokan",
