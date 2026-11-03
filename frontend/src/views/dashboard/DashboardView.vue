@@ -103,15 +103,26 @@ const pabrikOptions = computed<{ value: string; label: string; nama: string; ana
   const adaKode = new Set(daftar.map((u) => u.kode));
   const anakDari = (u: { kode: string; induk: string }) =>
     u.induk && u.induk !== u.kode && adaKode.has(u.induk);
+  const baris = (u: { kode: string; nama: string; anak: boolean }) => ({
+    value: u.kode,
+    label: `${u.kode.startsWith("K") ? "🏪" : "🏭"} ${u.kode}`,
+    nama: u.nama,
+    anak: u.anak,
+  });
+  const hasil: { value: string; label: string; nama: string; anak: boolean }[] = [
+    { value: "ALL", label: "🏭 ALL (Semua Pabrik)", nama: "Semua Pabrik", anak: false },
+    { value: "STORE", label: "🏬 STORE (K*)", nama: "Seluruh toko (K*)", anak: false },
+  ];
   /* Top-level: toko (K*) maju setelah STORE, lalu unit lain urut kode.
-     Anak ditempel tepat setelah induknya. */
-  const hasil: { value: string; label: string; nama: string; anak: boolean }[] = [];
-  const toko = daftar.filter((u) => u.kode.startsWith("K"));
-  const lianLain = daftar.filter((u) => !u.kode.startsWith("K") && !anakDari(u));
-  for (const u of [...toko, ...lianLain]) {
-    hasil.push({ value: u.kode, label: `${u.kode.startsWith("K") ? "🏪" : "🏭"} ${u.kode}`, nama: u.nama, anak: false });
+     Anak ditempel tepat setelah induknya (Induk = pab_pabrik). */
+  const tingkatAtas = [
+    ...daftar.filter((u) => u.kode.startsWith("K")).sort((a, b) => a.kode.localeCompare(b.kode)),
+    ...daftar.filter((u) => !u.kode.startsWith("K") && !anakDari(u)).sort((a, b) => a.kode.localeCompare(b.kode)),
+  ];
+  for (const u of tingkatAtas) {
+    hasil.push(baris({ kode: u.kode, nama: u.nama, anak: false }));
     for (const c of daftar.filter((o) => anakDari(o) && o.induk === u.kode)) {
-      hasil.push({ value: c.kode, label: `🏭 ${c.kode}`, nama: c.nama, anak: true });
+      hasil.push(baris({ kode: c.kode, nama: c.nama, anak: true }));
     }
   }
   return hasil;
@@ -144,16 +155,31 @@ const ddPabrikBtn = ref<HTMLElement>();
 const styleMenuBulan = ref<Record<string, string>>({});
 const styleMenuPabrik = ref<Record<string, string>>({});
 
-/** Menu tak melewati batas layar: bila ruang di bawah tombol sempit,
-    buka ke atas; tinggi menu ikut di-cukp sesuai sisa ruang viewport. */
+/** Menu tak melewati pandangan: diposisikan relative terhadap layar
+    (position: fixed) sehingga tumpukan kontainer tidak mengguntingnya,
+    dibuka ke atas bila ruang bawah sempit, dan tingginya di-cukp
+    mengikuti sisa ruang viewport yang terlihat. */
 function hitungMenuStyle(btn: HTMLElement): Record<string, string> {
   const rect = btn.getBoundingClientRect();
-  const sisa = Math.max(window.innerHeight - rect.bottom - 12, 0);
-  if (sisa >= 300) return {};
-  if (rect.top - 12 > sisa) {
-    return { top: "auto", bottom: "calc(100% + 6px)", maxHeight: `${Math.max(Math.min(rect.top - 12, 420), 160)}px` };
+  const lebar = Math.max(Math.round(rect.width), 160);
+  const atas = Math.round(rect.top);
+  const bawah = Math.round(rect.bottom);
+  const sisa = Math.max(window.innerHeight - bawah - 8, 0);
+  /* minWidth: 0 — CSS `.dd-menu min-width:100%` berlaku terhadap viewport
+     kalau menu fixed, menyebabkan menu melar selebar layar. */
+  const dasar: Record<string, string> = {
+    position: "fixed",
+    left: `${Math.round(rect.left)}px`,
+    width: `${lebar}px`,
+    minWidth: "0",
+    maxWidth: `${Math.max(window.innerWidth - rect.left - 8, 160)}px`,
+  };
+  /* Menu selalu ringkas (maks ±9 opsi sekaligus) — sisanya di-scroll di dalam menu. */
+  if (sisa >= 280) return { ...dasar, top: `${bawah + 6}px`, maxHeight: "264px" };
+  if (atas - 12 > sisa) {
+    return { ...dasar, top: "auto", bottom: `${window.innerHeight - atas + 6}px`, maxHeight: `${Math.max(Math.min(atas - 12, 264), 160)}px` };
   }
-  return { maxHeight: `${Math.max(sisa, 160)}px` };
+  return { ...dasar, top: `${bawah + 6}px`, maxHeight: `${Math.max(Math.min(sisa, 264), 160)}px` };
 }
 function bukaDd(w: "bulan" | "pabrik") {
   const buka = w === "bulan" ? !ddBulan.value : !ddPabrik.value;
@@ -180,6 +206,8 @@ async function pilihPabrik(v: string) {
 }
 function tutupDropdown(e: Event) {
   if (e instanceof KeyboardEvent && e.key !== "Escape") return;
+  /* Scroll di dalam menu sendiri tidak menutup (perlu untuk pilih opsi). */
+  if (e.type === "scroll" && (e.target as HTMLElement | null)?.closest?.(".dd-menu")) return;
   ddBulan.value = false;
   ddPabrik.value = false;
 }
@@ -1025,11 +1053,13 @@ onMounted(() => {
   document.addEventListener("click", tutupDropdown);
   document.addEventListener("keydown", tutupDropdown);
   window.addEventListener("resize", hitungBaris);
+  window.addEventListener("scroll", tutupDropdown, true);
 });
 onUnmounted(() => {
   document.removeEventListener("click", tutupDropdown);
   document.removeEventListener("keydown", tutupDropdown);
   window.removeEventListener("resize", hitungBaris);
+  window.removeEventListener("scroll", tutupDropdown, true);
 });
 let firstActivation = true;
 onActivated(() => {
