@@ -27,10 +27,11 @@ export interface GrupDef {
 export const GRUP: Record<string, GrupDef> = {
   master: { key: "master", label: "Master", icon: "inventory_2", order: 1 },
   transaksi: { key: "transaksi", label: "Transaksi", icon: "swap_horiz", order: 2 },
-  koperasi: { key: "koperasi", label: "Koperasi", icon: "storefront", order: 3 },
-  gaji: { key: "gaji", label: "Penggajian", icon: "payments", order: 4 },
-  laporan: { key: "laporan", label: "Laporan", icon: "assessment", order: 5 },
-  setting: { key: "setting", label: "Otorisasi", icon: "admin_panel_settings", order: 6 },
+  laporan: { key: "laporan", label: "Laporan", icon: "assessment", order: 3 },
+  koperasi: { key: "koperasi", label: "Koperasi", icon: "storefront", order: 4 },
+  pocokan: { key: "pocokan", label: "Pocokan", icon: "forklift", order: 5 },
+  gaji: { key: "gaji", label: "Penggajian", icon: "payments", order: 6 },
+  setting: { key: "setting", label: "Otorisasi", icon: "admin_panel_settings", order: 7 },
 };
 
 /** Kunci = `tmenu.men_nama`. `grup` menentukan sidebar. */
