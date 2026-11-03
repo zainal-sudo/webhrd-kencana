@@ -35,6 +35,18 @@ let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const tree = computed(() => permissionStore.menuTree);
 const flyoutGroup = computed(() => collapsed.value ? tree.value.find(group => group.key === flyoutKey.value) : undefined);
+/** Hak salah satu menu pocokan → tombol "Dashboard Pocokan" di kepala sidebar tampil. */
+const punyaPocokan = computed(() =>
+  (auth.menus || []).some((m) => String(m.men_nama || "").startsWith("pocokanM")));
+
+/* ── Subgrup (2 tingkat) — dipakai grup Pocokan: Setting/Master/… ── */
+const openSubs = ref<Record<string, boolean>>({});
+function subOpen(subKey: string) {
+  return openSubs.value[subKey] !== false;
+}
+function toggleSub(subKey: string) {
+  openSubs.value = { ...openSubs.value, [subKey]: !subOpen(subKey) };
+}
 
 function cancelClose() {
   if (closeTimer !== undefined) clearTimeout(closeTimer);
@@ -111,7 +123,8 @@ onUnmounted(() => {
 watch(
   () => [route.path, tree.value] as const,
   ([path, groups]) => {
-    const activeGroup = groups.find(g => g.children?.some(c => c.route === path));
+    const activeGroup = groups.find(g =>
+      g.children?.some(c => c.route === path || (c.children || []).some(gc => gc.route === path)));
     if (activeGroup) openGroupKey.value = activeGroup.key;
     else if (!groups.some(g => g.key === openGroupKey.value)) openGroupKey.value = "";
   },
@@ -130,16 +143,31 @@ function isActive(routePath?: string) {
   return route.path === routePath;
 }
 
+/** Tombol "Dashboard Pocokan" (dan menu pocokan lama) aktif saat rute pocokan. */
+function isPocokanAktif() {
+  return route.path.startsWith("/pocokan") || route.path.startsWith("/dashboard-pocokan");
+}
+
+/** Cari node menu (termasuk anakan subgrup, mis. Pocokan) berdasarkan rute. */
+function cariMenu(routePath: string) {
+  for (const g of tree.value) {
+    for (const c of g.children || []) {
+      if (c.route === routePath) return c;
+      const gc = (c.children || []).find((x) => x.route === routePath);
+      if (gc) return gc;
+    }
+  }
+  return undefined;
+}
+
 function go(routePath?: string) {
   if (!routePath) return;
-  const child = tree.value
-    .flatMap((g) => g.children || [])
-    .find((c) => c.route === routePath);
+  const child = cariMenu(routePath);
   tabsStore.stageTab({
     title: child?.label || "Halaman",
     path: routePath,
     icon: "mdi mdi-circle-small",
-    closable: routePath !== "/dashboard",
+    closable: routePath !== "/dashboard" && routePath !== "/dashboard-pocokan",
   });
   router.push(routePath);
 }
@@ -149,11 +177,19 @@ function go(routePath?: string) {
   <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-head">
       <button type="button" class="menu-item dashboard-item" :class="{ active: isActive('/dashboard') }"
-        :aria-current="isActive('/dashboard') ? 'page' : undefined" aria-label="Dashboard" title="Dashboard"
+        :aria-current="isActive('/dashboard') ? 'page' : undefined" aria-label="Dashboard HRIS" title="Dashboard HRIS"
         @click="router.push('/dashboard')">
         <span class="menu-item-dot"><MsIcon name="dashboard" :size="17" /></span>
         <span v-if="!collapsed" class="menu-item-text">Dashboard</span>
         <span v-if="!collapsed && isActive('/dashboard')" class="menu-item-mark"></span>
+      </button>
+      <button v-if="punyaPocokan" type="button" class="menu-item dashboard-item pocokan-item"
+        :class="{ active: isPocokanAktif() }"
+        :aria-current="isPocokanAktif() ? 'page' : undefined" aria-label="Dashboard Pocokan" title="Dashboard Pocokan"
+        @click="router.push('/dashboard-pocokan')">
+        <span class="menu-item-dot"><MsIcon name="storefront" :size="17" /></span>
+        <span v-if="!collapsed" class="menu-item-text">Dashboard Pocokan</span>
+        <span v-if="!collapsed && isPocokanAktif()" class="menu-item-mark"></span>
       </button>
       <button class="sidebar-collapse" @click="collapsed = !collapsed">
         <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
@@ -184,19 +220,47 @@ function go(routePath?: string) {
             :inert="!isGroupOpen(group.key)" :aria-hidden="!isGroupOpen(group.key)">
             <div class="menu-group-content">
               <div class="menu-group-items">
-            <button
-              v-for="child in group.children"
-              :key="child.key"
-              class="menu-item"
-              :class="{ active: isActive(child.route) }"
-              @click="go(child.route)"
-            >
-              <span class="menu-item-dot">
-                <MsIcon :name="normalizeIcon(child.icon)" :size="14" />
-              </span>
-              <span class="menu-item-text">{{ child.label }}</span>
-              <span v-if="isActive(child.route)" class="menu-item-mark"></span>
-            </button>
+            <template v-for="child in group.children" :key="child.key">
+              <!-- Item langsung (arah tingkat 2, mayoritas menu) -->
+              <button
+                v-if="!child.children?.length"
+                class="menu-item"
+                :class="{ active: isActive(child.route) }"
+                @click="go(child.route)"
+              >
+                <span class="menu-item-dot">
+                  <MsIcon :name="normalizeIcon(child.icon)" :size="14" />
+                </span>
+                <span class="menu-item-text">{{ child.label }}</span>
+                <span v-if="isActive(child.route)" class="menu-item-mark"></span>
+              </button>
+              <!-- Subgrup (tingkat 3): header lipat + anak-anaknya menjorok -->
+              <div v-else class="menu-subgroup">
+                <button type="button" class="menu-subgroup-head" :aria-expanded="subOpen(child.key)"
+                  @click="toggleSub(child.key)">
+                  <span class="menu-item-dot">
+                    <MsIcon :name="normalizeIcon(child.icon)" :size="14" />
+                  </span>
+                  <span class="menu-item-text">{{ child.label }}</span>
+                  <MsIcon class="menu-sub-chev" :class="{ expanded: subOpen(child.key) }" name="expand_more" :size="14" />
+                </button>
+                <div v-show="subOpen(child.key)" class="menu-sub-items">
+                  <button
+                    v-for="gc in child.children"
+                    :key="gc.key"
+                    class="menu-item menu-item-nested"
+                    :class="{ active: isActive(gc.route) }"
+                    @click="go(gc.route)"
+                  >
+                    <span class="menu-item-dot">
+                      <MsIcon :name="normalizeIcon(gc.icon)" :size="13" />
+                    </span>
+                    <span class="menu-item-text">{{ gc.label }}</span>
+                    <span v-if="isActive(gc.route)" class="menu-item-mark"></span>
+                  </button>
+                </div>
+              </div>
+            </template>
               </div>
             </div>
           </div>
@@ -227,11 +291,23 @@ function go(routePath?: string) {
       :style="{ left: `${flyoutPosition.left}px`, top: `${flyoutPosition.top}px`, width: `${flyoutPosition.width}px`, maxHeight: `${flyoutPosition.maxHeight}px` }"
       @mouseenter="cancelClose" @mouseleave="scheduleClose" @focusin="cancelClose" @focusout="focusOut">
       <div class="flyout-heading"><MsIcon :name="normalizeIcon(flyoutGroup.icon)" :size="17" /><span>{{ flyoutGroup.label }}</span></div>
-      <button v-for="child in flyoutGroup.children" :key="child.key" type="button" class="flyout-item"
-        :class="{ active: isActive(child.route) }" :aria-current="isActive(child.route) ? 'page' : undefined"
-        @click="go(child.route); closeFlyout()">
-        <MsIcon :name="normalizeIcon(child.icon)" :size="16" /><span>{{ child.label }}</span>
-      </button>
+      <template v-for="child in flyoutGroup.children" :key="child.key">
+        <button v-if="!child.children?.length" type="button" class="flyout-item"
+          :class="{ active: isActive(child.route) }" :aria-current="isActive(child.route) ? 'page' : undefined"
+          @click="go(child.route); closeFlyout()">
+          <MsIcon :name="normalizeIcon(child.icon)" :size="16" /><span>{{ child.label }}</span>
+        </button>
+        <template v-else>
+          <div class="flyout-subhead">
+            <MsIcon :name="normalizeIcon(child.icon)" :size="13" /><span>{{ child.label }}</span>
+          </div>
+          <button v-for="gc in child.children" :key="gc.key" type="button" class="flyout-item flyout-item-nested"
+            :class="{ active: isActive(gc.route) }" :aria-current="isActive(gc.route) ? 'page' : undefined"
+            @click="go(gc.route); closeFlyout()">
+            <MsIcon :name="normalizeIcon(gc.icon)" :size="15" /><span>{{ gc.label }}</span>
+          </button>
+        </template>
+      </template>
     </nav>
   </Teleport>
 </template>
@@ -398,8 +474,27 @@ function go(routePath?: string) {
 .flyout-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
 .flyout-item.active { background: rgba(59, 89, 152, 0.35); color: #fff; border-left-color: #5b79b8; font-weight: 700; }
 .flyout-item:focus-visible { outline: 2px solid #7fb0e8; outline-offset: -2px; }
+.flyout-subhead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.flyout-item-nested { padding-left: 26px; }
 .dashboard-item { flex: 1; min-width: 0; height: 100%; padding: 9px 6px; font-weight: 600; }
 .dashboard-item:focus-visible { outline: 2px solid var(--ds-primary, #5b79b8); outline-offset: -2px; }
+/* Dua tab dashboard berdampingan: label rapat + elipsis bila sempit. */
+.dashboard-item .menu-item-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
 .sidebar-collapse { flex-shrink: 0; }
 .sidebar.collapsed .sidebar-head { flex-direction: column; height: auto; padding: 4px 0; gap: 2px; }
 .sidebar.collapsed .dashboard-item { flex: none; width: 38px; height: 32px; padding: 6px 7px; }
@@ -425,6 +520,39 @@ function go(routePath?: string) {
   height: 6px;
   background: #fff;
   border-radius: 50%;
+}
+/* ── Subgrup 2 tingkat (Pocokan: Setting/Master/Transaksi/Laporan) ── */
+.menu-subgroup-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px 7px 20px;
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+}
+.menu-subgroup-head:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.menu-subgroup-head:focus-visible { outline: 2px solid var(--ds-primary, #5b79b8); outline-offset: -2px; }
+.menu-sub-chev {
+  color: rgba(255, 255, 255, 0.45);
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+.menu-sub-chev.expanded { transform: rotate(180deg); }
+.menu-item-nested {
+  padding-left: 40px;
 }
 .sidebar-empty {
   padding: 16px;

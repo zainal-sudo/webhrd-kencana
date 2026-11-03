@@ -37,6 +37,31 @@ const routes = [
     component: () => import("@/views/dashboard/DashboardView.vue"),
     meta: { requiresAuth: true, title: "Dashboard" },
   },
+  /* ── Modul Pocokan (Koperasi): aplikasi pocokan ditempel via iframe same-origin ── */
+  {
+    path: "/pocokan",
+    name: "pocokan",
+    component: () => import("@/views/pocokan/PocokanEmbedView.vue"),
+    meta: { requiresAuth: true, title: "Pocokan", pocokanModul: true },
+  },
+  /* Tab kedua di samping Dashboard HRIS — dashboard aplikasi pocokan. */
+  {
+    path: "/dashboard-pocokan",
+    name: "dashboard-pocokan",
+    component: () => import("@/views/pocokan/PocokanEmbedView.vue"),
+    meta: { requiresAuth: true, title: "Dashboard Pocokan", pocokanModul: true },
+  },
+  /* Halaman modul pocokan per menu (iframe deep-link ke FE pocokan).
+     meta.form = men_nama tmenu HRIS (pocokanM<N>) → tanpa hak langsung 403. */
+  { path: "/pocokan/tools/users", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan User", pocokanModul: true, pocokanSrc: "/pocokan/tools/users", form: "pocokanM1" } },
+  { path: "/pocokan/master/karyawan", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Karyawan", pocokanModul: true, pocokanSrc: "/pocokan/master/karyawan", form: "pocokanM4" } },
+  { path: "/pocokan/master/bagian", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Bagian", pocokanModul: true, pocokanSrc: "/pocokan/master/bagian", form: "pocokanM5" } },
+  { path: "/pocokan/master/unit", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Unit", pocokanModul: true, pocokanSrc: "/pocokan/master/unit", form: "pocokanM6" } },
+  { path: "/pocokan/master/hari-libur", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Hari Libur", pocokanModul: true, pocokanSrc: "/pocokan/master/hari-libur", form: "pocokanM7" } },
+  { path: "/pocokan/transaksi/absensi", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Absensi", pocokanModul: true, pocokanSrc: "/pocokan/transaksi/absensi", form: "pocokanM9" } },
+  { path: "/pocokan/transaksi/proses-gaji", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Proses Gaji", pocokanModul: true, pocokanSrc: "/pocokan/transaksi/proses-gaji", form: "pocokanM10" } },
+  { path: "/pocokan/laporan/lap-gaji", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Lap. Gaji", pocokanModul: true, pocokanSrc: "/pocokan/laporan/lap-gaji", form: "pocokanM10" } },
+  { path: "/pocokan/laporan/lap-absensi", component: () => import("@/views/pocokan/PocokanEmbedView.vue"), meta: { requiresAuth: true, title: "Pocokan Lap. Absensi", pocokanModul: true, pocokanSrc: "/pocokan/laporan/lap-absensi", form: "pocokanM11" } },
   /* Halaman Eksekusi PKWT (tombol Eksekusi di card "Masa PKWT Akan Habis"). */
   {
     path: "/dashboard/eksekusi-pkwt",
@@ -189,6 +214,11 @@ router.beforeEach(async (to, from) => {
   }
   if (form && auth.menus.length > 0 && !auth.can(form)) {
     return { path: "/403", query: { form } };
+  }
+  // Modul Pocokan: butuh hak pada salah satu menu pocokan (pocokanM<N> seed SQL).
+  if (to.meta.pocokanModul) {
+    const adaHak = auth.menus.some((m) => String(m.men_nama || "").startsWith("pocokanM"));
+    if (!adaHak) return { path: "/403", query: { form: "pocokan" } };
   }
   if (to.meta.requiresAuth !== false && to.meta.layout !== "BlankLayout" && !to.meta.publicPenilaian) {
     const tabs = useTabsStore();
