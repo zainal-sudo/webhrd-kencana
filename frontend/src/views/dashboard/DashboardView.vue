@@ -138,22 +138,52 @@ async function muatDaftarPabrik() {
   }
 }
 
+/* ── Dropdown departemen: ALL + daftar master `tdepartemen` + nama yang betul-benar muncul di data. ── */
+const daftarDep = ref<{ Kode: string; Nama: string }[]>([]);
+const depOptions = computed<{ value: string; label: string }[]>(() => {
+  const nama = [...new Set([
+    ...daftarDep.value.map((d) => String(d.Nama || "").trim()).filter(Boolean),
+    ...cleanData.value.map((r) => String(r.Departemen || "").trim()).filter(Boolean),
+  ])].sort((a, b) => a.localeCompare(b));
+  return [{ value: "ALL", label: "🏢 Semua Departemen" }, ...nama.map((n) => ({ value: n, label: n }))];
+});
+const labelDep = computed(() => judulDep(depSet.value));
+function judulDep(list: string[]): string {
+  if (list.length === 1 && list[0] === "ALL") return "🏢 Semua Departemen";
+  const labels = list.map((v) => depOptions.value?.find((o) => o.value === v)?.label ?? v);
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+}
+async function muatDaftarDepartemen() {
+  try {
+    const res = await api.get("/dashboard/daftar-departemen");
+    daftarDep.value = (res.data?.data as { Kode: string; Nama: string }[]) || [];
+  } catch {
+    /* Gagal memuat master → dropdown tetap memakai opsi data-driven. */
+  }
+}
+
 const now0 = new Date();
 const bulan = ref(now0.getMonth() + 1);
 const tahun = ref(now0.getFullYear());
-const pabrik = ref("ALL");
+/* Multi-select: default satu opsi (ALL). Klik opsi lain menumpuk pilihan;
+   ALL/STORE menimpa pilihan spesifik dan sebaliknya (lihat pilihMulti). */
+const pabrikSet = ref<string[]>(["ALL"]);
+const depSet = ref<string[]>(["ALL"]);
 const analisisLoading = ref(false);
 const analisisPeriode = ref<{ bulan: number; tahun: number } | null>(null);
 /** Baris rekap mentah dari backend (belum per filter pabrik). */
 const rawRows = ref<AnalisisRow[]>([]);
 const analisisTercoba = ref(false);
-/* ── Dropdown custom (bulan & pabrik) — daftar native tak bisa distyle, jadi diganti custom ── */
+/* ── Dropdown custom (bulan, pabrik & departemen) — daftar native tak bisa distyle, jadi diganti custom ── */
 const ddBulan = ref(false);
 const ddPabrik = ref(false);
+const ddDep = ref(false);
 const ddBulanBtn = ref<HTMLElement>();
 const ddPabrikBtn = ref<HTMLElement>();
+const ddDepBtn = ref<HTMLElement>();
 const styleMenuBulan = ref<Record<string, string>>({});
 const styleMenuPabrik = ref<Record<string, string>>({});
+const styleMenuDep = ref<Record<string, string>>({});
 
 /** Menu tak melewati pandangan: diposisikan relative terhadap layar
     (position: fixed) sehingga tumpukan kontainer tidak mengguntingnya,
@@ -181,17 +211,38 @@ function hitungMenuStyle(btn: HTMLElement): Record<string, string> {
   }
   return { ...dasar, top: `${bawah + 6}px`, maxHeight: `${Math.max(Math.min(sisa, 264), 160)}px` };
 }
-function bukaDd(w: "bulan" | "pabrik") {
-  const buka = w === "bulan" ? !ddBulan.value : !ddPabrik.value;
+function bukaDd(w: "bulan" | "pabrik" | "dep") {
+  const buka = w === "bulan" ? !ddBulan.value : w === "pabrik" ? !ddPabrik.value : !ddDep.value;
   ddBulan.value = w === "bulan" && buka;
   ddPabrik.value = w === "pabrik" && buka;
-  const btn = (w === "bulan" ? ddBulanBtn : ddPabrikBtn).value;
+  ddDep.value = w === "dep" && buka;
+  const btn = (w === "bulan" ? ddBulanBtn : w === "pabrik" ? ddPabrikBtn : ddDepBtn).value;
   if (!buka || !btn) return;
   const st = hitungMenuStyle(btn);
   if (w === "bulan") styleMenuBulan.value = st;
-  else styleMenuPabrik.value = st;
+  else if (w === "pabrik") styleMenuPabrik.value = st;
+  else styleMenuDep.value = st;
 }
-const labelPabrik = computed(() => pabrikOptions.value?.find((o) => o.value === pabrik.value)?.label ?? pabrik.value);
+/** Multi-select dengan uncheck:
+    - All: selalu kembali ke default (satu-satunya opsi "semua").
+    - STORE: dipilih menimpa semua; diklik lagi = uncheck → kembali All.
+    - Opsi spesifik: klik = cek, klik lagi = uncheck; bila semuanya
+      teruncheck, kembali ke All supaya filter tidak kosong. */
+function pilihMulti(anggota: string[], v: string): string[] {
+  if (v === "ALL") return ["ALL"];
+  if (v === "STORE") return anggota.includes(v) ? ["ALL"] : ["STORE"];
+  const sisa = anggota.includes(v)
+    ? anggota.filter((x) => x !== v)
+    : [...anggota.filter((x) => x !== "ALL" && x !== "STORE"), v];
+  return sisa.length ? sisa : ["ALL"];
+}
+const labelPabrik = computed(() => judulPabrik(pabrikSet.value));
+function judulPabrik(list: string[]): string {
+  if (list.length === 1 && list[0] === "ALL") return "🏭 ALL (Semua Pabrik)";
+  if (list.length === 1 && list[0] === "STORE") return "🏬 STORE (K*)";
+  const labels = list.map((v) => pabrikOptions.value?.find((o) => o.value === v)?.label ?? v);
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+}
 async function pilihBulan(b: number) {
   bulan.value = b;
   ddBulan.value = false;
@@ -199,8 +250,12 @@ async function pilihBulan(b: number) {
   renderCharts();
 }
 async function pilihPabrik(v: string) {
-  pabrik.value = v;
-  ddPabrik.value = false;
+  pabrikSet.value = pilihMulti(pabrikSet.value, v);
+  await nextTick();
+  renderCharts();
+}
+async function pilihDep(v: string) {
+  depSet.value = pilihMulti(depSet.value, v);
   await nextTick();
   renderCharts();
 }
@@ -210,10 +265,11 @@ function tutupDropdown(e: Event) {
   if (e.type === "scroll" && (e.target as HTMLElement | null)?.closest?.(".dd-menu")) return;
   ddBulan.value = false;
   ddPabrik.value = false;
+  ddDep.value = false;
 }
 /** Kombinasi filter yang datanya SUDAH siap di memori (prefetch bisa selesai sebelum di-klik). */
 const analisisKunci = ref("");
-const kunciFilter = () => `${bulan.value}:${tahun.value}:${pabrik.value}`;
+const kunciFilter = () => `${bulan.value}:${tahun.value}:${pabrikSet.value.join("|")}:${depSet.value.join("|")}`;
 
 /** Parse "05-Oct,08-Oct." -> [{text:"05-Oct", count}] — pola master countItemsFromText. */
 function tanggalDari(text?: string | null): string[] {
@@ -262,11 +318,18 @@ const cleanData = computed(() =>
     .filter((r) => r.Total > 0 && (r.Nama || "").trim() !== "")
 );
 
-/** Baris sesuai filter pabrik (ALL / STORE=>K* / kode). */
+/** Baris sesuai filter pabrik (ALL / STORE=>K* / kode, boleh banyak) + departemen (ALL / nama, boleh banyak). */
 const filteredData = computed(() => {
-  if (pabrik.value === "ALL") return cleanData.value;
-  if (pabrik.value === "STORE") return cleanData.value.filter((r) => (r.Pabrik || "").startsWith("K"));
-  return cleanData.value.filter((r) => r.Pabrik === pabrik.value);
+  const p = pabrikSet.value;
+  const d = depSet.value;
+  const cocokPabrik = (r: { Pabrik?: string | null }) => {
+    if (p.includes("ALL")) return true;
+    const kode = String(r.Pabrik || "");
+    if (p.includes("STORE") && kode.startsWith("K")) return true;
+    return p.includes(kode);
+  };
+  const cocokDep = (r: { Departemen?: string | null }) => d.includes("ALL") || d.includes(String(r.Departemen || ""));
+  return cleanData.value.filter(cocokPabrik).filter(cocokDep);
 });
 
 const dataReady = computed(() => filteredData.value.length > 0);
@@ -551,14 +614,19 @@ async function exportPelanggaranPDF() {
   const autoTable = (await import("jspdf-autotable")).default;
   const doc = new jsPDF("p", "mm", "a4");
   const pw = doc.internal.pageSize.getWidth();
-  const bl = pabrik.value === "ALL" ? "Semua Pabrik" : pabrik.value === "STORE" ? "STORE (K*)" : pabrik.value;
+  const bl = pabrikSet.value.includes("ALL")
+    ? "Semua Pabrik"
+    : pabrikSet.value.length === 1 && pabrikSet.value[0] === "STORE"
+      ? "STORE (K*)"
+      : pabrikSet.value.join(", ");
 
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.text("LAPORAN PELANGGARAN KARYAWAN", pw / 2, 20, { align: "center" });
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  doc.text(`Periode: ${BULAN_NAMA[bulan.value]} ${tahun.value} | Pabrik: ${bl}`, pw / 2, 28, { align: "center" });
+  const depTxt = depSet.value.includes("ALL") ? "" : ` | Departemen: ${depSet.value.join(", ")}`;
+  doc.text(`Periode: ${BULAN_NAMA[bulan.value]} ${tahun.value} | Pabrik: ${bl}${depTxt}`, pw / 2, 28, { align: "center" });
   doc.text(`Total Pelanggaran: ${data.length} karyawan`, pw / 2, 34, { align: "center" });
   doc.setDrawColor(200);
   doc.line(20, 38, pw - 20, 38);
@@ -591,7 +659,7 @@ async function exportPelanggaranPDF() {
       doc.text(`Halaman ${info.pageNumber} dari ${pages}`, pw / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
     },
   });
-  doc.save(`laporan_pelanggaran_${pabrik.value}_${BULAN_NAMA[bulan.value]}_${tahun.value}.pdf`);
+  doc.save(`laporan_pelanggaran_${pabrikSet.value.join("-")}_${BULAN_NAMA[bulan.value]}_${tahun.value}.pdf`);
 }
 
 /* ── Modal WhatsApp (pola openWAModal/sendWA master) ── */
@@ -967,7 +1035,7 @@ async function muatAnalisisUntuk(refresh: boolean) {
       params: { bulan: bulan.value, tahun: tahun.value, refresh: refresh ? "1" : undefined },
     });
     rawRows.value = res.rows;
-    analisisKunci.value = `${res.bulan}:${res.tahun}:${String(pabrik.value)}`;
+    analisisKunci.value = `${res.bulan}:${res.tahun}:${pabrikSet.value.join("|")}:${depSet.value.join("|")}`;
     analisisPeriode.value = { bulan: res.bulan, tahun: res.tahun };
   } catch (e) {
     toast.error(pickError(e));
@@ -1050,6 +1118,7 @@ async function onTerapkan() {
 onMounted(() => {
   load();
   void muatDaftarPabrik();
+  void muatDaftarDepartemen();
   document.addEventListener("click", tutupDropdown);
   document.addEventListener("keydown", tutupDropdown);
   window.addEventListener("resize", hitungBaris);
@@ -1253,13 +1322,35 @@ onActivated(() => {
             :key="o.value"
             type="button"
             class="dd-opt"
-            :class="{ aktif: o.value === pabrik, anak: o.anak }"
+            :class="{ aktif: pabrikSet.includes(o.value), anak: o.anak }"
             :title="o.nama"
             @click.stop="pilihPabrik(o.value)"
           >
-            <span>{{ o.label }}</span>
-            <MsIcon v-if="o.value === pabrik" name="check" :size="14" />
+            <span class="dd-tick" :class="{ on: pabrikSet.includes(o.value) }"><MsIcon v-if="pabrikSet.includes(o.value)" name="check" :size="11" /></span>
+            <span class="dd-lbl">{{ o.label }}</span>
           </button>
+          <div class="dd-hint">Bisa pilih beberapa — klik lagi opsi untuk menambah/menurunkan.</div>
+        </div>
+      </div>
+      <!-- Filter departemen: siap sejak halaman dibuka (master + data), di kiri Terapkan. -->
+      <div class="ana-dd" :class="{ open: ddDep }">
+        <button ref="ddDepBtn" type="button" class="ana-select dd-btn" aria-label="Departemen" @click.stop="bukaDd('dep')">
+          <span>{{ labelDep }}</span>
+          <MsIcon name="expand_more" :size="16" class="ana-arr" />
+        </button>
+        <div v-if="ddDep" class="dd-menu" :style="styleMenuDep">
+          <button
+            v-for="o in depOptions"
+            :key="o.value"
+            type="button"
+            class="dd-opt"
+            :class="{ aktif: depSet.includes(o.value) }"
+            @click.stop="pilihDep(o.value)"
+          >
+            <span class="dd-tick" :class="{ on: depSet.includes(o.value) }"><MsIcon v-if="depSet.includes(o.value)" name="check" :size="11" /></span>
+            <span class="dd-lbl">{{ o.label }}</span>
+          </button>
+          <div class="dd-hint">Bisa pilih beberapa — klik lagi opsi untuk menambah/menurunkan.</div>
         </div>
       </div>
       <button class="ana-btn" :disabled="analisisLoading" @click="onTerapkan">
@@ -1316,12 +1407,12 @@ onActivated(() => {
       <MsIcon name="insights" :size="18" />
       <span>
         Analisis HR tidak dimuat otomatis agar dashboard tampil cepat —
-        pilih <strong>bulan/tahun/pabrik</strong> lalu pencet <strong>Terapkan</strong>.
+        pilih <strong>bulan/tahun/pabrik/departemen</strong> lalu pencet <strong>Terapkan</strong>.
       </span>
     </div>
     <div v-else-if="!dataReady" class="ana-sheet">
       <MsIcon name="inbox" :size="18" />
-      Tidak ada data rekap absensi untuk periode {{ BULAN_NAMA[bulan] }} {{ tahun }}{{ pabrik !== "ALL" ? ` (${pabrik})` : "" }}.
+      Tidak ada data rekap absensi untuk periode {{ BULAN_NAMA[bulan] }} {{ tahun }}{{ pabrikSet.includes("ALL") ? "" : ` (${pabrikSet.join(", ")})` }}.
     </div>
 
     <template v-else>
@@ -1817,6 +1908,34 @@ onActivated(() => {
 .dd-opt.anak {
   padding-left: 26px;
   font-size: 12px;
+}
+.dd-hint {
+  font-size: 10px;
+  color: #9ca3af;
+  text-align: center;
+  padding: 5px 8px 2px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 4px;
+}
+/* Kotak centang lengkung di kiri tiap baris (multi-select). */
+.dd-tick {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dd-opt.aktif .dd-tick {
+  background: #3b5998;
+  border-color: #3b5998;
+}
+.dd-opt .dd-lbl {
+  flex: 1;
 }
 .ana-select:focus {
   border-color: #3b5998;

@@ -378,3 +378,19 @@ export const getDaftarPabrik = async (req, res, next) => {
         next(err)
     }
 }
+
+/**
+ * GET /dashboard/daftar-departemen — daftar departemen (`tdepartemen`).
+ * Nilai = `dep_nama`, kolom yang sama dipakai filter dropdown analisis
+ * rekap absensi (output `Departemen`). Akses: HRD & SUPER.
+ */
+export const getDaftarDepartemen = async (req, res, next) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT dep_kode AS Kode, dep_nama AS Nama FROM tdepartemen ORDER BY dep_nama`
+        )
+        success(res, rows)
+    } catch (err) {
+        next(err)
+    }
+}

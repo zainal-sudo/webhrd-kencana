@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getPeringatan, getEksekusiPkwt } from '../controllers/dashboardController.js'
-import { getAnalisisAbsensi, getSpTerakhir, getSpRekam, getDaftarPabrik } from '../controllers/dashboard/analisisController.js'
+import { getAnalisisAbsensi, getSpTerakhir, getSpRekam, getDaftarPabrik, getDaftarDepartemen } from '../controllers/dashboard/analisisController.js'
 import { issuePenilaianLink } from '../controllers/penilaianController.js'
 
 const r = Router()
@@ -27,6 +27,9 @@ r.post('/sp-rekam', hanyaHrSuper, getSpRekam)
 
 /* Daftar pabrik aktif (tpabrik) — dropdown analisis siap sejak halaman dibuka. */
 r.get('/daftar-pabrik', hanyaHrSuper, getDaftarPabrik)
+
+/* Daftar departemen (tdepartemen) — filter analisis satu dropdown lagi. */
+r.get('/daftar-departemen', hanyaHrSuper, getDaftarDepartemen)
 
 /* Halaman Eksekusi PKWT (dari card "Masa PKWT Akan Habis") — ikut kunci HR. */
 r.get('/eksekusi-pkwt', hanyaHrSuper, getEksekusiPkwt)
