@@ -121,15 +121,26 @@ export function parseBaris(values, path, header) {
     if (nik === undefined || nik === null || String(nik).trim() === '') return null
 
     // Kolom tanggal/jam bisa sama-sama memuat datetime: sel Excel terbaca Date
-    // (ExcelJS menyatakannya sebagai UTC). Kolom tanggal teks diutamakan; bila
-    // gagal dibaca, tanggal diambil dari kolom jam.
-    let tanggal = normTanggal(tgl)
-    let jamTeks
+    // (ExcelJS menyatakannya sebagai UTC). Kolom checktime (jam/scan) diutamakan
+    // atau digunakan sebagai fallback tanggal apabila kolom tanggal gagal dibaca.
+    let tanggal = null
+    let jamTeks = '00:00:00'
+
     if (jam instanceof Date) {
         jamTeks = jamHMSExcel(jam)
-        if (!tanggal) tanggal = jam.toISOString().slice(0, 10)
+        tanggal = normTanggal(jam)
     } else {
+        const jStr = String(jam ?? '').trim()
+        // Cek jika kolom jam/checktime memuat tanggal/datetime (mis. "2026-10-16 08:45:00" atau serial angka datetime)
+        const parsedDariJam = normTanggal(jStr)
+        if (parsedDariJam) {
+            tanggal = parsedDariJam
+        }
         jamTeks = normJam(jamExcelKeTeks(jam))
+    }
+
+    if (!tanggal) {
+        tanggal = normTanggal(tgl)
     }
 
     const t = String(tipe ?? '').trim().toUpperCase()
