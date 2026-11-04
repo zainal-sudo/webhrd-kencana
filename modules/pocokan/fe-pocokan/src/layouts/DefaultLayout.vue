@@ -32,11 +32,7 @@ const isMobile = ref(false);
 // yang dirender hanya konten halamannya. Kalau dibuka mandiri (dev/devtools/
 // standalone), layout lengkap tetap tampil apa adanya.
 const embedded = (() => {
-  try {
-    return window.self !== window.top;
-  } catch {
-    return false; // akses ke window.top diblokir → dianggap standalone
-  }
+  return true; // Paksa selalu mode embed di dalam iframe HRIS
 })();
 
 // Tab siap ditampilkan (hanya relevan untuk mode standalone).
