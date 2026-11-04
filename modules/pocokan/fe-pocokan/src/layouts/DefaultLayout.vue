@@ -599,6 +599,13 @@ const filteredMenus = computed(() =>
 }
 
 /* ── Responsif DefaultLayout ── */
+.finance-embed .v-navigation-drawer,
+.finance-embed .v-app-bar {
+  display: none !important;
+}
+.finance-embed .v-main {
+  padding: 0 !important;
+}
 @media (max-width: 768px) {
   .appbar-info,
   .appbar-chevron {

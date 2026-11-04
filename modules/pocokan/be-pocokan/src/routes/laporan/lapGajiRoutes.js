@@ -9,7 +9,7 @@ const {
     checkPermission,
 } = require("../../middleware/authMiddleware");
 
-const menuId = 10;
+const menuId = 120; // Sesuai dengan men_id tmenu Proses Gaji / Lap Gaji di database HRIS (pocokanM65)
 
 router.get(
     "/",

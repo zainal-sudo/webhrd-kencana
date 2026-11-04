@@ -365,25 +365,12 @@ function rowIdentity(row: Record<string, any>, index: number) {
   return props.rowKey ? props.rowKey(row) : row[props.primaryKey] ?? index;
 }
 
-// Periode berubah (Dari/Sampai, salah satu pun) -> muat ulang otomatis,
-// debounce untuk menggabungkan dua ganti tanggal sekaligus. Syarat kedua
-// tanggal terisi: rentang tidak lengkap tidak dikirim ke server.
+// Periode berubah (Dari/Sampai) tidak lagi auto-fetch untuk laporan absensi yang berat.
+// Klik tombol Refresh/Cari diperlukan untuk memuat data.
 watch(
   () => [startDate.value, endDate.value],
   () => {
-    if (!props.hasPeriod || !startDate.value || !endDate.value) return;
-    ++loadRequest;
-    if (timeoutId.value !== undefined) window.clearTimeout(timeoutId.value);
-    rows.value = [];
-    expandedKeys.value = new Set();
-    loading.value = true;
-    page.value = 1;
-    total.value = 0;
-    lastPage.value = 1;
-    timeoutId.value = window.setTimeout(() => {
-      timeoutId.value = undefined;
-      fetchData();
-    }, 350);
+    // Tidak auto-fetch saat ganti tanggal
   }
 );
 

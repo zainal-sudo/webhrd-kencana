@@ -130,14 +130,14 @@ export interface PocokanItemDef {
 }
 
 export const POCOKAN_ITEMS: PocokanItemDef[] = [
-  { menNama: "pocokanM4", path: "/pocokan/master/karyawan", label: "Karyawan", icon: "badge", ready: true },
-  { menNama: "pocokanM5", path: "/pocokan/master/bagian", label: "Bagian", icon: "list_alt", ready: true },
-  { menNama: "pocokanM6", path: "/pocokan/master/unit", label: "Unit", icon: "list_alt", ready: true },
-  { menNama: "pocokanM7", path: "/pocokan/master/hari-libur", label: "Hari Libur", icon: "event_busy", ready: true },
-  { menNama: "pocokanM9", path: "/pocokan/transaksi/absensi", label: "Absensi", icon: "fact_check", ready: true },
-  { menNama: "pocokanM10", path: "/pocokan/transaksi/proses-gaji", label: "Proses Gaji", icon: "payments", ready: true },
-  { menNama: "pocokanM10", path: "/pocokan/laporan/lap-gaji", label: "Lap. Gaji", icon: "summarize", ready: true },
-  { menNama: "pocokanM11", path: "/pocokan/laporan/lap-absensi", label: "Lap. Absensi", icon: "summarize", ready: true },
+  { menNama: "pocokanM59", path: "/pocokan/master/karyawan", label: "Karyawan", icon: "badge", ready: true },
+  { menNama: "pocokanM60", path: "/pocokan/master/bagian", label: "Bagian", icon: "list_alt", ready: true },
+  { menNama: "pocokanM61", path: "/pocokan/master/unit", label: "Unit", icon: "list_alt", ready: true },
+  { menNama: "pocokanM62", path: "/pocokan/master/hari-libur", label: "Hari Libur", icon: "event_busy", ready: true },
+  { menNama: "pocokanM64", path: "/pocokan/transaksi/absensi", label: "Absensi", icon: "fact_check", ready: true },
+  { menNama: "pocokanM65", path: "/pocokan/transaksi/proses-gaji", label: "Proses Gaji", icon: "payments", ready: true },
+  { menNama: "pocokanM65", path: "/pocokan/laporan/lap-gaji", label: "Lap. Gaji", icon: "summarize", ready: true },
+  { menNama: "pocokanM66", path: "/pocokan/laporan/lap-absensi", label: "Lap. Absensi", icon: "summarize", ready: true },
 ];
 
 export function definisiMenu(menNama: string): (MenuDef & { grup: keyof typeof GRUP }) | undefined {

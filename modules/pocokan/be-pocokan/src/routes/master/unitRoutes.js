@@ -3,7 +3,7 @@ const router = express.Router();
 const ctrl = require("../../controllers/master/unitController");
 const { verifyToken, checkPermission } = require("../../middleware/authMiddleware");
 
-const menuId = 6; // Sesuai dengan tmenu Unit (MEN_ID = 6)
+const menuId = 116; // Sesuai dengan men_id tmenu Unit di database HRIS (pocokanM61)
 router.get("/", verifyToken, checkPermission(menuId, "view"), ctrl.getAll);
 router.post("/save", verifyToken, checkPermission(menuId, "insert"), ctrl.saveData);
 router.delete("/:kode", verifyToken, checkPermission(menuId, "delete"), ctrl.deleteData);

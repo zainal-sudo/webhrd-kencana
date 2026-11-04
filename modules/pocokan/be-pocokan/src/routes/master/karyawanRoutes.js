@@ -4,7 +4,7 @@ const ctrl = require("../../controllers/master/karyawanController");
 const { verifyToken, checkPermission } = require("../../middleware/authMiddleware");
 
 // Menu ID 4 sesuai dengan tmenu untuk Karyawan di Library
-const menuId = 4;
+const menuId = 114; // Sesuai dengan men_id tmenu karyawan (pocokanM59) di database HRIS
 
 router.get("/", verifyToken, checkPermission(menuId, "view"), ctrl.getAll);
 router.get("/:kode", verifyToken, checkPermission(menuId, "view"), ctrl.getById);
