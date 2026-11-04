@@ -3,7 +3,7 @@ const router = express.Router();
 const ctrl = require("../../controllers/master/hariLiburController");
 const { verifyToken, checkPermission } = require("../../middleware/authMiddleware");
 
-const menuId = 117; // Sesuai dengan men_id tmenu Hari Libur di database HRIS (pocokanM62)
+const menuId = 62; // men_nama "pocokanM62" (Pocokan Hari Libur) di tmenu HRIS
 router.get("/", verifyToken, checkPermission(menuId, "view"), ctrl.getAll);
 router.post("/save", verifyToken, checkPermission(menuId, "insert"), ctrl.saveData);
 router.post("/insert-sundays", verifyToken, checkPermission(menuId, "insert"), ctrl.insertSundays);

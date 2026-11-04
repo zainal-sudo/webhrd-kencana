@@ -3,7 +3,7 @@ const router = express.Router();
 const ctrl = require("../../controllers/transaksi/absensiController");
 const { verifyToken, checkPermission } = require("../../middleware/authMiddleware");
 
-const menuId = 119; // Sesuai dengan men_id tmenu Absensi di database HRIS (pocokanM64)
+const menuId = 64; // men_nama "pocokanM64" (Pocokan Absensi) di tmenu HRIS
 router.get("/karyawan", verifyToken, checkPermission(menuId, "view"), ctrl.getKaryawanByUnit);
 router.post("/save", verifyToken, checkPermission(menuId, "insert"), ctrl.saveAbsensi);
 router.post("/tarik-wajah", verifyToken, checkPermission(menuId, "insert"), ctrl.tarikWajah);
