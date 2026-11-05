@@ -20,7 +20,7 @@ import Chart from "chart.js/auto";
  * detail sortable, CSV/PDF, dan kirim WA.
  *
  * Yang dipertahankan dari dashboard lama: sapaan, panel Peringatan
- * (BPJS / mangkir 2 hari / BPJS nonaktif / PKWT akan habis — PKWT tidak
+ * (BPJS / mangkir 3 hari / BPJS nonaktif / PKWT akan habis — PKWT tidak
  * dihilangkan), dan daftar modul.
  */
 const router = useRouter();
@@ -885,7 +885,7 @@ const panels: Panel[] = [
   },
   {
     key: "mangkir_2hari",
-    title: "Tidak Masuk 2 Hari Berturut-turut",
+    title: "Tidak Masuk 3 Hari Berturut-turut",
     desc: "Status 0 tanpa ijin pada 3 hari kerja terakhir",
     icon: "person_off",
     tone: "red",
@@ -984,6 +984,31 @@ function formatTanggalSederhana(d: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ""));
   if (!m) return String(d || "");
   return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/* Kartu mangkir: ambil tanggal TERBARU dari daftar acuan (array dikirim
+ * urut naik untuk tampilan, jadi indeks pertama justru yang tertua).
+ * String "yyyy-mm-dd" aman dibandingkan leksikal. Dicek usianya terhadap
+ * hari ini (basis UTC, zona-aman) — usia ≥ 3 hari kalender berarti
+ * pasokan data absensi patut dicurigai. */
+function usiaDataAbsensi(p: Panel): { usia: number | null; teks: string } {
+  const t = bagian(p.key).tanggal || [];
+  const montok = t.reduce((a, b) => (b > a ? b : a), "");
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(montok);
+  if (!m) return { usia: null, teks: formatTanggalSederhana(montok) };
+  const data = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  const now = new Date();
+  const usia = Math.max(0, Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - data) / 86400000));
+  return { usia, teks: formatTanggalSederhana(montok) };
+}
+function teksKeteranganData(p: Panel): string {
+  const { usia, teks } = usiaDataAbsensi(p);
+  if (usia === null) return teks;
+  return usia === 0 ? `${teks} — hari ini` : `${teks} — ${usia} hari lalu`;
+}
+function dataAbsensiTua(p: Panel): boolean {
+  const { usia } = usiaDataAbsensi(p);
+  return usia !== null && usia >= 3;
 }
 function bolehBuka(route: string): boolean {
   return permissionStore.allowedRoutes.includes(route);
@@ -1204,7 +1229,10 @@ onActivated(() => {
         <div class="task-label">{{ p.title }}</div>
         <div class="task-sub">{{ p.desc }}</div>
         <div v-if="p.key === 'mangkir_2hari' && bagian(p.key).tanggal?.length" class="alert-note">
-          Acuan 3 hari kerja terakhir: {{ selTanggal(p) }}
+          <div>Acuan 3 hari kerja terakhir: {{ selTanggal(p) }}</div>
+          <div v-if="usiaDataAbsensi(p).teks" :class="{ 'alert-note-tua': dataAbsensiTua(p) }">
+            Data absensi terakhir: {{ teksKeteranganData(p) }}
+          </div>
         </div>
         <div v-if="bagian(p.key).rows.length === 0" class="alert-empty">
           <MsIcon name="check_circle" :size="16" />
@@ -2538,6 +2566,13 @@ onActivated(() => {
   background: #fffbeb;
   border-top: 1px solid #f5e6c4;
   border-bottom: 1px solid #f5e6c4;
+}
+/* Data absensi terakhir mulai menusuk tua → sorot supaya pasokan data
+   yang putus terlihat dari luarnya (bukan cuma acuan yang masih lama). */
+.alert-note-tua {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 .alert-empty {
   display: flex;

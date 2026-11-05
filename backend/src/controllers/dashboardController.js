@@ -12,9 +12,10 @@ import { PKWT_HABIS_SELECT, EKSEKUSI_SELECT, EKSEKUSI_MONITORING_SELECT, PKWT_HA
  *
  *   1. Karyawan aktif > 30 hari yang belum di-setting BPJS
  *      (`kar_status_aktif = 1 AND kar_status_BPJS = 0`).
- *   2. Karyawan tidak masuk 2 hari berturut-turut: status absensi 0 pada
- *      3 tanggal kerja terakhir (di luar Master Hari Libur), tanpa Ijin
- *      pada tanggal-tanggal itu, dan belum keluar (`kar_tgl_keluar` null).
+ *   2. Karyawan tidak masuk 3 hari berturut-turut: status absensi 0 pada
+ *      KETIGA tanggal kerja terakhir (di luar Master Hari Libur) — ijin di
+ *      salah satu tanggal itu memutus rentetan (karyawan dieluarkan dari
+ *      daftar), dan belum keluar (`kar_tgl_keluar` null).
  *   3. Karyawan tidak aktif tetapi BPJS masih perusahaan
  *      (`kar_status_aktif = 0 AND kar_status_BPJS = 1`).
  *   4. Karyawan aktif yang masa PKWT berakhir < 2 bulan dari hari ini
@@ -36,6 +37,10 @@ const TIGA_HARI_KERJA = `SELECT * FROM (
         WHERE tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
         ORDER BY tanggal DESC LIMIT 3) d`
 
+/* "Tidak masuk 3 hari berturut-turut" = status 0 pada KETIGA tanggal kerja
+   terakhir (di luar Master Hari Libur) — kartu hanya melihat maksimal 3 hari
+   ke belakang. Ijin di salah satu tanggal itu memutus rentetan → karyawan
+   dieluarkan dari daftar (ketentuan pemberi hak, 2026-11-05). */
 const Q_MANGKIR_2HARI = `SELECT * FROM (
         SELECT nik AS Kode_Absensi, kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
             kar_bagian AS Bagian, kar_pab_kode AS Pabrik
@@ -43,7 +48,7 @@ const Q_MANGKIR_2HARI = `SELECT * FROM (
         WHERE status = 0 AND tanggal IN (${TIGA_HARI_KERJA})
         AND kar_tgl_keluar IS NULL
         AND kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
-        GROUP BY nik HAVING COUNT(*) > 1
+        GROUP BY nik HAVING COUNT(DISTINCT tanggal) = 3
     ) a WHERE Nik NOT IN (
         SELECT DISTINCT ij_nik FROM tijin WHERE ij_tanggal IN (${TIGA_HARI_KERJA}))`
 
@@ -67,7 +72,7 @@ const BAGIAN_EXPORT = {
     },
     mangkir_2hari: {
         query: Q_MANGKIR_2HARI,
-        judul: 'Tidak-Masuk-2-Hari',
+        judul: 'Tidak-Masuk-3-Hari',
         kolom: ['Kode_Absensi', 'Nik', 'Nama', 'Pabrik', 'Bagian'],
     },
     nonaktif_bpjs: {
