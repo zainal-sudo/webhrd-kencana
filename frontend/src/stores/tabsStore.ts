@@ -1,5 +1,4 @@
 import { defineStore } from "pinia";
-import { useAuthStore } from "@/stores/authStore";
 import { clearDrafts, confirmDraftDiscard, isTabBusy, isTabDirty } from "@/utils/unsavedChanges";
 
 export interface TabItem {
@@ -10,11 +9,6 @@ export interface TabItem {
   icon?: string;
   closable: boolean;
   timestamp: number;
-}
-
-/** UI "Dashboard Pocokan" hanya untuk user yang punya salah satu hak pocokanM<N>. */
-function punyaHakPocokan(): boolean {
-  return (useAuthStore().menus || []).some((m) => String(m.men_nama || "").startsWith("pocokanM"));
 }
 
 export const useTabsStore = defineStore("tabs", {
@@ -95,7 +89,6 @@ export const useTabsStore = defineStore("tabs", {
     closeAllTabs() {
       if (!confirmDraftDiscard(this.tabs.map(tab => tab.id))) return false;
       const dashboard = this.tabs.find((t) => t.path === "/dashboard");
-      const pocokan = this.tabs.find((t) => t.path === "/dashboard-pocokan");
       this.tabs = [];
       this.openTab({
         title: "Dashboard",
@@ -103,16 +96,6 @@ export const useTabsStore = defineStore("tabs", {
         icon: dashboard?.icon || "mdi mdi-view-dashboard-outline",
         closable: false,
       });
-      const dashId = this.activeTabId;
-      if (punyaHakPocokan()) {
-        this.openTab({
-          title: "Dashboard Pocokan",
-          path: "/dashboard-pocokan",
-          icon: pocokan?.icon || "mdi mdi-storefront",
-          closable: false,
-        });
-        this.activeTabId = dashId;
-      }
       this.cacheVersion += 1;
     },
 
@@ -140,24 +123,13 @@ export const useTabsStore = defineStore("tabs", {
 
     initDefaultTabs() {
       if (this.tabs.length > 0) return;
-      // Dashboard HRIS selalu paling kiri (tab pertama), Dashboard Pocokan
-      // di kanannya. Landing tetap Dashboard HRIS.
+      // Tab awal hanya Dashboard HRIS.
       this.openTab({
         title: "Dashboard",
         path: "/dashboard",
         icon: "mdi mdi-view-dashboard-outline",
         closable: false,
       });
-      const dashId = this.activeTabId;
-      if (punyaHakPocokan()) {
-        this.openTab({
-          title: "Dashboard Pocokan",
-          path: "/dashboard-pocokan",
-          icon: "mdi mdi-storefront",
-          closable: false,
-        });
-        this.activeTabId = dashId;
-      }
     },
 
     resetTabs() {

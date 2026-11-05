@@ -35,10 +35,6 @@ let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
 const tree = computed(() => permissionStore.menuTree);
 const flyoutGroup = computed(() => collapsed.value ? tree.value.find(group => group.key === flyoutKey.value) : undefined);
-/** Hak salah satu menu pocokan → tombol "Dashboard Pocokan" di kepala sidebar tampil. */
-const punyaPocokan = computed(() =>
-  (auth.menus || []).some((m) => String(m.men_nama || "").startsWith("pocokanM")));
-
 /* ── Subgrup (2 tingkat) — dipakai grup Pocokan: Setting/Master/… ── */
 const openSubs = ref<Record<string, boolean>>({});
 function subOpen(subKey: string) {
@@ -143,11 +139,6 @@ function isActive(routePath?: string) {
   return route.path === routePath;
 }
 
-/** Tombol "Dashboard Pocokan" (dan menu pocokan lama) aktif saat rute pocokan. */
-function isPocokanAktif() {
-  return route.path.startsWith("/pocokan") || route.path.startsWith("/dashboard-pocokan");
-}
-
 /** Cari node menu (termasuk anakan subgrup, mis. Pocokan) berdasarkan rute. */
 function cariMenu(routePath: string) {
   for (const g of tree.value) {
@@ -167,7 +158,7 @@ function go(routePath?: string) {
     title: child?.label || "Halaman",
     path: routePath,
     icon: "mdi mdi-circle-small",
-    closable: routePath !== "/dashboard" && routePath !== "/dashboard-pocokan",
+    closable: routePath !== "/dashboard",
   });
   router.push(routePath);
 }
@@ -185,14 +176,6 @@ function go(routePath?: string) {
       </button>
       <button class="sidebar-collapse" @click="collapsed = !collapsed">
         <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
-      </button>
-      <button v-if="punyaPocokan" type="button" class="menu-item dashboard-item pocokan-item"
-        :class="{ active: isPocokanAktif() }"
-        :aria-current="isPocokanAktif() ? 'page' : undefined" aria-label="Dashboard Pocokan" title="Dashboard Pocokan"
-        @click="router.push('/dashboard-pocokan')">
-        <span class="menu-item-dot"><MsIcon name="storefront" :size="17" /></span>
-        <span v-if="!collapsed" class="menu-item-text">Dashboard Pocokan</span>
-        <span v-if="!collapsed && isPocokanAktif()" class="menu-item-mark"></span>
       </button>
     </div>
 
@@ -516,10 +499,8 @@ function go(routePath?: string) {
   text-overflow: ellipsis;
   font-size: 12px;
 }
-/* Panah ciutkan: mengambang di tepi kanan, tepat di celah antara dua baris
-   dashboard — tidak memakan ruang baris tersendiri. */
-/* Panah ciutkan: mengambang di tepi kanan, tepat di celah antara dua baris
-   dashboard — tidak memakan ruang baris tersendiri. */
+/* Panah ciutkan: mengambang di tepi kanan, sejajar tombol Dashboard —
+   tidak memakan ruang baris tersendiri. */
 .sidebar-collapse {
   position: absolute;
   right: 4px;

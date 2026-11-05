@@ -38,16 +38,9 @@ const routes = [
     meta: { requiresAuth: true, title: "Dashboard" },
   },
   /* ── Modul Pocokan (Koperasi): aplikasi pocokan ditempel via iframe same-origin ── */
-  /* /pocokan (SPA fallback di web root) hanya alias → landing Dashboard
-     Pocokan, supaya tidak muncul tab "Pocokan" ekstra di tab bar HRIS. */
-  { path: "/pocokan", redirect: "/dashboard-pocokan" },
-  /* Tab kedua di samping Dashboard HRIS — dashboard aplikasi pocokan. */
-  {
-    path: "/dashboard-pocokan",
-    name: "dashboard-pocokan",
-    component: () => import("@/views/pocokan/dashboard/DashboardView.vue"),
-    meta: { requiresAuth: true, title: "Dashboard Pocokan", pocokanModul: true, form: "pocokanM60" },
-  },
+  /* /pocokan (SPA fallback di web root) hanya alias ke Dashboard HRIS,
+     supaya link lama tidak mendarat di 404. */
+  { path: "/pocokan", redirect: "/dashboard" },
   { path: "/pocokan/tools/users", component: () => import("@/views/pocokan/tools/MasterUserView.vue"), meta: { requiresAuth: true, title: "Pocokan User", pocokanModul: true, form: "pocokanM56" } },
   { path: "/pocokan/master/karyawan", component: () => import("@/views/pocokan/master/KaryawanView.vue"), meta: { requiresAuth: true, title: "Pocokan Karyawan", pocokanModul: true, form: "pocokanM59" } },
   { path: "/pocokan/master/bagian", component: () => import("@/views/pocokan/master/BagianView.vue"), meta: { requiresAuth: true, title: "Pocokan Bagian", pocokanModul: true, form: "pocokanM60" } },
