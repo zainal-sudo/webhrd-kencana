@@ -167,16 +167,18 @@ function go(routePath?: string) {
 <template>
   <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-head">
-      <button type="button" class="menu-item dashboard-item" :class="{ active: isActive('/dashboard') }"
-        :aria-current="isActive('/dashboard') ? 'page' : undefined" aria-label="Dashboard HRIS" title="Dashboard HRIS"
-        @click="router.push('/dashboard')">
-        <span class="menu-item-dot"><MsIcon name="dashboard" :size="17" /></span>
-        <span v-if="!collapsed" class="menu-item-text">Dashboard</span>
-        <span v-if="!collapsed && isActive('/dashboard')" class="menu-item-mark"></span>
-      </button>
-      <button class="sidebar-collapse" @click="collapsed = !collapsed">
-        <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
-      </button>
+      <div class="dash-row">
+        <button type="button" class="menu-item dashboard-item" :class="{ active: isActive('/dashboard') }"
+          :aria-current="isActive('/dashboard') ? 'page' : undefined" aria-label="Dashboard HRIS" title="Dashboard HRIS"
+          @click="router.push('/dashboard')">
+          <span class="menu-item-dot"><MsIcon name="dashboard" :size="17" /></span>
+          <span v-if="!collapsed" class="menu-item-text">Dashboard</span>
+          <span v-if="!collapsed && isActive('/dashboard')" class="menu-item-mark"></span>
+        </button>
+        <button class="sidebar-collapse" @click="collapsed = !collapsed">
+          <MsIcon :name="collapsed ? 'chevron_right' : 'chevron_left'" :size="18" />
+        </button>
+      </div>
     </div>
 
     <nav class="sidebar-nav" @scroll="closeFlyout">
@@ -316,12 +318,21 @@ function go(routePath?: string) {
   position: relative; /* jangkar untuk tombol panah (collapse) yang melayang */
   flex-shrink: 0;
   display: flex;
-  flex-direction: column; /* Dashboard & Dashboard Pocokan ditumpuk ke bawah */
+  flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   gap: 2px;
   padding: 6px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* Satu baris Dashboard: jangkar tombol panah (collapse) supaya panah selalu
+   presisi sejajar (vertikal) dengan tombol, berapa pun tinggi tombolnya.
+   Flex row → margin kanan tombol benar-benar jadi ruang kosong (tidak overflow). */
+.dash-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
 }
 .sidebar-collapse {
   width: 32px;
@@ -475,8 +486,9 @@ function go(routePath?: string) {
    (lebar tetap 1px supaya tidak menggeser layout). */
 .dashboard-item {
   min-width: 0;
-  width: 100%;
-  margin-right: 30px;
+  flex: 1 1 auto;
+  width: auto;
+  margin-right: 34px; /* ruang kosong untuk panah collapse yang melayang */
   padding: 8px 26px 8px 12px;
   font-weight: 600;
   border: 1px solid transparent;
@@ -499,10 +511,13 @@ function go(routePath?: string) {
   text-overflow: ellipsis;
   font-size: 12px;
 }
-/* Panah ciutkan: mengambang di tepi kanan, sejajar tombol Dashboard —
-   tidak memakan ruang baris tersendiri. */
+/* Panah ciutkan: mengambang di tepi kanan, digariskan ke baris .dash-row —
+   selalu tepat di tengah vertikal tombol Dashboard, tidak memakan ruang. */
 .sidebar-collapse {
   position: absolute;
+  /* Tengah panah = 8 (padding head) + 4 + 10 (setengah lebar) = 22px dari
+     tepi kanan — persis satu garis vertikal dengan panah ˅ di grup menu
+     (padding 14px + setengah ikon 16px = 22px). */
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
@@ -512,6 +527,7 @@ function go(routePath?: string) {
   border-radius: 6px;
 }
 .sidebar.collapsed .sidebar-head { height: auto; padding: 4px 0; }
+.sidebar.collapsed .dash-row { display: flex; flex-direction: column; align-items: center; }
 .sidebar.collapsed .sidebar-collapse { position: static; transform: none; align-self: center; }
 .sidebar.collapsed .dashboard-item { flex: none; width: 38px; height: 32px; margin-right: 0; padding: 6px 7px; }
 .menu-item-dot {
