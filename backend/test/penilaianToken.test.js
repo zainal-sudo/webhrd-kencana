@@ -18,8 +18,7 @@ function fixture() {
     const db = { async query(sql, params = []) {
         queries.push({ sql, params })
         const converted = sql.replace(/DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/g, "'2026-12-21'")
-            .replace(/UTC_TIMESTAMP\(\)/g, `'${time.toISOString().slice(0, 19).replace('T', ' ')}'`)
-            .replace(/DATE_FORMAT\(t\.expires_at, '%Y-%m-%dT%H:%i:%sZ'\)/g, "replace(t.expires_at, ' ', 'T') || 'Z'")
+            .replace(/DATE_FORMAT\(t\.expires_at, '%Y-%m-%dT%H:%i:%s\+07:00'\)/g, "replace(t.expires_at, ' ', 'T') || '+07:00'")
         const stmt = sqlite.prepare(converted)
         if (/^\s*SELECT/i.test(sql)) return [stmt.all(...params)]
         return [stmt.run(...params)]
@@ -27,14 +26,14 @@ function fixture() {
     return { sqlite, db, queries, service: createPenilaianTokenService(db, { now: () => time }), setTime: (date) => { time = new Date(date) } }
 }
 
-test('Token 256-bit di-hash, terikat karyawan/HR/tipe form, expiry default 7 hari, reusable', async () => {
+test('Token 256-bit di-hash, terikat karyawan/HR/tipe form, expiry default 30 hari, reusable', async () => {
     const f = fixture()
     try {
         const link = await f.service.issue('001', 'HR01')
         const token = new URL(link.path, 'https://hrd.example').searchParams.get('t')
         assert.match(token, /^[a-f0-9]{64}$/)
         assert.equal(link.formType, 'tanpa-bawahan')
-        assert.equal(link.expiresAt, '2026-10-28T03:00:00.000Z')
+        assert.equal(link.expiresAt, '2026-11-20T10:00:00+07:00')
         assert.doesNotMatch(link.path, /nik=/)
         assert.equal(new URL(link.path, 'https://hrd.example').pathname, '/penilaian/tanpa-bawahan')
         const stored = f.sqlite.prepare('SELECT * FROM web_penilaian_access_token').get()
@@ -42,7 +41,7 @@ test('Token 256-bit di-hash, terikat karyawan/HR/tipe form, expiry default 7 har
         assert.notEqual(stored.token_hash, token)
         assert.equal(stored.kar_nik, '001')
         assert.equal(stored.created_by, 'HR01')
-        assert.equal(stored.created_at, '2026-10-21 03:00:00')
+        assert.equal(stored.created_at, '2026-10-21 10:00:00')
         const data = await f.service.access('tanpa-bawahan', token)
         assert.deepEqual(data.employee, { nik: '001', nama: 'Budi', jabatan: 'OPERATOR', bagian: 'JAHIT A', pabrik: 'P04', statusKerja: 'PKWT 1' })
         assert.equal(JSON.stringify(data).includes('RAHASIA'), false)
@@ -83,7 +82,7 @@ test('Pembuatan link menolak karyawan di luar scope dan memakai parameter SQL; T
         await assert.rejects(f.service.issue('001', ''), { status: 401 })
         assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM web_penilaian_access_token').get().n, 0)
         const service = createPenilaianTokenService(f.db, { now: () => new Date('2026-10-21T03:00:00Z'), ttlDays: 2 })
-        assert.equal((await service.issue('001', 'HR01')).expiresAt, '2026-10-23T03:00:00.000Z')
+        assert.equal((await service.issue('001', 'HR01')).expiresAt, '2026-10-23T10:00:00+07:00')
         assert.throws(() => createPenilaianTokenService(f.db, { ttlDays: 0 }))
         for (const [jabatan, expected] of [['operator', 'tanpa-bawahan'], [' STAF ', 'tanpa-bawahan'], ['KOORDINATOR', 'dengan-bawahan'], [null, 'dengan-bawahan']]) assert.equal(formTypeForJabatan(jabatan), expected)
     } finally { f.sqlite.close() }

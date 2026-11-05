@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { PKWT_HABIS_WHERE } from '../helpers/pkwtEksekusi.js'
 
-export const DEFAULT_TOKEN_TTL_DAYS = 7
+export const DEFAULT_TOKEN_TTL_DAYS = 30
 export const FORM_TYPES = ['tanpa-bawahan', 'dengan-bawahan']
 export const INVALID_LINK_MESSAGE = 'Link penilaian sudah kedaluwarsa atau tidak valid. Silakan meminta link penilaian baru kepada HR.'
 
@@ -13,7 +13,12 @@ export function formTypeForJabatan(jabatan) {
 
 export const hashAccessToken = (token) => createHash('sha256').update(token).digest('hex')
 const fail = (message, status = 404) => Object.assign(new Error(message), { status })
-const sqlUtc = (date) => date.toISOString().slice(0, 19).replace('T', ' ')
+/** Basis waktu WIB (+07:00): nilai yang tersimpan di DB & tampil di admin
+ *  membaca jam Jakarta. Aplikasi mengirim pembanding "sekarang versi WIB"
+ *  sendiri, jadi tidak tergantung zona waktu sesi MySQL. */
+const WIB_OFFSET_MS = 7 * 3600000
+const sqlWib = (date) => new Date(date.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 19).replace('T', ' ')
+const isoWib = (date) => new Date(date.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 19) + '+07:00'
 
 /** Dependency injection menjaga tes token tidak mengakses database produksi. */
 export function createPenilaianTokenService(db, { now = () => new Date(), random = randomBytes, ttlDays = process.env.PENILAIAN_TOKEN_TTL_DAYS || DEFAULT_TOKEN_TTL_DAYS } = {}) {
@@ -40,9 +45,9 @@ export function createPenilaianTokenService(db, { now = () => new Date(), random
             `INSERT INTO web_penilaian_access_token
              (token_hash, kar_nik, form_type, created_by, created_at, expires_at)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [hashAccessToken(token), employee.nik, formType, createdBy, sqlUtc(createdAt), sqlUtc(expiresAt)],
+            [hashAccessToken(token), employee.nik, formType, createdBy, sqlWib(createdAt), sqlWib(expiresAt)],
         )
-        return { path: `/penilaian/${formType}?t=${token}`, formType, expiresAt: expiresAt.toISOString() }
+        return { path: `/penilaian/${formType}?t=${token}`, formType, expiresAt: isoWib(expiresAt) }
     }
 
     async function access(formType, token) {
@@ -52,14 +57,14 @@ export function createPenilaianTokenService(db, { now = () => new Date(), random
             `SELECT k.kar_Nik AS nik, k.kar_nama AS nama, j.jab_nama AS jabatan,
                     k.kar_bagian AS bagian, k.kar_pab_kode AS pabrik,
                     s.sk_keterangan AS statusKerja,
-                    DATE_FORMAT(t.expires_at, '%Y-%m-%dT%H:%i:%sZ') AS expiresAt
+                    DATE_FORMAT(t.expires_at, '%Y-%m-%dT%H:%i:%s+07:00') AS expiresAt
              FROM web_penilaian_access_token t
              INNER JOIN tkaryawan k ON k.kar_Nik = t.kar_nik AND k.kar_status_aktif = 1
              LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
              LEFT JOIN tstatuskaryawan s ON s.sk_id = k.kar_status_kerja
              WHERE t.token_hash = ? AND t.form_type = ?
-               AND t.revoked_at IS NULL AND t.expires_at > UTC_TIMESTAMP()
-             LIMIT 1`, [hashAccessToken(token), formType],
+               AND t.revoked_at IS NULL AND t.expires_at > ?
+             LIMIT 1`, [hashAccessToken(token), formType, sqlWib(now())],
         )
         if (!rows.length) throw fail(INVALID_LINK_MESSAGE)
         const row = rows[0]
