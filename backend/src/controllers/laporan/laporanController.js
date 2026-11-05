@@ -861,14 +861,23 @@ export async function isiKet(rows, start, end) {
     }
 }
 
-/** Terlambat tanpa formulir (gettanggalterlambat2 Delphi). */
+/** Terlambat tanpa formulir (gettanggalterlambat2 Delphi).
+ *  Askop: Ahad & tenggelam libur master tidak dihitung; hari yang terdaftar
+ *  SPL dengan scan masuk ≤ jam mulai lembur juga bukan keterlambatan. */
 async function tanggalTerlambatTanpaForm(start, end, nik) {
     const [rows] = await pool.query(
         `SELECT a.tanggal FROM tabsensi a
          INNER JOIN tkaryawan b ON a.nik=b.kar_kode_absensi
          LEFT JOIN tijin c ON c.ij_nik=kar_Nik AND ij_tanggal=a.tanggal AND ij_ji_id=1 AND ij_keterangan=3
          WHERE tanggal BETWEEN ? AND ? AND a.status=2 AND kar_Nik=?
-         AND ij_tanggal IS NULL ORDER BY a.tanggal`,
+         AND ij_tanggal IS NULL
+         AND DAYNAME(a.tanggal) <> 'Sunday'
+         AND a.tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
+         AND NOT EXISTS (SELECT 1 FROM tlembur_dtl d
+             INNER JOIN tlembur_hdr h ON h.lem_nomor = d.lemd_lem_nomor
+             WHERE d.lemd_kar_nik = b.kar_Nik AND h.lem_tanggal = a.tanggal
+             AND a.scan1 <> '00:00:00' AND a.scan1 <= d.lemd_jammulai)
+         ORDER BY a.tanggal`,
         [start, end, nik]
     )
     return rows.map((r) => fmtKet(r.tanggal))

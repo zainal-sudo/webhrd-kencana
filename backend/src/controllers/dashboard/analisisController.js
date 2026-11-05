@@ -138,11 +138,20 @@ export function rekapCepatSql() {
                 AND ${JAM_SCAN} > 6
             GROUP BY a.nik
         ) bl2 ON bl2.nik = k.kar_kode_absensi
-        LEFT JOIN (/* terlambat: scan dengan status = 2 (kode absensi kosong dikecualikan) */
+        LEFT JOIN (/* terlambat: scan dengan status = 2 (kode absensi kosong dikecualikan).
+                       Ahad & tenggelam libur master tidak dihitung; hari yang terdaftar
+                       SPL dengan scan masuk ≤ jam mulai lembur juga bukan keterlambatan. */
             SELECT b.kar_nik nik, COUNT(*) c FROM tabsensi a
             INNER JOIN tkaryawan b ON b.kar_kode_absensi = a.nik
             WHERE b.kar_kode_absensi IS NOT NULL AND b.kar_kode_absensi <> ''
-            AND a.tanggal BETWEEN ? AND ? AND a.status = 2 GROUP BY b.kar_nik
+            AND a.tanggal BETWEEN ? AND ? AND a.status = 2
+            AND DAYNAME(a.tanggal) <> 'Sunday'
+            AND a.tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
+            AND NOT EXISTS (SELECT 1 FROM tlembur_dtl d
+                INNER JOIN tlembur_hdr h ON h.lem_nomor = d.lemd_lem_nomor
+                WHERE d.lemd_kar_nik = b.kar_Nik AND h.lem_tanggal = a.tanggal
+                AND a.scan1 <> '00:00:00' AND a.scan1 <= d.lemd_jammulai)
+            GROUP BY b.kar_nik
         ) tbn ON tbn.nik = k.kar_nik
         LEFT JOIN (/* ijin tidak masuk (jenis 3): 0=Sakit 1=Ijin 2=Alpha 3=Lain-lain */
             SELECT ij_nik nik,
@@ -196,7 +205,9 @@ async function isiKetBatch(rows, start, end) {
     )
     const setengah = byNik(stRows.map((r) => ({ nik: r.nik, tgl: fmtKet(r.tgl) })))
 
-    /* Terlambat tanpa form: versi massal tanggalTerlambatTanpaForm. */
+    /* Terlambat tanpa form: versi massal tanggalTerlambatTanpaForm.
+       Saringan sama: Ahad, tenggelam libur master, dan hari SPL yang masuk
+       lebih dulu/sama dengan jam mulai lembur bukan keterlambatan. */
     const [tfRows] = await pool.query(
         `SELECT b.kar_Nik AS nik, a.tanggal AS tgl FROM tabsensi a
          INNER JOIN tkaryawan b ON a.nik = b.kar_kode_absensi
@@ -204,6 +215,12 @@ async function isiKetBatch(rows, start, end) {
              AND c.ij_ji_id = 1 AND c.ij_keterangan = 3
          WHERE a.tanggal BETWEEN ? AND ? AND a.status = 2
          AND b.kar_Nik IN (${chunkIn}) AND c.ij_tanggal IS NULL
+         AND DAYNAME(a.tanggal) <> 'Sunday'
+         AND a.tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
+         AND NOT EXISTS (SELECT 1 FROM tlembur_dtl d
+             INNER JOIN tlembur_hdr h ON h.lem_nomor = d.lemd_lem_nomor
+             WHERE d.lemd_kar_nik = b.kar_Nik AND h.lem_tanggal = a.tanggal
+             AND a.scan1 <> '00:00:00' AND a.scan1 <= d.lemd_jammulai)
          ORDER BY b.kar_Nik, a.tanggal`,
         [start, end, ...nikList]
     )
