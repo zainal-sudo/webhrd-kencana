@@ -8,6 +8,8 @@ export interface LapAbsensiItem {
   bagian: string;
   hari: string;
   kehadiran: number;
+  lemburLE2: number;
+  lemburGT2: number;
 }
 
 export const lapAbsensiApi = {

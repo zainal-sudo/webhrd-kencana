@@ -692,15 +692,21 @@ export function rekapAbsensiSql() {
                 (time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 ))) lembur
              from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor where lem_tanggal
              between ? and ? and lemd_kar_nik=kar_nik),0) lembur,
-            ifnull((select sum(if(if ( timediff(lemd_jamakhir,lemd_jammulai) < 0 ,
-                (time_to_sec((timediff("24:00:00",lemd_jammulai))))/3600
-                + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600,
-                (time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600 ) > 2,2,
-                (time_to_sec((timediff(lemd_jamakhir,lemd_jammulai))))/3600)) 2jam
-             from tlembur_dtl inner join tlembur_hdr on lem_nomor=lemd_lem_nomor and lemd_panggilan <> 1
-             where lem_tanggal between ? and ?
-             and lem_tanggal not in (select hl_tanggal from tharilibur WHERE hl_status=1)
-             and lemd_kar_nik=kar_nik ),0) 2jam,
+            ifnull((select sum(c) from (
+                select a2.lemd_kar_nik n2, b2.lem_tanggal t2,
+                least(sum(if(b2.lem_tanggal not in (select hl_tanggal from tharilibur where hl_status=1)
+                or tk2.kar_bagian in ("SATPAM","IPAL & B3") or tk2.kar_dep_kode = "MKTR", if ( timediff(a2.lemd_jamakhir,a2.lemd_jammulai) < 0 ,
+                (time_to_sec((timediff("24:00:00",a2.lemd_jammulai))))/3600
+                + (time_to_sec((timediff(a2.lemd_jamakhir,"00:00:00"))))/3600  ,
+                (time_to_sec((timediff(a2.lemd_jamakhir,a2.lemd_jammulai))))/3600 ), 0)),
+                if(max(tk2.kar_sistem_gaji)="Harian",1,2)) c
+                from tlembur_dtl a2
+                inner join tlembur_hdr b2 on b2.lem_nomor=a2.lemd_lem_nomor and a2.lemd_panggilan <> 1
+                left join tkaryawan tk2 on tk2.kar_nik=a2.lemd_kar_nik
+                where b2.lem_tanggal between ? and ?
+                group by a2.lemd_kar_nik, b2.lem_tanggal
+             ) d2
+             where d2.n2 = kar_nik),0) 2jam,
             ifnull((select (sum(if ( timediff(lemd_jamakhir,lemd_jammulai) < 0 ,
                 (time_to_sec((timediff("24:00:00",lemd_jammulai))))/3600
                 + (time_to_sec((timediff(lemd_jamakhir,"00:00:00"))))/3600,

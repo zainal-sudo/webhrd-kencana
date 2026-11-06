@@ -40,7 +40,9 @@ const headers = [
   { title: "Nama", key: "nama", minWidth: "200px", align: "start" as const },
   { title: "Bagian", key: "bagian", width: "150px", align: "start" as const },
   { title: "Hari", key: "hari", width: "110px", align: "start" as const },
-  { title: "Kehadiran", key: "kehadiran", width: "120px", align: "end" as const },
+  { title: "Kehadiran", key: "kehadiran", width: "100px", align: "end" as const },
+  { title: "Lembur <= 2 Jam", key: "lemburLE2", width: "130px", align: "end" as const },
+  { title: "Lembur > 2 Jam", key: "lemburGT2", width: "130px", align: "end" as const },
 ];
 
 const totalKehadiran = computed(() =>
@@ -54,7 +56,7 @@ const filterValues = computed(() => ({
   selectedUnit: selectedUnit.value,
 }));
 
-const summaryColumns = [{ key: "kehadiran" }];
+const summaryColumns = [{ key: "kehadiran" }, { key: "lemburLE2" }, { key: "lemburGT2" }];
 
 const loadData = async () => {
   if (!periode1.value || !periode2.value) {
@@ -103,6 +105,8 @@ const exportExcelData = () => {
       { header: "Bagian", key: "bagian", width: 20 },
       { header: "Hari", key: "hari", width: 14 },
       { header: "Kehadiran", key: "kehadiran", width: 14, align: "right" },
+      { header: "Lembur <= 2 Jam", key: "lemburLE2", width: "15", align: "right" },
+      { header: "Lembur > 2 Jam", key: "lemburGT2", width: "15", align: "right" },
     ],
     rows: [
       ...exportItems,
@@ -113,6 +117,8 @@ const exportExcelData = () => {
         bagian: "",
         hari: "TOTAL",
         kehadiran: exportItems.reduce((sum, row) => sum + (Number(row.kehadiran) || 0), 0),
+        lemburLE2: exportItems.reduce((sum, row) => sum + (Number(row.lemburLE2) || 0), 0),
+        lemburGT2: exportItems.reduce((sum, row) => sum + (Number(row.lemburGT2) || 0), 0),
       } as any,
     ],
   });
@@ -173,8 +179,14 @@ const getExportItems = (): typeof items.value => browseRef.value?.getExportItems
       </v-btn>
     </template>
 
-    <!-- ── Format kehadiran 2 desimal seperti 1.00 ── -->
+    <!-- ── Format kehadiran & lembur 2 desimal seperti 1.00 ── -->
     <template #item.kehadiran="{ value }">
+      <span class="num-cell">{{ formatKehadiran(value) }}</span>
+    </template>
+    <template #item.lemburLE2="{ value }">
+      <span class="num-cell">{{ formatKehadiran(value) }}</span>
+    </template>
+    <template #item.lemburGT2="{ value }">
       <span class="num-cell">{{ formatKehadiran(value) }}</span>
     </template>
   </BaseBrowse>

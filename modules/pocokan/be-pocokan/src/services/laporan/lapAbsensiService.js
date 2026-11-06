@@ -26,7 +26,9 @@ const getLapAbsensi = async (pabKode, periode1, periode2) => {
       a.ab_kar_kode AS id,
       COALESCE(k.kar_nama, a.ab_kar_kode) AS nama,
       COALESCE(b.bag_nama, k.kar_bag_kode, '-') AS bagian,
-      a.ab_hari AS kehadiran
+      a.ab_hari AS kehadiran,
+      IF(COALESCE(a.ab_jamlembur, 0) > 2, 2, COALESCE(a.ab_jamlembur, 0)) AS lemburLE2,
+      IF(COALESCE(a.ab_jamlembur, 0) > 2, a.ab_jamlembur - 2, 0) AS lemburGT2
     FROM tabsensi a
     LEFT JOIN tkaryawan k ON k.kar_kode = a.ab_kar_kode
     LEFT JOIN tbagian b ON b.bag_kode = k.kar_bag_kode
@@ -51,6 +53,8 @@ const getLapAbsensi = async (pabKode, periode1, periode2) => {
       bagian: row.bagian || "",
       hari,
       kehadiran: Number(row.kehadiran) || 0,
+      lemburLE2: Number(row.lemburLE2) || 0,
+      lemburGT2: Number(row.lemburGT2) || 0,
     };
   });
 };

@@ -95,13 +95,20 @@ export function rekapCepatSql() {
             INNER JOIN tlembur_hdr h2 ON h2.lem_nomor = d.lemd_lem_nomor
             WHERE h2.lem_tanggal BETWEEN ? AND ? GROUP BY d.lemd_kar_nik
         ) l ON l.nik = k.kar_nik
-        LEFT JOIN (/* 2 jam pertama: bukan panggilan, tanggal bukan hari libur */
-            SELECT d.lemd_kar_nik nik, SUM(if(${JAM_LEMBUR} > 2, 2, ${JAM_LEMBUR})) h
-            FROM tlembur_dtl d
-            INNER JOIN tlembur_hdr h2 ON h2.lem_nomor = d.lemd_lem_nomor AND d.lemd_panggilan <> 1
-            WHERE h2.lem_tanggal BETWEEN ? AND ?
-                AND h2.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1)
-            GROUP BY d.lemd_kar_nik
+        LEFT JOIN (/* 2 jam pertama: dihitung per hari lalu di-cap LEAST(total jam hari itu,
+                       1 utk sistem Harian, 2 selainnya); hari libur tetap dihitung utk
+                       SATPAM / IPAL & B3 / MKTR — identik dengan SQL proses gaji (j2) */
+            SELECT g.nik nik, SUM(g.jam) h FROM (
+                SELECT d.lemd_kar_nik nik, h2.lem_tanggal,
+                    LEAST(SUM(if(h2.lem_tanggal NOT IN (SELECT hl_tanggal FROM tharilibur WHERE hl_status = 1)
+                        OR k2.kar_bagian IN ('SATPAM','IPAL & B3') OR k2.kar_dep_kode = 'MKTR',
+                        ${JAM_LEMBUR}, 0)), IF(MAX(k2.kar_sistem_gaji) = 'Harian', 1, 2)) jam
+                FROM tlembur_dtl d
+                INNER JOIN tlembur_hdr h2 ON h2.lem_nomor = d.lemd_lem_nomor AND d.lemd_panggilan <> 1
+                LEFT JOIN tkaryawan k2 ON k2.kar_nik = d.lemd_kar_nik
+                WHERE h2.lem_tanggal BETWEEN ? AND ?
+                GROUP BY d.lemd_kar_nik, h2.lem_tanggal
+            ) g GROUP BY g.nik
         ) dj ON dj.nik = k.kar_nik
         LEFT JOIN (/* lembur panggilan */
             SELECT d.lemd_kar_nik nik, SUM(${JAM_LEMBUR}) h FROM tlembur_dtl d
