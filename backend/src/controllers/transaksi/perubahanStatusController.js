@@ -253,56 +253,95 @@ export const getStatusKerja = async (req, res, next) => {
 /**
  * Simpan (ufrmPerubahanStatus.simpandata).
  * Body: { nomor?, tanggal, nik, status_lama, status_baru, tgl_awal, tgl_akhir }
+ *
+ * Selain menulis dokumen, simpan juga menyambungkan dua tempat lain agar
+ * tidak ada lagi "A terisi, B kosong":
+ *  1. Master karyawan (kar_status_kerja, kar_tglPKWT1/2) ditulis eksplisit
+ *     — DB produksi yang membawa trigger `tperubahanstatus` tetap benar
+ *     (nilainya sama, tulis dua kali tidak merusak), DB tanpa trigger ikut benar.
+ *  2. Riwayat PKWT (`tpkwt`, grid "Riwayat PKWT" form master) di-upsert untuk
+ *     (nik, sk_id = status baru) sehingga sejarah kontrak ikut terisi.
  */
 export const savePerubahanStatus = async (req, res, next) => {
+    const b = req.body || {}
+    const tanggal = String(b.tanggal || '').slice(0, 10)
+    const nik = String(b.nik || '').trim()
+    const statusLama = parseInt(b.status_lama, 10)
+    const statusBaru = parseInt(b.status_baru, 10)
+    const tglAwal = String(b.tgl_awal || '').slice(0, 10)
+    const tglAkhir = String(b.tgl_akhir || '').slice(0, 10)
+
+    if (!tanggal) return error(res, 'Tanggal wajib diisi', 400)
+    if (!nik) return error(res, 'NIK wajib diisi', 400)
+    if (!Number.isInteger(statusLama)) return error(res, 'Status lama wajib dipilih', 400)
+    if (!Number.isInteger(statusBaru)) return error(res, 'Status baru wajib dipilih', 400)
+    if (!tglAwal || !tglAkhir) return error(res, 'Periode PKWT (awal & akhir) wajib diisi', 400)
+    if (tglAkhir < tglAwal) return error(res, 'Tanggal akhir PKWT harus >= tanggal awal', 400)
+
+    const conn = await pool.getConnection()
     try {
-        const b = req.body || {}
-        const tanggal = String(b.tanggal || '').slice(0, 10)
-        const nik = String(b.nik || '').trim()
-        const statusLama = parseInt(b.status_lama, 10)
-        const statusBaru = parseInt(b.status_baru, 10)
-        const tglAwal = String(b.tgl_awal || '').slice(0, 10)
-        const tglAkhir = String(b.tgl_akhir || '').slice(0, 10)
-
-        if (!tanggal) return error(res, 'Tanggal wajib diisi', 400)
-        if (!nik) return error(res, 'NIK wajib diisi', 400)
-        if (!Number.isInteger(statusLama)) return error(res, 'Status lama wajib dipilih', 400)
-        if (!Number.isInteger(statusBaru)) return error(res, 'Status baru wajib dipilih', 400)
-        if (!tglAwal || !tglAkhir) return error(res, 'Periode PKWT (awal & akhir) wajib diisi', 400)
-        if (tglAkhir < tglAwal) return error(res, 'Tanggal akhir PKWT harus >= tanggal awal', 400)
-
-        const [krows] = await pool.query('SELECT kar_nama FROM tkaryawan WHERE kar_Nik = ?', [nik])
+        const [krows] = await conn.query('SELECT kar_nama FROM tkaryawan WHERE kar_Nik = ?', [nik])
         if (krows.length === 0) return error(res, `NIK ${nik} tidak ada pada master karyawan`, 400)
-        for (const [val, label] of [
-            [statusLama, 'Status lama'],
-            [statusBaru, 'Status baru'],
-        ]) {
-            const [s] = await pool.query('SELECT sk_id FROM tstatuskaryawan WHERE sk_id = ? LIMIT 1', [val])
-            if (s.length === 0) return error(res, `${label} tidak dikenal`, 400)
+        for (const val of [statusLama, statusBaru]) {
+            const [s] = await conn.query('SELECT sk_id FROM tstatuskaryawan WHERE sk_id = ? LIMIT 1', [val])
+            if (s.length === 0) return error(res, `Status tidak dikenal (${val})`, 400)
         }
 
         const nomorEdit = String(b.nomor || '').trim()
         if (nomorEdit) {
-            const [ada] = await pool.query('SELECT ps_nomor FROM tperubahanstatus WHERE ps_nomor = ?', [nomorEdit])
+            const [ada] = await conn.query('SELECT ps_nomor FROM tperubahanstatus WHERE ps_nomor = ?', [nomorEdit])
             if (ada.length === 0) return error(res, 'Nomor tidak ditemukan', 404)
-            await pool.query(
+        }
+
+        await conn.beginTransaction()
+
+        let nomor
+        if (nomorEdit) {
+            await conn.query(
                 `UPDATE tperubahanstatus SET ps_tanggal = ?, ps_kar_nik = ?, ps_kar_status_karyawan = ?,
                     ps_kar_status_karyawan2 = ?, ps_tgl_awal = ?, ps_tgl_akhir = ? WHERE ps_nomor = ?`,
                 [tanggal, nik, statusLama, statusBaru, tglAwal, tglAkhir, nomorEdit]
             )
-            return success(res, { nomor: nomorEdit }, `Berhasil simpan dengan nomor ${nomorEdit}`)
+            nomor = nomorEdit
+        } else {
+            nomor = await nomorBerikut(tanggal)
+            await conn.query(
+                `INSERT INTO tperubahanstatus (ps_nomor, ps_tanggal, ps_kar_nik, ps_kar_status_karyawan,
+                    ps_kar_status_karyawan2, ps_tgl_awal, ps_tgl_akhir)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [nomor, tanggal, nik, statusLama, statusBaru, tglAwal, tglAkhir]
+            )
         }
 
-        const nomor = await nomorBerikut(tanggal)
-        await pool.query(
-            `INSERT INTO tperubahanstatus (ps_nomor, ps_tanggal, ps_kar_nik, ps_kar_status_karyawan,
-                ps_kar_status_karyawan2, ps_tgl_awal, ps_tgl_akhir)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [nomor, tanggal, nik, statusLama, statusBaru, tglAwal, tglAkhir]
+        // 1. Master karyawan ikut kontrak baru (mindah efek trigger ke kode web).
+        await conn.query(
+            'UPDATE tkaryawan SET kar_status_kerja = ?, kar_tglPKWT1 = ?, kar_tglPKWT2 = ? WHERE kar_Nik = ?',
+            [statusBaru, tglAwal, tglAkhir, nik]
         )
+
+        // 2. Riwayat PKWT di grid master ikut terisi/termutakhirkan.
+        const [adaPkwt] = await conn.query(
+            'SELECT kar_nik FROM tpkwt WHERE kar_nik = ? AND sk_id = ? LIMIT 1', [nik, statusBaru]
+        )
+        if (adaPkwt.length) {
+            await conn.query(
+                'UPDATE tpkwt SET tgl1 = ?, tgl2 = ? WHERE kar_nik = ? AND sk_id = ?',
+                [tglAwal, tglAkhir, nik, statusBaru]
+            )
+        } else {
+            await conn.query(
+                'INSERT INTO tpkwt (kar_nik, sk_id, tgl1, tgl2) VALUES (?, ?, ?, ?)',
+                [nik, statusBaru, tglAwal, tglAkhir]
+            )
+        }
+
+        await conn.commit()
         success(res, { nomor }, `Berhasil simpan dengan nomor ${nomor}`)
     } catch (err) {
+        await conn.rollback()
         next(err)
+    } finally {
+        conn.release()
     }
 }
 

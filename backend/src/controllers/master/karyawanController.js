@@ -465,6 +465,19 @@ export const saveKaryawan = async (req, res, next) => {
             return error(res, `Kolom form belum dipetakan di backend: ${kurang.join(', ')}`, 500)
         }
 
+        // Validasi dini riwayat PKWT (sebelum transaksi menulis apa pun):
+        // PK tabel tpkwt unik (kar_nik + sk_id). Baris tanpa SK masuk sebagai
+        // sk 0 dan dua SK sama menabrak Duplicate entry saat disimpan.
+        if (Array.isArray(b.pkwt)) {
+            const skPakai = new Map()
+            for (const p of b.pkwt) {
+                const sk = num(p.sk_id ?? p.SkId)
+                if (!sk) return error(res, 'Riwayat PKWT: setiap baris wajib memilih Status PKWT (SK)', 400)
+                if (skPakai.has(sk)) return error(res, `Riwayat PKWT memuat dua baris dengan SK sama (${sk}) — SK harus unik`, 400)
+                skPakai.set(sk, true)
+            }
+        }
+
         // ── Validasi No. Identitas (KTP/SIM) ─────────────────────────────
         // MyISAM cannot roll back writes. Validate before any write and serialize
         // cooperating web writers until all employee/child writes finish.
@@ -522,11 +535,33 @@ export const saveKaryawan = async (req, res, next) => {
             await conn.query('INSERT INTO tkaryawanjadwal (karj_nik, karj_jd_id) VALUES ?', [vals])
         }
 
-        // riwayat PKWT (tpkwt)
+        // ── Riwayat PKWT (tpkwt) — tabel anakan dibaca & ditulis MANUAL ──
+        // Pola seperti tabel anakan lain: isian grid menimpa isi tabel apa
+        // adanya (DELETE + INSERT ulang). TIDAK ada lagi penyesuaian otomatis
+        // dua arah dengan master di sini: Status Kerja + Tgl PKWT 1/2 dan
+        // grid sama-sama diisi manual oleh HRD. Jalur resmi yang menulis
+        // master + riwayat sekaligus adalah Transaksi → Perubahan Status.
+        // Card "PKWT Akan Habis" tetap mengikuti kondisi terbaru dari
+        // semua tabel (lihat src/helpers/pkwtEksekusi.js).
+        // ── Riwayat PKWT (tpkwt) — tabel anakan dibaca & ditulis MANUAL ──
+        // Pola seperti tabel anakan lain: isian grid menimpa isi tabel apa
+        // adanya (DELETE + INSERT ulang). TIDAK ada lagi penyesuaian otomatis
+        // dua arah dengan master di sini: Status Kerja + Tgl PKWT 1/2 dan
+        // grid sama-sama diisi manual oleh HRD. Jalur resmi yang menulis
+        // master + riwayat sekaligus adalah Transaksi → Perubahan Status.
+        // Card "PKWT Akan Habis" tetap mengikuti kondisi terbaru dari
+        // semua tabel (lihat src/helpers/pkwtEksekusi.js).
         if (Array.isArray(b.pkwt)) {
+            const normTgl = (v) => (v ? String(v).slice(0, 10) : null)
+            const baru = (b.pkwt || [])
+                .map((r) => ({ sk: num(r.sk_id ?? r.SkId), tgl1: normTgl(r.tgl1), tgl2: normTgl(r.tgl2) }))
+                .filter((r) => r.sk || r.tgl1 || r.tgl2)
+
             await conn.query('DELETE FROM tpkwt WHERE kar_nik = ?', [nik])
-            const vals = b.pkwt.map((p) => [nik, num(p.sk_id ?? p.SkId), p.tgl1 || null, p.tgl2 || null])
-            if (vals.length) await conn.query('INSERT INTO tpkwt (kar_nik, sk_id, tgl1, tgl2) VALUES ?', [vals])
+            if (baru.length) {
+                await conn.query('INSERT INTO tpkwt (kar_nik, sk_id, tgl1, tgl2) VALUES ?',
+                    [baru.map((r) => [nik, r.sk, r.tgl1, r.tgl2])])
+            }
         }
 
         await conn.commit()

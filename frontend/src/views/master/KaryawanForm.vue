@@ -313,6 +313,24 @@ function hapusBaris(list: any[], index: number) {
   list.splice(index, 1);
 }
 
+/** Kode status kerja (sk_id) PKWT1..PKWT5 yang belum terpakai di grid riwayat —
+ *  kandidat default baris "+ Tambah PKWT" supaya SK barunya benar. */
+function skIdBaru() {
+  const terpakai = new Set(pkwt.value.map((p) => Number(p.SkId)).filter(Boolean));
+  const kandidat = (opt.statusKerja || [])
+    .map((r) => Number(r.Kode))
+    .filter((k) => k >= PKWT_SK_MIN && k <= PKWT_SK_MAX);
+  return kandidat.find((k) => !terpakai.has(k)) ?? "";
+}
+
+// Isian Status Kerja + Tgl PKWT 1/2 (atas) dan grid Riwayat PKWT (bawah)
+// murni MANUAL — tidak menyesuaikan satu sama lain saat mengetik maupun
+// saat Simpan. Jalur resmi yang menulis master + riwayat sekaligus:
+// Transaksi → Perubahan Status. Card "PKWT Akan Habis" tetap membaca
+// kondisi terbaru dari semua tabel (backend).
+const PKWT_SK_MIN = 2;
+const PKWT_SK_MAX = 6;
+
 function toggleJadwal(id: number) {
   const list = jadwalTerpilih.value;
   const i = list.indexOf(id);
@@ -329,6 +347,17 @@ async function simpan(): Promise<string> {
   if (!values.kar_nama || !String(values.kar_nama).trim()) throw new Error("Nama karyawan wajib diisi");
   if (!values.kar_pab_kode) throw new Error("Pabrik wajib diisi");
   if (!values.kar_jab_kode) throw new Error("Jabatan wajib diisi");
+
+  // Validasi Riwayat PKWT: PK tabelnya unik (NIK + SK). SK kosong/ganda
+  // menabrak Duplicate entry di backend — cegah di sini baris ke-berapa.
+  const skTerpakai = new Set<number>();
+  for (let i = 0; i < pkwt.value.length; i++) {
+    const barisP = pkwt.value[i]!;
+    const sk = Number(barisP.SkId ?? barisP.sk_id);
+    if (!sk) throw new Error(`Riwayat PKWT baris ${i + 1}: pilih Status PKWT (SK) dahulu.`);
+    if (skTerpakai.has(sk)) throw new Error(`Riwayat PKWT memuat dua baris dengan SK yang sama (${sk}) — SK harus unik.`);
+    skTerpakai.add(sk);
+  }
 
   // Validasi No. Identitas: backend mengecek ulang, ini pre-check UX.
   const identitasKini = String(values.kar_noidentitas ?? "").trim();
@@ -356,7 +385,13 @@ async function simpan(): Promise<string> {
   body.pengalaman = pengalaman.value;
   body.keahlian = keahlian.value;
   body.jadwal = jadwalTerpilih.value.map((id) => ({ karj_jd_id: id }));
-  body.pkwt = pkwt.value;
+  // Identitas SK dikirim ganda (SkId + sk_id) supaya backend versi manapun
+  // dan penulis lain membaca baris dengan benar — tidak ada lagi baris
+  // riwayat yang sesungguhnya bernilai sk_id 0.
+  body.pkwt = pkwt.value.map((p: any) => {
+    const sk = Number(p.SkId ?? p.sk_id) || 0;
+    return { SkId: sk, sk_id: sk, tgl1: p.tgl1 ?? "", tgl2: p.tgl2 ?? "" };
+  });
   if (fotoBase64.value) body.kar_foto_base64 = fotoBase64.value;
   draft.checkpointSave();
 
@@ -879,6 +914,9 @@ onUnmounted(() => {
         <!-- ── PKWT ───────────────────────────────────────────── -->
         <fieldset class="fs">
           <legend>Riwayat PKWT</legend>
+          <p class="pkwt-hint">
+            Isi manual: field "Status Kerja" + "Tgl PKWT 1 &amp; 2" di atas dan baris riwayat di tabel diisi sendiri-sendiri, keduanya tidak menyesuaikan otomatis. Perpanjangan resmi lewat <b>Transaksi → Perubahan Status</b> menulis keduanya sekaligus — dan card "PKWT Akan Habis" selalu mengikuti kontrak terbaru dari semua tabel.
+          </p>
           <table class="grid-table pkwt-table">
             <thead>
               <tr>
@@ -890,7 +928,7 @@ onUnmounted(() => {
             </thead>
             <tbody>
               <tr v-for="(p, i) in pkwt" :key="i">
-                <td><FNumber v-model="p.SkId" label="" /></td>
+                <td><FSelect searchable v-model="p.SkId" label="" :options="opsiStatusKerja" /></td>
                 <td><FDate v-model="p.tgl1" label="" /></td>
                 <td><FDate v-model="p.tgl2" label="" /></td>
                 <td class="delete-cell"><button type="button" class="del" @click="hapusBaris(pkwt, i)">x</button></td>
@@ -900,7 +938,7 @@ onUnmounted(() => {
               </tr>
             </tbody>
           </table>
-          <button type="button" class="add" @click="tambahBaris(pkwt, { SkId: pkwt.length + 1 })">+ Tambah PKWT</button>
+          <button type="button" class="add" @click="tambahBaris(pkwt, { SkId: skIdBaru() })">+ Tambah PKWT</button>
         </fieldset>
         </template>
         </section>
@@ -1275,6 +1313,7 @@ table.grid-table .delete-heading { width: 6%; text-align: center; }
 .experience-table th:nth-child(6) { width: 14%; }
 .skills-table th:nth-child(1) { width: 35%; }
 .skills-table th:nth-child(2) { width: 59%; }
+.pkwt-hint { margin: 0 0 8px; font-size: 12px; color: #64748b; }
 .pkwt-table th:nth-child(1) { width: 30%; }
 .pkwt-table th:nth-child(2), .pkwt-table th:nth-child(3) { width: 32%; }
 @container (max-width: 720px) {

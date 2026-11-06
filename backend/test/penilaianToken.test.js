@@ -9,6 +9,7 @@ function fixture() {
     sqlite.exec(`CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_nama TEXT, kar_jab_kode TEXT, kar_bagian TEXT, kar_pab_kode TEXT, kar_status_kerja INTEGER, kar_status_aktif INTEGER, kar_tglpkwt2 TEXT, kar_ktp TEXT);
         CREATE TABLE tjabatan (jab_kode TEXT, jab_nama TEXT);
         CREATE TABLE tstatuskaryawan (sk_id INTEGER, sk_keterangan TEXT);
+        CREATE TABLE tpkwt (kar_nik TEXT, sk_id INTEGER, tgl1 TEXT, tgl2 TEXT);
         CREATE TABLE web_penilaian_access_token (id INTEGER PRIMARY KEY, token_hash TEXT UNIQUE, kar_nik TEXT, form_type TEXT, created_by TEXT, created_at TEXT, expires_at TEXT, revoked_at TEXT);
         INSERT INTO tjabatan VALUES ('OPR','OPERATOR'),('STF','STAF'),('L','LEADER');
         INSERT INTO tstatuskaryawan VALUES (2,'PKWT 1');
@@ -85,6 +86,21 @@ test('Pembuatan link menolak karyawan di luar scope dan memakai parameter SQL; T
         assert.equal((await service.issue('001', 'HR01')).expiresAt, '2026-10-23T10:00:00+07:00')
         assert.throws(() => createPenilaianTokenService(f.db, { ttlDays: 0 }))
         for (const [jabatan, expected] of [['operator', 'tanpa-bawahan'], [' STAF ', 'tanpa-bawahan'], ['KOORDINATOR', 'dengan-bawahan'], [null, 'dengan-bawahan']]) assert.equal(formTypeForJabatan(jabatan), expected)
+    } finally { f.sqlite.close() }
+})
+
+test('Card ambil kondisi terbaru dari semua tabel: riwayat lebih baru menang atas master', async () => {
+    const f = fixture()
+    try {
+        // Master 001 berakhir 2026-11-01 (masuk jendela). Riwayat lebih baru di
+        // luar jendela → kondisi terbaru = riwayat → tidak dianggap akan habis.
+        f.sqlite.exec("INSERT INTO tpkwt (kar_nik, sk_id, tgl1, tgl2) VALUES ('001', 3, '2026-06-01', '2027-06-01')")
+        await assert.rejects(f.service.issue('001', 'HR01'), { status: 404 })
+        // Riwayat lebih baru TAPI masih dalam jendela → tetap tersedia, dan
+        // tanggal efektifnya kini milik riwayat.
+        f.sqlite.exec("UPDATE tpkwt SET tgl1 = '2026-11-02', tgl2 = '2026-12-05'")
+        const link = await f.service.issue('001', 'HR01')
+        assert.match(link.path, /^\/penilaian\/tanpa-bawahan\?t=[a-f0-9]{64}$/)
     } finally { f.sqlite.close() }
 })
 

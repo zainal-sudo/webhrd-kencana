@@ -29,19 +29,20 @@ test('Halaman Eksekusi memakai sumber tunggal card + identitas penuh + sisa hari
     assert.equal(body.success, true)
     assert.deepEqual(body.data[0], { Nik: 'K001', Nama: 'Budi', Sisa_Hari: 3 })
     const sql = calls[0]
-    // Rule card dipertahankan persis — satu-satunya definisi "< 2 bulan".
-    assert.match(sql, /kar_tglpkwt2 < DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/)
-    assert.match(sql, /kar_status_kerja IN \(2, 3, 4, 5, 6\)/)
-    assert.match(sql, /kar_status_aktif = 1/)
+    // Rule card dipertahankan persis — satu-satunya definisi "< 2 bulan",
+    // kini memakai kondisi TERBARU dari semua tabel (master vs riwayat).
+    assert.match(sql, /COALESCE\(\(SELECT t\.tgl2 FROM tpkwt t[\s\S]*?, k\.kar_tglpkwt2\) < DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/)
+    assert.match(sql, /, k\.kar_status_kerja\) IN \(2, 3, 4, 5, 6\)/)
+    assert.match(sql, /k\.kar_status_aktif = 1/)
     // Daftar penuh untuk halaman Eksekusi, tanpa batas 200 baris card.
     assert.match(sql, /LIMIT 50000/)
     assert.doesNotMatch(sql, /LIMIT 200/)
     // Identitas penuh tanpa potongan LEFT, plus sisa hari dari DB.
     assert.match(sql, /k\.kar_nama AS Nama/)
     assert.doesNotMatch(sql, /LEFT\(/)
-    assert.match(sql, /DATEDIFF\(k\.kar_tglpkwt2, CURDATE\(\)\) AS Sisa_Hari/)
+    assert.match(sql, /DATEDIFF\(COALESCE\(\(SELECT t\.tgl2 FROM tpkwt t[\s\S]*?, k\.kar_tglpkwt2\), CURDATE\(\)\) AS Sisa_Hari/)
     // Urutan paling dekat dulu, NIK sebagai pembeda tanggal sama.
-    assert.match(sql, /ORDER BY kar_tglpkwt2 ASC, kar_Nik ASC/)
+    assert.match(sql, /ORDER BY COALESCE\(\(SELECT t\.tgl2 FROM tpkwt t[\s\S]*?, k\.kar_tglpkwt2\) ASC, k\.kar_Nik ASC/)
     // Hanya membaca data.
     assert.doesNotMatch(sql, /INSERT|UPDATE|DELETE/i)
 })

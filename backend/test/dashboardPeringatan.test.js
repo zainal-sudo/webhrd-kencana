@@ -86,9 +86,11 @@ test('SQL setia pada query popup UfrmLogin Delphi', async () => {
     assert.match(all, /NOT IN \(\s*SELECT DISTINCT ij_nik FROM tijin/)
     // 3. Tidak aktif tapi BPJS masih perusahaan.
     assert.match(all, /kar_status_aktif = 0 AND kar_status_BPJS = 1/)
-    // 4. PKWT habis < 2 bulan, status kerja kontrak, aktif.
-    assert.match(all, /kar_tglpkwt2 < DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/)
-    assert.match(all, /kar_status_kerja IN \(2, 3, 4, 5, 6\)/)
+    // 4. PKWT habis: kondisi TERBARU dari semua tabel (master vs riwayat
+    //    `tpkwt`) berakhir < 2 bulan, status kerja kontrak, aktif.
+    assert.match(all, /COALESCE\(\(SELECT t\.tgl2 FROM tpkwt t[\s\S]*?, k\.kar_tglpkwt2\) < DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/)
+    assert.match(all, /, k\.kar_status_kerja\) IN \(2, 3, 4, 5, 6\)/)
+    assert.match(all, /k\.kar_status_aktif = 1/)
     // Daftar dibatasi agar dashboard tetap ringan.
     assert.match(all, /LIMIT 200/)
 })
