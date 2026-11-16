@@ -81,7 +81,7 @@ function buildAspekUI() {
         headerDiv.className = "aspek-header";
         headerDiv.innerHTML = `
             <div class="aspek-nama"><span class="num">${i+1}.</span> ${item.nama}</div>
-            <div class="bobot"><i class="fas fa-times"></i> Bobot x${item.bobot}</div>
+            <div class="bobot">Bobot x${item.bobot}</div>
         `;
         card.appendChild(headerDiv);
         
@@ -126,7 +126,16 @@ function buildAspekUI() {
                     validateForm();
                 }
             });
-            
+
+            // Klik di mana saja dalam kartu skor (bukan hanya bulatan radio) memilih skor itu —
+            // target klik lebih besar agar mudah untuk pengguna yang lebih tua.
+            optionDiv.addEventListener("click", (event) => {
+                if (event.target !== radio) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event("change"));
+                }
+            });
+
             const spanAngka = document.createElement("span");
             spanAngka.innerText = val;
             const smallLabel = document.createElement("div");
