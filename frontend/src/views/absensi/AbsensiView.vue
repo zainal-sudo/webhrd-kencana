@@ -38,6 +38,7 @@ const columns: BrowseColumn[] = [
   { key: "Keluar", label: "Jam Keluar", width: "90px", align: "center" },
   { key: "Scan2", label: "Scan Keluar", width: "90px", align: "center" },
   { key: "Status", label: "Status", width: "110px", align: "center" },
+  { key: "Keterangan", label: "Keterangan", width: "120px", align: "center" },
 ];
 
 /** Status absensi: 0 = tidak masuk (kuning), 1 = masuk, 2 = terlambat (hijau). */
@@ -46,6 +47,12 @@ function statusAbsensi(row: Record<string, any>): { label: string; cls: string }
   if (s === "0") return { label: "Tidak Masuk", cls: "st-0" };
   if (s === "2") return { label: "Terlambat", cls: "st-2" };
   return { label: "Masuk", cls: "st-1" };
+}
+
+/** Keterangan status kerja (dari tkeluar): punya dokumen keluar → badge merah,
+ *  selain itu cukup "-" supaya tidak membingungkan dengan status master aktif. */
+function sudahKeluar(row: Record<string, any>): boolean {
+  return String(row.Keterangan ?? "").trim() === "Sudah Keluar";
 }
 
 /** Baris ikut ditandai samar mengikuti status. */
@@ -96,7 +103,7 @@ async function hapus() {
 <template>
   <BaseBrowse
     module-title="Browse Absensi"
-    module-subtitle="Rekap hasil scan mesin absensi per karyawan dan tanggal"
+    module-subtitle="Rekap hasil scan mesin absensi per karyawan aktif dan tanggal"
     :endpoint="endpoint"
     :columns="columns"
     :add-form-path="formPath"
@@ -114,6 +121,14 @@ async function hapus() {
       <span v-if="column.key === 'Status'" :class="['status-badge', statusAbsensi(row).cls]">{{
         statusAbsensi(row).label
       }}</span>
+      <template v-else-if="column.key === 'Keterangan'">
+        <span
+          v-if="sudahKeluar(row)"
+          class="status-badge ket-keluar"
+          title="Ada dokumen karyawan keluar — status master masih aktif, perlu diubah ke non-aktif oleh HRD"
+        >Sudah Keluar</span>
+        <template v-else>-</template>
+      </template>
       <template v-else>{{ text }}</template>
     </template>
     <template #row-actions="{ row }">
@@ -209,6 +224,12 @@ async function hapus() {
   color: #166534;
   background: #dff3e5;
   border-color: #8ed0a4;
+}
+/* Keterangan: punya dokumen keluar walaupun master masih aktif */
+.status-badge.ket-keluar {
+  color: #b91c1c;
+  background: #fde2e2;
+  border-color: #f0a8a8;
 }
 :deep(tbody tr.absen-0 td) {
   background: #fff8e1;

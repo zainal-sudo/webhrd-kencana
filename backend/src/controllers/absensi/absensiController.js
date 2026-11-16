@@ -47,6 +47,14 @@ const LIST_COLUMNS = {
     Scan2: 'a.scan2',
     Status: 'a.status',
     Verifikasi: 'a.verifikasi',
+    /* Keterangan status kerja: punya dokumen keluar (tkeluar) → 'Sudah Keluar',
+     * selain itu NULL (tampil "-" di web) — status aktif/non-aktif diubah
+     * manual oleh HRD, dokumen keluar bisa dibuat akun lain, jadi tidak
+     * selalu sinkron. EXISTS, bukan JOIN: satu NIK bisa punya >1 dokumen.
+     * Hanya dokumen keluar DI ATAS siklus kerja sekarang yang dihitung
+     * (kl_tanggal >= kar_tgl_masuk) — orang yang pernah keluar lalu masuk
+     * lagi tidak salah bertanda; tgl masuk NULL tetap dianggap keluar. */
+    Keterangan: `CASE WHEN EXISTS (SELECT 1 FROM tkeluar t WHERE t.kl_nik = k.kar_Nik AND (k.kar_tgl_masuk IS NULL OR t.kl_tanggal >= k.kar_tgl_masuk)) THEN 'Sudah Keluar' ELSE NULL END`,
 }
 
 const FROM_SQL = `FROM tabsensi a
@@ -127,7 +135,7 @@ export const getAbsensiList = async (req, res, next) => {
             // Export = tampilan web: buang kolom internal (duplikat Nik,
             // kode absensi, jabatan mentah, flag verifikasi) dan urutkan
             // seperti AbsensiView.
-            const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status']
+            const exportColumns = ['NIK', 'Nama', 'Tanggal', 'Hari', 'Pabrik', 'Bagian', 'Sistem', 'Masuk', 'Scan1', 'Keluar', 'Scan2', 'Status', 'Keterangan']
             return sendExcel(res, 'Absensi', exportColumns, all, {
                 requestedColumns: req.query.columns,
                 headLabels: {
