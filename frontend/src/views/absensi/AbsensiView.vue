@@ -217,9 +217,9 @@ async function hapus() {
   background: #ffefc2 !important;
 }
 :deep(tbody tr.absen-2 td) {
-  background: #eef9f0;
+  background: #c7efcf;
 }
 :deep(tbody tr.absen-2:hover td) {
-  background: #d9f0dd !important;
+  background: #aee6bd !important;
 }
 </style>
