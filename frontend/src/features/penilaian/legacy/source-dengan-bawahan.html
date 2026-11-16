@@ -256,6 +256,26 @@ body {
     margin-left: 2px;
 }
 
+/* Keterangan bintang = wajib diisi, tampil di atas tiap seksi ber-form. */
+.required-hint {
+    font-size: 11px;
+    color: var(--text-light);
+    margin: -6px 0 10px;
+}
+.required-hint .required,
+.section-label h3 .required {
+    color: var(--danger);
+    margin-left: 2px;
+}
+
+/* Identitas lebih rapat: celah & padding diperkecil agar nyaman dibaca. */
+#appForm .section-label { margin-bottom: 12px; padding-bottom: 10px; }
+#appForm .form-grid { gap: 10px 12px; }
+#appForm .field { gap: 4px; }
+#appForm .field label { font-size: 10.5px; }
+#appForm .field input,
+#appForm .field select { padding: 8px 12px; font-size: 13.5px; }
+
 .field input, .field select {
     padding: 10px 14px;
     border: 1.5px solid var(--border);
@@ -1097,6 +1117,7 @@ body {
             <h3>Identitas Karyawan</h3>
             <span class="badge-count"><i class="fas fa-edit"></i> 8</span>
         </div>
+        <div class="required-hint"><span class="required">*</span> Wajib diisi</div>
 
         <div class="form-grid">
             <div class="field full required-field">
@@ -1120,7 +1141,7 @@ body {
                 </select>
                 <div class="error-msg">Jabatan wajib dipilih</div>
             </div>
-            <div class="field full required-field">
+            <div class="field required-field">
                 <label>Unit / Departemen <span class="required">*</span></label>
                 <select id="departemen" required>
                     <option value="" selected disabled>-- Pilih Unit --</option>
@@ -1146,17 +1167,12 @@ body {
                 </select>
                 <div class="error-msg">Status wajib dipilih</div>
             </div>
-            <div class="field required-field">
-                <label>Tanggal Penilaian <span class="required">*</span></label>
-                <input type="date" id="tglPenilaian" required>
-                <div class="error-msg">Tanggal wajib diisi</div>
-            </div>
             <div class="field full required-field">
                 <label>Nama Atasan (Penilai) <span class="required">*</span></label>
                 <input type="text" id="atasannya" placeholder="Nama Atasan Langsung" value="" required>
                 <div class="error-msg">Nama atasan wajib diisi</div>
             </div>
-            <div class="field full required-field">
+            <div class="field required-field">
                 <label>Jabatan Atasan <span class="required">*</span></label>
                 <select id="jabatanAtasan" required>
                     <option value="" selected disabled>-- Pilih --</option>
@@ -1169,12 +1185,17 @@ body {
                 </select>
                 <div class="error-msg">Jabatan atasan wajib dipilih</div>
             </div>
+            <div class="field required-field">
+                <label>Tanggal Penilaian <span class="required">*</span></label>
+                <input type="date" id="tglPenilaian" required>
+                <div class="error-msg">Tanggal wajib diisi</div>
+            </div>
         </div>
 
         <div class="aspek-section">
             <div class="section-label">
                 <div class="icon"><i class="fas fa-clipboard-list"></i></div>
-                <h3>Aspek Penilaian</h3>
+                <h3>Aspek Penilaian <span class="required">*</span></h3>
                 <span class="badge-count"><i class="fas fa-star"></i> 6</span>
             </div>
             <div id="aspekContainer" class="aspek-list"></div>

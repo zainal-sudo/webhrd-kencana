@@ -15,7 +15,8 @@ export async function mountLegacyForm(host: HTMLElement, type: PenilaianFormType
   style.textContent = sourceStyle.replace(/:root/g, ":host").replace(/\bbody\b/g, ".legacy-body") + icons + `
     :host { display:block; width:100%; height:100%; overflow:auto; color-scheme:light; }
     .legacy-body { min-height:100%; }
-    .field input[readonly] { background:#eef2f7; color:#334155; cursor:default; }
+    /* Field auto dari server: tidak bisa diklik/difokus (pointer-events none + skip tab). */
+    .field input[readonly] { background:#eef2f7; color:#334155; cursor:default; pointer-events:none; }
     .manual-copy { margin:12px 0; padding:12px; border:1px solid var(--border); border-radius:12px; background:white; }
     .manual-copy label { display:block; margin-bottom:8px; font-size:13px; }
     .manual-copy textarea { width:100%; min-height:180px; padding:8px; font:12px sans-serif; }
@@ -55,12 +56,18 @@ export async function mountLegacyForm(host: HTMLElement, type: PenilaianFormType
   // Identitas berasal dari server; tidak mengandalkan pilihan departemen/jabatan hardcoded HTML lama.
   for (const [id] of Object.entries(fields)) {
     const original = shadow.getElementById(id)!;
+    const fieldDiv = original.closest(".field");
+    // Bintang wajib diisi dihapus untuk field yang sudah diisi otomatis (readonly);
+    // bintang tetap hanya pada field yang benar-benar diisi manual.
+    fieldDiv?.querySelector("label .required")?.remove();
     const input = document.createElement("input");
     input.id = id;
     input.type = "text";
     input.readOnly = true;
+    // Auto dari server: tidak bisa diklik, tidak menerima fokus keyboard (Tab).
+    input.tabIndex = -1;
     input.setAttribute("aria-readonly", "true");
-    input.setAttribute("aria-label", original.closest(".field")?.querySelector("label")?.textContent || id);
+    input.setAttribute("aria-label", fieldDiv?.querySelector("label")?.textContent?.trim() || id);
     original.replaceWith(input);
   }
   let delivery: ReturnType<typeof createResultDelivery> | undefined;
