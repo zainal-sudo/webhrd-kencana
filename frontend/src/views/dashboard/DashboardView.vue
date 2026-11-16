@@ -949,8 +949,14 @@ function hitungBaris() {
 function setWrapEl(key: string, el: unknown) {
   wrapEls[key] = (el as HTMLElement) ?? null;
 }
-/** Toggle "Lihat semua" — setelah card memanjang/kembali, hitung ulang baris. */
+/** Toggle "Lihat semua" — setelah card memanjang/kembali, hitung ulang baris.
+ *  Khusus card PKWT: buka halaman baca-saja daftar lengkap sebagai TAB aplikasi
+ *  (sederet dengan tab dashboard), bukan membentangkan card di tempat. */
 async function terbukaPanel(p: Panel) {
+  if (p.key === "pkwt_habis") {
+    bukaRoute("/dashboard/pkwt-akan-habis", "PKWT Akan Habis");
+    return;
+  }
   expanded.value = { ...expanded.value, [p.key]: !expanded.value[p.key] };
   await nextTick();
   hitungBaris();
@@ -1291,14 +1297,18 @@ onActivated(() => {
             <span>Eksekusi</span>
           </button>
           <!-- Lihat semua: default terbatas `barisTampil` baris; membentangkan semua
-               dengan scroll vertikal tanpa gagang scrollbar (scroll roda tetap jalan) -->
+               dengan scroll vertikal tanpa gagang scrollbar (scroll roda tetap jalan).
+               Khusus card PKWT: membuka halaman baca-saja lengkap di tab baru. -->
           <button
-            v-if="expanded[p.key] || bagian(p.key).rows.length > (rowsShown[p.key] ?? p.barisTampil ?? 5)"
+            v-if="p.key === 'pkwt_habis'
+              ? bagian(p.key).total > 0
+              : (expanded[p.key] || bagian(p.key).rows.length > (rowsShown[p.key] ?? p.barisTampil ?? 5))"
             class="link-btn"
+            :title="p.key === 'pkwt_habis' ? 'Buka daftar lengkap PKWT akan habis di tab baru (baca-saja)' : undefined"
             @click="terbukaPanel(p)"
           >
-            <MsIcon :name="expanded[p.key] ? 'expand_less' : 'expand_more'" :size="14" />
-            <span>{{ expanded[p.key] ? "Ringkas" : `Lihat semua ${bagian(p.key).total}` }}</span>
+            <MsIcon :name="p.key === 'pkwt_habis' ? 'open_in_new' : (expanded[p.key] ? 'expand_less' : 'expand_more')" :size="14" />
+            <span>{{ p.key === 'pkwt_habis' ? `Lihat semua ${bagian(p.key).total}` : (expanded[p.key] ? "Ringkas" : `Lihat semua ${bagian(p.key).total}`) }}</span>
           </button>
         </div>
       </section>

@@ -94,7 +94,14 @@ export const getPeringatan = async (req, res, next) => {
             const meta = BAGIAN_EXPORT[req.query.bagian]
             if (!meta) return error(res, 'Bagian peringatan tidak dikenal', 400)
             const [rows] = await pool.query(`${meta.query} LIMIT 50000`)
-            return sendExcel(res, meta.judul, meta.kolom, rows, { requestedColumns: req.query.columns })
+            // Header Excel rapi: tanpa underscore, NIK kapital.
+            // (kunci kolom tetap alias SQL; hanya label header yang dipetakan)
+            return sendExcel(res, meta.judul, meta.kolom, rows, {
+                requestedColumns: req.query.columns,
+                headLabels: Object.fromEntries(
+                    meta.kolom.map((c) => [c, c === 'Nik' ? 'NIK' : c.replace(/_/g, ' ')]),
+                ),
+            })
         }
         const [
             [cBpjs], [rBpjs],

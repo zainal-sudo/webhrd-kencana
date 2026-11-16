@@ -61,6 +61,15 @@ const routes = [
     meta: { requiresAuth: true, title: "Eksekusi PKWT" },
   },
 
+  /* Halaman BACA-SAJA daftar lengkap "Masa PKWT Akan Habis" (tab baru dari
+   * tombol "Lihat semua" pada card dashboard — tanpa aksi Eksekusi/WA). */
+  {
+    path: "/dashboard/pkwt-akan-habis",
+    name: "pkwt-akan-habis",
+    component: () => import("@/views/dashboard/PkwtAkanHabisView.vue"),
+    meta: { requiresAuth: true, title: "PKWT Akan Habis" },
+  },
+
   /* ── Master ── */
   { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi", form: "frmSandiBPJS" } },
   { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi", form: "frmSandiBPJS" } },
