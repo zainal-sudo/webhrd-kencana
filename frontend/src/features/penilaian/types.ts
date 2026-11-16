@@ -7,6 +7,9 @@ export interface PenilaianEmployee {
   bagian: string | null;
   pabrik: string | null;
   statusKerja: string | null;
+  /** Atasan langsung (kar_nik_atasan); null bila karyawan tidak punya atasan terdaftar. */
+  namaAtasan: string | null;
+  jabatanAtasan: string | null;
 }
 
 export interface PenilaianAccess {

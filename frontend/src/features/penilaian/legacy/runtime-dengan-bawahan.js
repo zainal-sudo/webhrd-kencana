@@ -273,8 +273,8 @@ function updateAllUI() {
     
     const namaAtasan = document.getElementById("atasannya").value.trim();
     const jabatanAtasanSelect = document.getElementById("jabatanAtasan");
-    let jabatanText = jabatanAtasanSelect.options[jabatanAtasanSelect.selectedIndex]?.text || "-";
-    if (jabatanAtasanSelect.value === "") jabatanText = "-";
+    // Baca .value saja: elemennya bisa select asli atau input readonly hasil auto-fill (options tidak tersedia).
+    let jabatanText = jabatanAtasanSelect.value || "-";
     document.getElementById("penilaiNamaSpan").innerText = namaAtasan || "(belum diisi)";
     document.getElementById("penilaiJabatanSpan").innerText = jabatanText;
     const tgl = document.getElementById("tglPenilaian").value;

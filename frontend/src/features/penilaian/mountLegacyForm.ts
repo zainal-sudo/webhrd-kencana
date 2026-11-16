@@ -38,7 +38,20 @@ export async function mountLegacyForm(host: HTMLElement, type: PenilaianFormType
     createElement: document.createElement.bind(document),
     body,
   };
-  const fields = { namaKaryawan: employee.nama, nik: employee.nik, jabatan: employee.jabatan, departemen: employee.bagian, statusKepegawaian: employee.statusKerja };
+  const fields: Record<string, string | null> = { namaKaryawan: employee.nama, nik: employee.nik, jabatan: employee.jabatan, departemen: employee.bagian, statusKepegawaian: employee.statusKerja };
+  // Nama & jabatan atasan (penilai) ikut auto bila data kar_nik_atasan tersedia dari server.
+  // Bila tidak ada, field tetap manual seperti HTML lama.
+  const atasanName = employee.namaAtasan?.trim();
+  if (atasanName) fields.atasannya = atasanName;
+  const atasanJabatan = employee.jabatanAtasan?.trim();
+  if (atasanJabatan) {
+    // Selalu auto dari data tjabatan: pakai opsi dropdown yang cocok (case-insensitive),
+    // bila tidak ada yang cocok pakai nama jabatan asli dari server.
+    const select = shadow.getElementById("jabatanAtasan") as HTMLSelectElement | null;
+    const target = atasanJabatan.toLowerCase();
+    const match = select ? Array.from(select.options).find((o) => o.value.trim().toLowerCase() === target || o.text.trim().toLowerCase() === target) : undefined;
+    fields.jabatanAtasan = match ? match.value : atasanJabatan;
+  }
   // Identitas berasal dari server; tidak mengandalkan pilihan departemen/jabatan hardcoded HTML lama.
   for (const [id] of Object.entries(fields)) {
     const original = shadow.getElementById(id)!;

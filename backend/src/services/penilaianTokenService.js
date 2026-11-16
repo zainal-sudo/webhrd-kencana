@@ -57,11 +57,14 @@ export function createPenilaianTokenService(db, { now = () => new Date(), random
             `SELECT k.kar_Nik AS nik, k.kar_nama AS nama, j.jab_nama AS jabatan,
                     k.kar_bagian AS bagian, k.kar_pab_kode AS pabrik,
                     s.sk_keterangan AS statusKerja,
+                    a.kar_nama AS namaAtasan, aj.jab_nama AS jabatanAtasan,
                     DATE_FORMAT(t.expires_at, '%Y-%m-%dT%H:%i:%s+07:00') AS expiresAt
              FROM web_penilaian_access_token t
              INNER JOIN tkaryawan k ON k.kar_Nik = t.kar_nik AND k.kar_status_aktif = 1
              LEFT JOIN tjabatan j ON j.jab_kode = k.kar_jab_kode
              LEFT JOIN tstatuskaryawan s ON s.sk_id = k.kar_status_kerja
+             LEFT JOIN tkaryawan a ON a.kar_Nik = k.kar_nik_atasan
+             LEFT JOIN tjabatan aj ON aj.jab_kode = a.kar_jab_kode
              WHERE t.token_hash = ? AND t.form_type = ?
                AND t.revoked_at IS NULL AND t.expires_at > ?
              LIMIT 1`, [hashAccessToken(token), formType, sqlWib(now())],
@@ -70,7 +73,11 @@ export function createPenilaianTokenService(db, { now = () => new Date(), random
         const row = rows[0]
         // Whitelist juga pada response, tidak meneruskan object DB secara langsung.
         return {
-            employee: { nik: row.nik, nama: row.nama, jabatan: row.jabatan, bagian: row.bagian, pabrik: row.pabrik, statusKerja: row.statusKerja },
+            employee: {
+                nik: row.nik, nama: row.nama, jabatan: row.jabatan, bagian: row.bagian,
+                pabrik: row.pabrik, statusKerja: row.statusKerja,
+                namaAtasan: row.namaAtasan ?? null, jabatanAtasan: row.jabatanAtasan ?? null,
+            },
             formType, expiresAt: row.expiresAt,
         }
     }

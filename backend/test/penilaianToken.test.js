@@ -6,14 +6,14 @@ import { createPenilaianTokenService, formTypeForJabatan, hashAccessToken, INVAL
 
 function fixture() {
     const sqlite = new DatabaseSync(':memory:')
-    sqlite.exec(`CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_nama TEXT, kar_jab_kode TEXT, kar_bagian TEXT, kar_pab_kode TEXT, kar_status_kerja INTEGER, kar_status_aktif INTEGER, kar_tglpkwt2 TEXT, kar_ktp TEXT);
+    sqlite.exec(`CREATE TABLE tkaryawan (kar_Nik TEXT PRIMARY KEY, kar_nama TEXT, kar_jab_kode TEXT, kar_bagian TEXT, kar_pab_kode TEXT, kar_status_kerja INTEGER, kar_status_aktif INTEGER, kar_tglpkwt2 TEXT, kar_ktp TEXT, kar_nik_atasan TEXT);
         CREATE TABLE tjabatan (jab_kode TEXT, jab_nama TEXT);
         CREATE TABLE tstatuskaryawan (sk_id INTEGER, sk_keterangan TEXT);
         CREATE TABLE tpkwt (kar_nik TEXT, sk_id INTEGER, tgl1 TEXT, tgl2 TEXT);
         CREATE TABLE web_penilaian_access_token (id INTEGER PRIMARY KEY, token_hash TEXT UNIQUE, kar_nik TEXT, form_type TEXT, created_by TEXT, created_at TEXT, expires_at TEXT, revoked_at TEXT);
         INSERT INTO tjabatan VALUES ('OPR','OPERATOR'),('STF','STAF'),('L','LEADER');
         INSERT INTO tstatuskaryawan VALUES (2,'PKWT 1');
-        INSERT INTO tkaryawan VALUES ('001','Budi','OPR','JAHIT A','P04',2,1,'2026-11-01','RAHASIA'),('002','Sinta','L','PPIC','HO',2,1,'2026-11-02','RAHASIA'),('003','Nonaktif','STF','QC','P04',2,0,'2026-11-01','RAHASIA'),('004','Jauh','STF','QC','P04',2,1,'2027-01-01','RAHASIA');`)
+        INSERT INTO tkaryawan VALUES ('001','Budi','OPR','JAHIT A','P04',2,1,'2026-11-01','RAHASIA','010'),('002','Sinta','L','PPIC','HO',2,1,'2026-11-02','RAHASIA',NULL),('003','Nonaktif','STF','QC','P04',2,0,'2026-11-01','RAHASIA',NULL),('004','Jauh','STF','QC','P04',2,1,'2027-01-01','RAHASIA',NULL),('010','Rudi Atasan','L','PPIC','HO',2,1,'2026-11-01','RAHASIA',NULL);`)
     let time = new Date('2026-10-21T03:00:00Z')
     const queries = []
     const db = { async query(sql, params = []) {
@@ -44,12 +44,18 @@ test('Token 256-bit di-hash, terikat karyawan/HR/tipe form, expiry default 30 ha
         assert.equal(stored.created_by, 'HR01')
         assert.equal(stored.created_at, '2026-10-21 10:00:00')
         const data = await f.service.access('tanpa-bawahan', token)
-        assert.deepEqual(data.employee, { nik: '001', nama: 'Budi', jabatan: 'OPERATOR', bagian: 'JAHIT A', pabrik: 'P04', statusKerja: 'PKWT 1' })
+        assert.deepEqual(data.employee, { nik: '001', nama: 'Budi', jabatan: 'OPERATOR', bagian: 'JAHIT A', pabrik: 'P04', statusKerja: 'PKWT 1', namaAtasan: 'Rudi Atasan', jabatanAtasan: 'LEADER' })
         assert.equal(JSON.stringify(data).includes('RAHASIA'), false)
         assert.deepEqual(await f.service.access('tanpa-bawahan', token), data)
+        // Karyawan tanpa kar_nik_atasan tetap bisa akses, field atasan null (form manual).
+        const linkKosong = await f.service.issue('002', 'HR01')
+        const tokenKosong = new URL(linkKosong.path, 'https://hrd.example').searchParams.get('t')
+        const dataKosong = await f.service.access('dengan-bawahan', tokenKosong)
+        assert.equal(dataKosong.employee.namaAtasan, null)
+        assert.equal(dataKosong.employee.jabatanAtasan, null)
         const second = await f.service.issue('001', 'HR02')
         assert.notEqual(second.path, link.path)
-        assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM web_penilaian_access_token').get().n, 2)
+        assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM web_penilaian_access_token').get().n, 3)
     } finally { f.sqlite.close() }
 })
 
