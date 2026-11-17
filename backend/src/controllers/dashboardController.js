@@ -58,6 +58,24 @@ const Q_NONAKTIF_BPJS = `SELECT kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
     WHERE kar_status_aktif = 0 AND kar_status_BPJS = 1
     ORDER BY kar_nama`
 
+/* MoU Sewa (tmou_sewa): cakupan GABUNGAN — MoU yang akan habis dalam
+ * ≤2 bulan KE DEPAN maupun yang sudah lewat (berapa pun lamanya).
+ * Hilang dari card bila:
+ *  - sudah dieksekusi (di grupnya ada periode lebih baru), atau
+ *  - ditandai "Sudah Ditangani" (mou_selesai = 1).
+ * Yang tampil selalu berstatus Belum ditangani; terlama berakhir di atas. */
+const Q_MOU_SEWA = `SELECT t.mou_id AS Id,
+        t.mou_no_surat AS No_Surat, t.mou_tempat AS Tempat, t.mou_alamat AS Alamat,
+        t.mou_awal AS Awal_Mulai, t.mou_berakhir AS Tgl_Berakhir,
+        DATEDIFF(t.mou_berakhir, CURDATE()) AS Sisa_Hari
+    FROM tmou_sewa t
+    WHERE t.mou_berakhir IS NOT NULL
+    AND t.mou_berakhir <= DATE_ADD(CURDATE(), INTERVAL 2 MONTH)
+    AND t.mou_selesai = 0
+    AND NOT EXISTS (SELECT 1 FROM tmou_sewa s2
+                    WHERE s2.mou_grup = t.mou_grup AND s2.mou_id > t.mou_id)
+    ORDER BY t.mou_berakhir`
+
 /* Definisi PKWT memakai sumber tunggal helper pkwtEksekusi.js (lihat file itu). */
 const Q_PKWT_HABIS = PKWT_HABIS_SELECT
 
@@ -85,6 +103,11 @@ const BAGIAN_EXPORT = {
         judul: 'PKWT-Akan-Habis',
         kolom: ['Nik', 'Nama', 'Jabatan', 'Status_Kerja', 'Bagian', 'Pabrik', 'Tgl_Berakhir'],
     },
+    mou_sewa: {
+        query: Q_MOU_SEWA,
+        judul: 'MoU-Sewa-Berakhir',
+        kolom: ['No_Surat', 'Tempat', 'Alamat', 'Awal_Mulai', 'Tgl_Berakhir', 'Sisa_Hari'],
+    },
 }
 
 export const getPeringatan = async (req, res, next) => {
@@ -108,6 +131,7 @@ export const getPeringatan = async (req, res, next) => {
             [cMangkir], [rMangkir], [tglKerja],
             [cNonaktif], [rNonaktif],
             [cPkwt], [rPkwt],
+            [cMou], [rMou],
         ] = await Promise.all([
             pool.query(hitung(Q_BPJS_BELUM)),
             pool.query(`${Q_BPJS_BELUM} LIMIT ${MAKS_BARIS}`),
@@ -118,6 +142,8 @@ export const getPeringatan = async (req, res, next) => {
             pool.query(`${Q_NONAKTIF_BPJS} LIMIT ${MAKS_BARIS}`),
             pool.query(hitung(Q_PKWT_HABIS)),
             pool.query(`${Q_PKWT_HABIS} LIMIT ${MAKS_BARIS}`),
+            pool.query(hitung(Q_MOU_SEWA)),
+            pool.query(`${Q_MOU_SEWA} LIMIT ${MAKS_BARIS}`),
         ])
         success(res, {
             bpjs_belum: { total: Number(cBpjs[0].c), rows: rBpjs },
@@ -128,7 +154,22 @@ export const getPeringatan = async (req, res, next) => {
             },
             nonaktif_bpjs: { total: Number(cNonaktif[0].c), rows: rNonaktif },
             pkwt_habis: { total: Number(cPkwt[0].c), rows: rPkwt },
+            mou_sewa: { total: Number(cMou[0].c), rows: rMou },
         })
+    } catch (err) { next(err) }
+}
+
+/**
+ * Halaman MoU Sewa Berakhir (dari card Dashboard "MoU Sewa") — daftar penuh
+ * MoU yang akan habis ≤2 bulan ke depan maupun yang sudah lewat; sumber
+ * tunggal Q_MOU_SEWA (aturan sama dengan card). Dari halaman ini HR
+ * menjalankan Eksekusi untuk membuat periode MoU baru; riwayat periode
+ * lama tetap tersimpan.
+ */
+export const getMouSewaBerakhir = async (req, res, next) => {
+    try {
+        const [rows] = await pool.query(`${Q_MOU_SEWA} LIMIT 50000`)
+        success(res, rows)
     } catch (err) { next(err) }
 }
 

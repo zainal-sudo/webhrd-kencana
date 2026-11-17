@@ -38,6 +38,7 @@ export const GRUP: Record<string, GrupDef> = {
 export const MENU_MAP: Record<string, MenuDef & { grup: keyof typeof GRUP }> = {
   /* ── Master ── */
   frmSandiBPJS: { grup: "master", path: "/master/sandi-bpjs", label: "Sandi", icon: "key", ready: true },
+  frmMouSewa: { grup: "master", path: "/master/mou-sewa", label: "MoU Sewa", icon: "handshake", ready: true },
   frmKaryawan: { grup: "master", path: "/master/karyawan", label: "Master Karyawan", icon: "badge", ready: true },
   frmJabatan: { grup: "master", path: "/master/jabatan", label: "Master Jabatan", icon: "engineering", ready: true },
   frmDepartemen: { grup: "master", path: "/master/departemen", label: "Master Departemen", icon: "account_tree", ready: true },

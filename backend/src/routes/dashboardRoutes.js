@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getPeringatan, getEksekusiPkwt } from '../controllers/dashboardController.js'
+import { getPeringatan, getEksekusiPkwt, getMouSewaBerakhir } from '../controllers/dashboardController.js'
 import { getAnalisisAbsensi, getSpTerakhir, getSpRekam, getDaftarPabrik, getDaftarDepartemen } from '../controllers/dashboard/analisisController.js'
 import { issuePenilaianLink } from '../controllers/penilaianController.js'
 
@@ -36,5 +36,9 @@ r.get('/daftar-departemen', hanyaHrSuper, getDaftarDepartemen)
 /* Halaman Eksekusi PKWT (dari card "Masa PKWT Akan Habis") — ikut kunci HR. */
 r.get('/eksekusi-pkwt', hanyaHrSuper, getEksekusiPkwt)
 r.post('/eksekusi-pkwt/:nik/link-penilaian', hanyaHrSuper, issuePenilaianLink)
+
+/* Halaman MoU Sewa Berakhir (dari card "MoU Sewa") — daftar MoU yang sudah
+ * 2 bulan sejak tgl berakhir; aksi Eksekusi dilakukan dari halaman ini. */
+r.get('/mou-sewa-berakhir', hanyaHrSuper, getMouSewaBerakhir)
 
 export default r

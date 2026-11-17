@@ -46,6 +46,11 @@ import {
     createSandiBpjs, updateSandiBpjs, deleteSandiBpjs,
 } from '../controllers/master/sandiBpjsController.js'
 
+import {
+    getMouSewaList, getMouSewa, createMouSewa, updateMouSewa,
+    deleteMouSewa, getRiwayatMouSewa, eksekusiMouSewa, tandaiDitanganiMouSewa,
+} from '../controllers/master/mouSewaController.js'
+
 const r = Router()
 
 const sandiBpjs = Router()
@@ -103,6 +108,20 @@ crud('/jenis-ijin', jenisIjin, 'frmIjin')
 crud('/pekerjaan', pekerjaan, 'frmKaryawan')
 crud('/pendidikan', pendidikan, 'frmKaryawan')
 crud('/keterangan-mutasi', keteranganMutasi, 'frmMutasiKaryawan')
+
+/* ── MoU Sewa (tmou_sewa, web-only) ────────────────────────────────────
+ * Sub-router sendiri: /:id/eksekusi & /:id/riwayat harus terdaftar sebelum
+ * /:id agar tidak tertelan handler detail. */
+const mouSewa = Router()
+mouSewa.get('/', wajibHak('frmMouSewa'), getMouSewaList)
+mouSewa.post('/', wajibHak('frmMouSewa', 'insert'), createMouSewa)
+mouSewa.post('/:id/eksekusi', wajibHak('frmMouSewa', 'insert'), eksekusiMouSewa)
+mouSewa.post('/:id/tandai-ditangani', wajibHak('frmMouSewa', 'edit'), tandaiDitanganiMouSewa)
+mouSewa.get('/:id/riwayat', wajibHak('frmMouSewa'), getRiwayatMouSewa)
+mouSewa.get('/:id', wajibHak('frmMouSewa'), getMouSewa)
+mouSewa.put('/:id', wajibHak('frmMouSewa', 'edit'), updateMouSewa)
+mouSewa.delete('/:id', wajibHak('frmMouSewa', 'delete'), deleteMouSewa)
+r.use('/mou-sewa', mouSewa)
 
 /* ── Identitas perusahaan ───────────────────────────────────────────── */
 r.get('/perusahaan', wajibHak('frmPerusahaan'), getPerusahaan)

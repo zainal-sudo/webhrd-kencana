@@ -70,9 +70,28 @@ const routes = [
     meta: { requiresAuth: true, title: "PKWT Akan Habis" },
   },
 
+  /* Halaman MoU Sewa Berakhir (dari card "MoU Sewa" — data MoU yang sudah
+   * 2 bulan sejak tgl berakhir; tombol Eksekusi membuat periode baru). */
+  {
+    path: "/dashboard/mou-sewa-berakhir",
+    name: "mou-sewa-berakhir",
+    component: () => import("@/views/dashboard/MouSewaBerakhirView.vue"),
+    meta: { requiresAuth: true, title: "MoU Sewa Berakhir" },
+  },
+
   /* ── Master ── */
   { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi", form: "frmSandiBPJS" } },
   { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi", form: "frmSandiBPJS" } },
+  {
+    path: "/master/mou-sewa",
+    component: () => import("@/views/master/MouSewaView.vue"),
+    meta: { requiresAuth: true, title: "MoU Sewa", form: "frmMouSewa" },
+  },
+  {
+    path: "/master/mou-sewa/form",
+    component: () => import("@/views/master/MouSewaForm.vue"),
+    meta: { requiresAuth: true, title: "Form MoU Sewa", form: "frmMouSewa" },
+  },
   {
     path: "/master/karyawan",
     component: () => import("@/views/master/KaryawanView.vue"),

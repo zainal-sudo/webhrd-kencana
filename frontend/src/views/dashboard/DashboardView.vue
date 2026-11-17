@@ -833,6 +833,7 @@ interface Peringatan {
   mangkir_2hari: PeringatanBagian;
   nonaktif_bpjs: PeringatanBagian;
   pkwt_habis: PeringatanBagian;
+  mou_sewa: PeringatanBagian;
 }
 
 interface PanelKolom { key: string; label: string; date?: boolean }
@@ -915,6 +916,24 @@ const panels: Panel[] = [
       { key: "Jabatan", label: "Jabatan" },
       { key: "Status_Kerja", label: "Status" },
       { key: "Tgl_Berakhir", label: "Berakhir", date: true },
+    ],
+  },
+  {
+    key: "mou_sewa",
+    title: "MoU Sewa",
+    desc: "Akan habis ≤2 bulan / sudah lewat · hilang setelah dieksekusi / ditandai selesai",
+    icon: "handshake",
+    tone: "teal",
+    route: "/master/mou-sewa",
+    routeLabel: "MoU Sewa",
+    eksekusi: { route: "/dashboard/mou-sewa-berakhir", label: "Eksekusi MoU Sewa" },
+    barisTampil: 5,
+    columns: [
+      { key: "No_Surat", label: "No Surat" },
+      { key: "Tempat", label: "Tempat" },
+      { key: "Alamat", label: "Alamat" },
+      { key: "Tgl_Berakhir", label: "Berakhir", date: true },
+      { key: "Sisa_Hari", label: "Sisa (hari)" },
     ],
   },
 ];
@@ -2507,6 +2526,7 @@ onActivated(() => {
 .task-orange::before { background: #ef6c00; }
 .task-blue::before { background: #1565c0; }
 .task-violet::before { background: #6d28d9; }
+.task-teal::before { background: #00695c; }
 .task-green::before { background: #3b5998; }
 .task-top {
   display: flex;
@@ -2526,6 +2546,7 @@ onActivated(() => {
 .task-icon-wrap.orange { background: #fff3e0; color: #ef6c00; }
 .task-icon-wrap.blue { background: #e3f2fd; color: #1565c0; }
 .task-icon-wrap.violet { background: #ede9fe; color: #5b21b6; }
+.task-icon-wrap.teal { background: #e0f2f1; color: #00695c; }
 .task-icon-wrap.green { background: #e8e8f5; color: #3b5998; }
 .task-arrow { color: #9ca3af; }
 .task-arrow.clickable { cursor: pointer; }
@@ -2541,6 +2562,7 @@ onActivated(() => {
 .task-orange .task-count { color: #e65100; }
 .task-blue .task-count { color: #1565c0; }
 .task-violet .task-count { color: #5b21b6; }
+.task-teal .task-count { color: #00695c; }
 .task-green .task-count { color: #3b5998; }
 .task-label {
   font-size: 11px;
