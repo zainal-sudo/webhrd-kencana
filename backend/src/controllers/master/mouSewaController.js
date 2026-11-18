@@ -56,12 +56,33 @@ const STATUS_SQL = `CASE
          THEN 'Berakhir'
     ELSE 'Berjalan' END`
 
-/** Alias → ekspresi SQL untuk filter/sort kolom browse; ditambah kolom
- *  turunan `Status` (ekspresi, bukan kolom fisik). */
-const KOLOM_BROWSE = { ...ALIAS, Status: STATUS_SQL }
+/** Alias → ekspresi SQL untuk filter/sort kolom browse. KUNCI = alias tampilan
+ *  yang dikirim frontend (sort_by / filter_<alias>), bukan nama kolom DB.
+ *  Ditambah kolom turunan `Status` (ekspresi) dan `Jumlah Periode` (subquery). */
+const JML_PERIODE_SQL = '(SELECT COUNT(*) FROM `tmou_sewa` s2 WHERE s2.mou_grup = t.mou_grup)'
+const KOLOM_BROWSE = {
+    'No Surat': 't.mou_no_surat',
+    'Tempat': 't.mou_tempat',
+    'Alamat': 't.mou_alamat',
+    'Awal Mulai': 't.mou_awal',
+    'Berakhir': 't.mou_berakhir',
+    'Dibuat Oleh': 't.mou_created_by',
+    'Dibuat': 't.mou_created_at',
+    'Status': STATUS_SQL,
+    'Jumlah Periode': JML_PERIODE_SQL,
+}
+
+/** Opsi tipe kolom untuk helper filter: kolom teks boleh difilter
+ *  "(String kosong)" (OCTET_LENGTH = 0); angka dikonversi Number; kolom
+ *  lain hanya NULL. */
+const FILTER_OPTIONS = {
+    stringColumns: new Set(['No Surat', 'Tempat', 'Alamat']),
+    dateColumns: new Set(['Awal Mulai', 'Berakhir']),
+    numberColumns: new Set(['Jumlah Periode']),
+}
 
 const selectSql = `SELECT ${Object.entries(ALIAS).map(([c, a]) => `\`${c}\` AS ${a}`).join(', ')},
-        (SELECT COUNT(*) FROM \`tmou_sewa\` s2 WHERE s2.mou_grup = t.mou_grup) AS \`Jumlah Periode\`,
+        ${JML_PERIODE_SQL} AS \`Jumlah Periode\`,
         ${STATUS_SQL} AS \`Status\`
     FROM \`tmou_sewa\` t`
 
@@ -121,22 +142,29 @@ export const getMouSewaList = async (req, res, next) => {
         const perPage = Math.min(500, parseInt(req.query.per_page) || 25)
         const offset = (page - 1) * perPage
 
-        let where = ''
+        // Dasar WHERE selalu ada (WHERE 1 = 1) supaya filter kolom yang
+        // ditambah helper (' AND ...') valid walau tanpa pencarian.
+        let where = ' WHERE 1 = 1'
         let params = []
         if (req.query.search) {
-            where = ' WHERE (mou_no_surat LIKE ? OR mou_tempat LIKE ? OR mou_alamat LIKE ?)'
+            where += ' AND (mou_no_surat LIKE ? OR mou_tempat LIKE ? OR mou_alamat LIKE ?)'
             params = [req.query.search, req.query.search, req.query.search].map((v) => `%${v}%`)
         }
-        const f = applyAllColumnFilters(where, params, req.query, KOLOM_BROWSE)
+        const f = applyAllColumnFilters(where, params, req.query, KOLOM_BROWSE, null, FILTER_OPTIONS)
         where = f.clause
         params = f.params
         const orderBy = buildOrderBy(req.query, KOLOM_BROWSE, 'ORDER BY t.mou_berakhir DESC, t.mou_id DESC')
+            + (KOLOM_BROWSE[req.query.sort_by] ? ', t.mou_id ASC' : '')
 
-        // Daftar unik nilai status untuk checklist filter kolom di frontend.
-        if (req.query.distinct === 'Status') {
-            const scoped = applyAllColumnFilters(where, params, req.query, KOLOM_BROWSE, 'Status')
+        // Daftar unik nilai satu kolom untuk checklist filter di frontend
+        // (termasuk nilai NULL — ditampilkan sebagai pilihan "(Blank)").
+        if (req.query.distinct !== undefined) {
+            const expr = KOLOM_BROWSE[req.query.distinct]
+            if (!expr) return error(res, 'Kolom filter tidak tersedia.', 400)
+            const scoped = applyAllColumnFilters(where, params, req.query, KOLOM_BROWSE, req.query.distinct, FILTER_OPTIONS)
             const [rows] = await pool.query(
-                `SELECT DISTINCT ${STATUS_SQL} AS value FROM \`tmou_sewa\` t${scoped.clause} ORDER BY value`,
+                `SELECT DISTINCT ${expr} AS value, OCTET_LENGTH(${expr}) AS value_length
+                     FROM \`tmou_sewa\` t${scoped.clause} ORDER BY value`,
                 scoped.params
             )
             return success(res, rows.map((r) => r.value))

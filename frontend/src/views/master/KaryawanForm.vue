@@ -346,7 +346,16 @@ async function simpan(): Promise<string> {
   }
   if (!values.kar_nama || !String(values.kar_nama).trim()) throw new Error("Nama karyawan wajib diisi");
   if (!values.kar_pab_kode) throw new Error("Pabrik wajib diisi");
+  if (!values.kar_dep_kode) throw new Error("Departemen wajib diisi");
   if (!values.kar_jab_kode) throw new Error("Jabatan wajib diisi");
+  if (!String(values.kar_bagian ?? "").trim()) throw new Error("Bagian wajib diisi");
+  if (!values.kar_status_kerja) throw new Error("Status Kerja wajib dipilih");
+  if (!values.kar_sistem_gaji) throw new Error("Sistem Gaji wajib dipilih");
+  if (!values.kar_nik_atasan) throw new Error("Atasan Langsung wajib dipilih");
+  if (!values.kar_tgl_masuk) throw new Error("Tanggal Masuk wajib diisi");
+  if (!values.kar_tglPKWT1) throw new Error("Tgl PKWT 1 wajib diisi");
+  if (!values.kar_tglPKWT2) throw new Error("Tgl PKWT 2 wajib diisi");
+  // Catatan: BPJS TK, Status BPJS & BPJS KES sengaja TIDAK wajib.
 
   // Validasi Riwayat PKWT: PK tabelnya unik (NIK + SK). SK kosong/ganda
   // menabrak Duplicate entry di backend — cegah di sini baris ke-berapa.
@@ -601,13 +610,22 @@ onUnmounted(() => {
           <legend>Data Karyawan</legend>
           <div class="grid">
             <FSelect searchable v-model="values.kar_pab_kode" label="Pabrik" :options="opsiPabrik" required />
-            <FSelect searchable v-model="values.kar_dep_kode" label="Departemen" :options="opsiDepartemen" />
+            <FSelect searchable v-model="values.kar_dep_kode" label="Departemen" :options="opsiDepartemen" required />
             <FSelect searchable v-model="values.kar_jab_kode" label="Jabatan" :options="opsiJabatan" required />
-            <FText v-model="values.kar_bagian" label="Bagian" :suggestions="opsiBagian.map((o: any) => o.label)" placeholder="Ketik bagian (bebas, boleh belum terdaftar)" />
-            <FSelect searchable v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" />
-            <FSelect searchable v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" />
+            <!-- Bagian tetap boleh berisi teks baru (belum terdaftar) — mode creatable -->
+            <FSelect
+              searchable
+              creatable
+              v-model="values.kar_bagian"
+              label="Bagian"
+              :options="opsiBagian"
+              placeholder="Pilih / ketik bagian baru..."
+              required
+            />
+            <FSelect searchable v-model="values.kar_status_kerja" label="Status Kerja" :options="opsiStatusKerja" required />
+            <FSelect searchable v-model="values.kar_sistem_gaji" label="Sistem Gaji" :options="OPSI_SISTEM_GAJI" required />
             <div class="field atasan-field">
-              <label for="karyawan-atasan">Atasan Langsung</label>
+              <label for="karyawan-atasan">Atasan Langsung <span class="req-atasan">*</span></label>
               <v-autocomplete
                 id="karyawan-atasan"
                 v-model="values.kar_nik_atasan"
@@ -628,6 +646,7 @@ onUnmounted(() => {
                 clearable
                 autocomplete="off"
                 aria-label="Atasan Langsung"
+                :aria-required="true"
               >
                 <template #prepend-inner><MsIcon name="search" :size="15" /></template>
                 <template #item="{ props: itemProps, item }">
@@ -635,12 +654,12 @@ onUnmounted(() => {
                 </template>
               </v-autocomplete>
             </div>
-            <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" />
+            <FDate v-model="values.kar_tgl_masuk" label="Tanggal Masuk" required />
             <FText v-model="values.kar_no_NAKER" label="BPJS TK" />
             <FSelect searchable v-model="values.kar_status_BPJS" label="Status BPJS" :options="opsiBpjs" />
             <FText v-model="values.kar_no_BPJS" label="BPJS KES" />
-            <FDate v-model="values.kar_tglPKWT1" label="Tgl PKWT 1" />
-            <FDate v-model="values.kar_tglPKWT2" label="Tgl PKWT 2" />
+            <FDate v-model="values.kar_tglPKWT1" label="Tgl PKWT 1" required />
+            <FDate v-model="values.kar_tglPKWT2" label="Tgl PKWT 2" required />
           </div>
         </fieldset>
         </template>
@@ -1152,6 +1171,7 @@ table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
 .family-grid > :deep(.family-work-note textarea) { box-sizing: border-box; height: 30px; min-height: 30px; padding: 5px 9px; line-height: 18px; border-radius: 8px !important; }
 .atasan-field { display: flex; align-items: center; gap: 8px; }
 .atasan-field > label { flex: 0 0 140px; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); }
+.req-atasan { color: #dc2626; }
 .atasan-input { flex: 1; min-width: 0; font-size: 11px; --v-input-control-height: 30px; }
 .atasan-input :deep(.v-field) { background: var(--ds-surface-raised, #fff); color: var(--ds-text, #1b2d4a); font-size: 11px; --v-field-padding-start: 8px; --v-field-padding-end: 6px; --v-field-border-width: 1px; }
 .atasan-input :deep(.v-field__input) { min-height: 30px; padding: 0 4px; gap: 0; }

@@ -30,7 +30,7 @@ const columns: BrowseColumn[] = [
   { key: "Alamat", label: "Alamat" },
   { key: "Awal Mulai", label: "Awal Mulai", type: "date", width: "110px" },
   { key: "Berakhir", label: "Berakhir", type: "date", width: "110px" },
-  { key: "Jumlah Periode", label: "Periode", width: "84px", align: "center", filterable: false },
+  { key: "Jumlah Periode", label: "Periode", width: "84px", align: "center", filterValueType: "number" },
   { key: "Status", label: "Status", width: "104px", align: "center" },
 ];
 

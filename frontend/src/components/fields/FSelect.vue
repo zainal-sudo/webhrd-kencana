@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, getCurrentInstance } from "vue";
+import { computed, getCurrentInstance, ref } from "vue";
 import MsIcon from "@/components/MsIcon.vue";
 
 interface Option {
@@ -17,6 +17,10 @@ const props = withDefaults(
     placeholder?: string;
     showClear?: boolean;
     searchable?: boolean;
+    /** Mode teks-bebas: teks pencarian yang tidak cocok opsi manapun bisa
+     *  dipilih sebagai nilai baru lewat item "Tambah \"...\"" di daftar.
+     *  Nilai terpilih yang tidak ada di opsi (data lama) tetap ditampilkan. */
+    creatable?: boolean;
     menuTransition?: string;
     menuClass?: string;
   }>(),
@@ -26,6 +30,7 @@ const props = withDefaults(
     placeholder: "Pilih...",
     showClear: false,
     searchable: false,
+    creatable: false,
   }
 );
 
@@ -34,6 +39,24 @@ const inputId = `fselect-${getCurrentInstance()?.uid}`;
 const searchItems = computed(() => props.options.map(option => ({ title: option.label, value: String(option.value) })));
 const searchValue = computed(() => props.modelValue == null || props.modelValue === "" ? null : String(props.modelValue));
 
+/** Teks yang sedang diketik user (mode searchable). */
+const searchText = ref("");
+
+/** Daftar item untuk v-autocomplete: opsi bawaan + nilai terpilih yang tidak
+ *  ada di opsi (agar data lama tetap tampil) + item "Tambah" bila creatable. */
+const dropdownItems = computed(() => {
+  const base = searchItems.value;
+  const extra: { title: string; value: string }[] = [];
+  if (props.modelValue != null && props.modelValue !== "" && !base.some((o) => o.value === String(props.modelValue))) {
+    extra.push({ title: String(props.modelValue), value: String(props.modelValue) });
+  }
+  const ketik = searchText.value.trim();
+  if (props.creatable && ketik && !base.some((o) => o.title.toLowerCase() === ketik.toLowerCase())) {
+    extra.push({ title: `Tambah "${ketik}"`, value: ketik });
+  }
+  return [...extra, ...base];
+});
+
 function onAutocompleteChange(value: string | null) {
   if (props.disabled) return;
   if (value == null || value === "") {
@@ -41,7 +64,16 @@ function onAutocompleteChange(value: string | null) {
     return;
   }
   // Match native select payloads: option values are strings, including "0".
-  if (searchItems.value.some(option => option.value === String(value))) emit("update:modelValue", String(value));
+  if (searchItems.value.some(option => option.value === String(value))) {
+    emit("update:modelValue", String(value));
+    searchText.value = "";
+    return;
+  }
+  // Mode creatable: teks bebas dari item "Tambah ..." diterima apa adanya.
+  if (props.creatable) {
+    emit("update:modelValue", String(value));
+    searchText.value = "";
+  }
 }
 
 function onChange(e: Event) {
@@ -61,7 +93,8 @@ function onChange(e: Event) {
       :id="inputId"
       class="searchable-select"
       :model-value="searchValue"
-      :items="searchItems"
+      v-model:search="searchText"
+      :items="dropdownItems"
       :disabled="disabled"
       :clearable="showClear"
       :aria-label="label || 'Pilih opsi'"

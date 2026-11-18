@@ -752,7 +752,7 @@ onActivated(() => {
               :draggable="true"
               :class="{ sortable: isSortable(col), sorted: sortBy === col.key, 'column-dragging': draggingColumn === col.key, 'column-drop-target': dropColumn === col.key }"
               :style="{ textAlign: col.align || 'left' }"
-              :title="isSortable(col) ? 'Seret untuk memindahkan kolom Â· Klik untuk mengurutkan' : 'Seret untuk memindahkan kolom'"
+              :title="isSortable(col) ? 'Seret untuk memindahkan kolom — Klik untuk mengurutkan' : 'Seret untuk memindahkan kolom'"
               @dragstart="draggingColumn = col.key"
               @dragover.prevent="dropColumn = col.key"
               @drop.prevent="moveColumn(col.key); finishColumnDrag()"
@@ -1204,6 +1204,8 @@ onActivated(() => {
   gap: 2px;
   margin-left: auto;
 }
+/* Ikon sort di header (dipulihkan — selalu terlihat; samar saat tidak
+ * aktif, penuh pada kolom tersortir). */
 .th-sort {
   opacity: 0.55;
 }
