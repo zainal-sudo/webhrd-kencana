@@ -35,16 +35,25 @@ const KOLOM_TGL = ['mou_awal', 'mou_berakhir']
  *  2) "Berjalan"   — rentang tanggalnya masih mencakup hari ini (walau di
  *                    grup sudah ada periode lebih baru, baris ini tetap
  *                    dianggap berjalan sampai periodenya benar-benar lewat);
- *  3) "Riwayat"    — sudah ada periode lebih baru pada grup & periode lama
- *                    ini sudah berlalu (tidak berjalan lagi);
- *  4) "Belum Mulai" — periode terkini yang tanggal awalnya masih di depan.
+ *  3) "Riwayat"    — sudah ada periode lebih baru pada grup DAN periode
+ *                    lama ini sudah berlalu (tanggal berakhirnya lewat —
+ *                    periode masa depan yang punya penerus tetap dihitung
+ *                    "Belum Mulai", bukan "Riwayat");
+ *  4) "Belum Mulai" — tanggal awalnya masih di depan;
+ *  5) "Berakhir"   — sudah lewat, TANPA periode penerus, dan belum
+ *                    ditandai ditangani: menunggu Eksekusi/Tandai Ditangani
+ *                    (baris ini juga yang muncul di card Dashboard).
  * Dipakai untuk kolom `Status`, filter, sort, distinct & export. */
 const STATUS_SQL = `CASE
     WHEN t.mou_selesai = 1 THEN 'Selesai'
     WHEN t.mou_awal IS NOT NULL AND t.mou_awal <= CURDATE()
          AND (t.mou_berakhir IS NULL OR t.mou_berakhir >= CURDATE()) THEN 'Berjalan'
-    WHEN EXISTS (SELECT 1 FROM \`tmou_sewa\` s2 WHERE s2.mou_grup = t.mou_grup AND s2.mou_id > t.mou_id) THEN 'Riwayat'
+    WHEN EXISTS (SELECT 1 FROM \`tmou_sewa\` s2 WHERE s2.mou_grup = t.mou_grup AND s2.mou_id > t.mou_id)
+         AND t.mou_berakhir IS NOT NULL AND t.mou_berakhir < CURDATE() THEN 'Riwayat'
     WHEN t.mou_awal IS NOT NULL AND t.mou_awal > CURDATE() THEN 'Belum Mulai'
+    WHEN t.mou_berakhir IS NOT NULL AND t.mou_berakhir < CURDATE()
+         AND NOT EXISTS (SELECT 1 FROM \`tmou_sewa\` s2 WHERE s2.mou_grup = t.mou_grup AND s2.mou_id > t.mou_id)
+         THEN 'Berakhir'
     ELSE 'Berjalan' END`
 
 /** Alias → ekspresi SQL untuk filter/sort kolom browse; ditambah kolom

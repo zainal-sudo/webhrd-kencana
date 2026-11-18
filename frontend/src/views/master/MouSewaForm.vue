@@ -29,12 +29,29 @@ const values = reactive({
 const loading = ref(true);
 const ready = ref(false);
 const saving = ref(false);
+/** Status yang dihitung sistem dari tanggal (dari data saat form dimuat).
+ *  Dipakai sebagai pratinjau badge pada pilihan "Otomatis". */
+const statusSistem = ref("");
 const canSave = computed(() => auth.can("frmMouSewa", isEdit ? "edit" : "insert"));
 const resetState = useTransactionReset({ values }, {
   isEdit: () => isEdit,
   blocked: () => loading.value || !ready.value || saving.value,
   afterRestore: () => {},
 });
+
+/* Kelas warna badge pratinjau status sistem (sama dengan Master MoU Sewa). */
+const statusBadgeClass = (s: string) =>
+  s === "Berjalan"
+    ? "st-berjalan"
+    : s === "Belum Mulai"
+      ? "st-belum"
+      : s === "Berakhir"
+        ? "st-berakhir"
+        : s === "Riwayat"
+          ? "st-riwayat"
+          : s === "Selesai"
+            ? "st-selesai"
+            : "";
 
 onMounted(async () => {
   try {
@@ -48,6 +65,8 @@ onMounted(async () => {
       values.mou_berakhir = row["Berakhir"] ?? "";
       // Hanya "Selesai" yang bisa diubah manual; sisanya otomatis dari tanggal.
       values.status = row.Status === "Selesai" ? "selesai" : "otomatis";
+      // Status sistem terkini (pratinjau pada pilihan "Otomatis").
+      statusSistem.value = String(row.Status ?? "");
     }
     ready.value = true;
     resetState.capture();
@@ -160,21 +179,40 @@ async function save(): Promise<string> {
             :required="true"
           />
         </label>
-        <label v-if="isEdit" class="mou-field">
+        <div v-if="isEdit" class="mou-field status-field">
           <span>Status <b>*</b></span>
-          <span class="status-wrap">
-            <select v-model="values.status" :disabled="loading || !ready || saving || !canSave" aria-label="Status periode MoU">
-              <option value="otomatis">Otomatis — dihitung dari tanggal</option>
-              <option value="selesai">Selesai (sudah ditangani)</option>
-            </select>
-            <span v-if="values.status === 'selesai'" class="badge-status st-selesai">Selesai</span>
-          </span>
-        </label>
+          <div class="status-pilih" role="radiogroup" aria-label="Status periode MoU">
+            <label class="status-opsi" :class="{ dipilih: values.status === 'otomatis' }">
+              <input
+                v-model="values.status"
+                type="radio"
+                value="otomatis"
+                name="status-mou"
+                :disabled="loading || !ready || saving || !canSave"
+              />
+              <span class="opsi-teks">
+                <span class="opsi-utama">Otomatis <span class="badge-status" :class="statusBadgeClass(statusSistem)">{{ statusSistem || "-" }}</span></span>
+                <span class="opsi-ket">Dihitung sistem dari tanggal periode (Berjalan / Belum Mulai / Berakhir / Riwayat).</span>
+              </span>
+            </label>
+            <label class="status-opsi" :class="{ dipilih: values.status === 'selesai' }">
+              <input
+                v-model="values.status"
+                type="radio"
+                value="selesai"
+                name="status-mou"
+                :disabled="loading || !ready || saving || !canSave"
+              />
+              <span class="opsi-teks">
+                <span class="opsi-utama">Selesai — sudah ditangani</span>
+                <span class="opsi-ket">Ditandai manual; MoU hilang dari card Dashboard. Pilih ini kalau tidak diperpanjang / dibatalkan.</span>
+              </span>
+            </label>
+          </div>
+        </div>
         <p v-if="isEdit" class="mou-note">
-          Hanya tanda <b>Selesai</b> yang bisa diubah manual — MoU ditandai sudah ditangani dan
-          hilang dari card Dashboard. Status <b>Berjalan / Belum Mulai / Riwayat</b> selalu
-          dihitung otomatis dari tanggal periode (pilih <b>Otomatis</b> untuk membuka tanda
-          "Selesai" kembali).
+          Hanya tanda <b>Selesai</b> yang bisa diubah manual. Pilih <b>Otomatis</b> untuk membuka
+          tanda itu kembali — status akan dihitung ulang dari tanggal periode.
         </p>
         <p class="mou-note">
           MoU baru yang dibuat lewat tombol <b>Eksekusi</b> otomatis satu grup dengan MoU lama —
@@ -190,7 +228,8 @@ async function save(): Promise<string> {
 .mou-field { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 12px; }
 .mou-field > span:first-child { width: 100px; flex-shrink: 0; padding-top: 7px; color: var(--ds-on-surface, #12324f); font-weight: 700; }
 .mou-field b { color: #dc2626; }
-.mou-field input,
+/* Radio status JANGAN ikut aturan input generik (yang bikin oval). */
+.mou-field input:not([type="radio"]),
 .mou-field textarea { min-width: 0; flex: 1; padding: 7px 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 4px; background: var(--ds-surface, #fff); color: var(--ds-on-surface, #12324f); font: inherit; resize: vertical; }
 .mou-field input:focus,
 .mou-field textarea:focus { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 1px; }
@@ -213,21 +252,67 @@ async function save(): Promise<string> {
 }
 .mou-field :deep(.date-input > input[type="text"]:focus) { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 1px; }
 .mou-field :deep(.date-input > input[type="text"]:disabled) { opacity: 0.65; }
-/* Field Status (mode Edit): dropdown + badge pratinjau warna. */
-.status-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-.status-wrap select {
-  min-width: 0;
-  flex: 0 0 auto;
-  padding: 7px 10px;
+/* Field Status (mode Edit): radio card — kartu bisa diklik utuh, ring
+ * radio custom (appearance:none) supaya konsisten dengan dialog Eksekusi. */
+.status-field > span:first-child { padding-top: 12px; }
+.status-pilih { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.status-opsi {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--ds-border, #b0b8c4);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--ds-surface, #fff);
-  color: var(--ds-on-surface, #12324f);
-  font: inherit;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
-.status-wrap select:focus { outline: 2px solid var(--ds-primary, #3b5998); outline-offset: 1px; }
-.status-wrap select:disabled { opacity: 0.65; cursor: default; }
+.status-opsi:hover { border-color: #9fb3cc; }
+.status-opsi.dipilih {
+  border-color: var(--ds-primary, #3b5998);
+  background: var(--ds-primary-50, #f4f7fc);
+  box-shadow: inset 0 0 0 1px var(--ds-primary, #3b5998);
+}
+.status-opsi input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  max-width: 15px;
+  min-height: 15px;
+  max-height: 15px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 1.5px solid #8a97a8;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-content: center;
+  transition: border-color 0.15s;
+}
+.status-opsi input[type="radio"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ds-primary, #3b5998);
+  transform: scale(0);
+  transition: transform 0.12s;
+}
+.status-opsi input[type="radio"]:checked { border-color: var(--ds-primary, #3b5998); }
+.status-opsi input[type="radio"]:checked::before { transform: scale(1); }
+/* Fokus TIDAK menambah ring luar (dulu jadi lingkaran dobel) — border biru
+ * + titik di dalam sudah jadi penanda fokus/terpilih yang cukup. */
+.status-opsi input[type="radio"]:focus-visible { outline: none; }
+.status-opsi input[type="radio"]:focus { outline: none; }
+.status-opsi input[type="radio"]:disabled { opacity: 0.55; cursor: default; }
+.opsi-teks { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.opsi-utama { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; font-weight: 700; color: var(--ds-on-surface, #12324f); }
+.opsi-ket { font-size: 10.5px; line-height: 1.45; color: var(--ds-text-secondary, #5a6a7e); }
 .badge-status {
   display: inline-block;
   padding: 2px 9px;
@@ -238,9 +323,14 @@ async function save(): Promise<string> {
 }
 .st-berjalan { background: #e6f7ee; color: #15803d; border: 1px solid #b7e4c9; }
 .st-belum { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+.st-berakhir { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
 .st-riwayat { background: #f1f5f9; color: #64748b; border: 1px solid #dbe2ee; }
 .st-selesai { background: #fdecec; color: #b91c1c; border: 1px solid #f5c6c6; }
 .load-note { margin-bottom: 12px; font-size: 12px; }
 .mou-note { margin: 4px 0 0; font-size: 10.5px; line-height: 1.5; color: var(--ds-text-secondary, #5a6a7e); }
-@media (max-width: 480px) { .mou-field { align-items: stretch; flex-direction: column; gap: 6px; } .mou-field > span:first-child { padding-top: 0; } }
+@media (max-width: 480px) {
+  .mou-field { align-items: stretch; flex-direction: column; gap: 6px; }
+  .mou-field > span:first-child,
+  .status-field > span:first-child { padding-top: 0; }
+}
 </style>

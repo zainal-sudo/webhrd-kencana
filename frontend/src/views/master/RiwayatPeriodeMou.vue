@@ -37,7 +37,7 @@ const rows = ref<MouPeriode[]>([]);
 const loading = ref(true);
 const gagal = ref("");
 
-/* Filter status sederhana (client-side): Semua / Berjalan / Belum Mulai / Riwayat / Selesai. */
+/* Filter status sederhana (client-side): Semua / Berjalan / Belum Mulai / Berakhir / Riwayat / Selesai. */
 const filterStatus = ref("");
 const tampil = computed(() =>
   filterStatus.value ? rows.value.filter((r) => r.Status === filterStatus.value) : rows.value
@@ -71,11 +71,13 @@ const statusClass = (s: string) =>
     ? "st-berjalan"
     : s === "Belum Mulai"
       ? "st-belum"
-      : s === "Riwayat"
-        ? "st-riwayat"
-        : s === "Selesai"
-          ? "st-selesai"
-          : "";
+      : s === "Berakhir"
+        ? "st-berakhir"
+        : s === "Riwayat"
+          ? "st-riwayat"
+          : s === "Selesai"
+            ? "st-selesai"
+            : "";
 
 onMounted(muatUlang);
 </script>
@@ -97,6 +99,7 @@ onMounted(muatUlang);
         <option value="">Semua Status</option>
         <option value="Berjalan">Berjalan</option>
         <option value="Belum Mulai">Belum Mulai</option>
+        <option value="Berakhir">Berakhir</option>
         <option value="Riwayat">Riwayat</option>
         <option value="Selesai">Selesai</option>
       </select>
@@ -130,7 +133,11 @@ onMounted(muatUlang);
           <td>{{ r["Awal Mulai"] ? formatTanggal(r["Awal Mulai"]) : "-" }}</td>
           <td>{{ r.Berakhir ? formatTanggal(r.Berakhir) : "-" }}</td>
           <td class="col-status">
-            <span class="badge-status" :class="statusClass(r.Status)">{{ r.Status || "-" }}</span>
+            <span class="status-wrap">
+              <span class="badge-status" :class="statusClass(r.Status)">{{ r.Status || "-" }}</span>
+              <!-- Keterangan penanda masih menunggu tindakan HR. -->
+              <small v-if="r.Status === 'Berakhir'" class="status-ket">belum ditangani</small>
+            </span>
           </td>
         </tr>
       </tbody>
@@ -197,8 +204,12 @@ onMounted(muatUlang);
 }
 .st-berjalan { background: #e6f7ee; color: #15803d; border: 1px solid #b7e4c9; }
 .st-belum { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+.st-berakhir { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
 .st-riwayat { background: #f1f5f9; color: #64748b; border: 1px solid #dbe2ee; }
 .st-selesai { background: #fdecec; color: #b91c1c; border: 1px solid #f5c6c6; }
+/* Bungkus badge + keterangan "belum ditangani" di bawahnya. */
+.status-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.status-ket { font-size: 9px; font-weight: 600; color: #c2410c; white-space: nowrap; }
 .riwayat-keadaan {
   display: flex;
   align-items: center;

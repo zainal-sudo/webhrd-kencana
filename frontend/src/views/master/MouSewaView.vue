@@ -40,11 +40,13 @@ const statusClass = (s: string) =>
     ? "st-berjalan"
     : s === "Belum Mulai"
       ? "st-belum"
-      : s === "Riwayat"
-        ? "st-riwayat"
-        : s === "Selesai"
-          ? "st-selesai"
-          : "";
+      : s === "Berakhir"
+        ? "st-berakhir"
+        : s === "Riwayat"
+          ? "st-riwayat"
+          : s === "Selesai"
+            ? "st-selesai"
+            : "";
 
 const editTabTitle = (row: Record<string, any>) => {
   const tempat = String(row["Tempat"] ?? "").trim();
@@ -125,9 +127,12 @@ async function remove() {
     <template #cell="{ column, text }">
       <span
         v-if="column.key === 'Status'"
-        class="badge-status"
-        :class="statusClass(String(text))"
-      >{{ text || "-" }}</span>
+        class="status-wrap"
+      >
+        <span class="badge-status" :class="statusClass(String(text))">{{ text || "-" }}</span>
+        <!-- Keterangan penanda masih menunggu tindakan HR. -->
+        <small v-if="text === 'Berakhir'" class="status-ket">belum ditangani</small>
+      </span>
       <template v-else>{{ text }}</template>
     </template>
     <template #row-actions-end="{ row }">
@@ -171,6 +176,10 @@ async function remove() {
 }
 .st-berjalan { background: #e6f7ee; color: #15803d; border: 1px solid #b7e4c9; }
 .st-belum { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+.st-berakhir { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
 .st-riwayat { background: #f1f5f9; color: #64748b; border: 1px solid #dbe2ee; }
 .st-selesai { background: #fdecec; color: #b91c1c; border: 1px solid #f5c6c6; }
+/* Bungkus badge + keterangan "belum ditangani" di bawahnya. */
+.status-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.status-ket { font-size: 9px; font-weight: 600; color: #c2410c; white-space: nowrap; }
 </style>
