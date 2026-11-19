@@ -16,6 +16,9 @@ import { useLiveSearch } from "@/composables/useLiveSearch";
 import { useAuthStore } from "@/stores/authStore";
 import { sameFormState } from "@/utils/formSnapshot";
 import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
+import ColumnFilterPopup from "@/components/ColumnFilterPopup.vue";
+import { filterKey } from "@/utils/columnFilter";
+import { nextSort, sortByKey, distinctValues, sortIconName, type SortDir } from "@/utils/table";
 import {
   OPSI_AGAMA,
   OPSI_BPJS,
@@ -423,8 +426,92 @@ const rekrutLoading = ref(false);
 const kataRekrut = ref("");
 const hasilRekrut = ref<any[]>([]);
 
+/* ── Urut & filter kolom dialog "Pelamar Diterima" ──────────────────────
+ * Data sudah ada di memori (maks. 200 baris dari server), jadi sort & filter
+ * dijalankan lokal — pola halaman "PKWT Akan Habis": klik label kolom untuk
+ * urut (naik → turun → netral), tombol di sebelahnya untuk filter nilai. */
+const rekrutKolom = [
+  { key: "Nomor", label: "Nomor" },
+  { key: "Tanggal", label: "Tanggal" },
+  { key: "Nama", label: "Nama" },
+  { key: "Jenis_Kelamin", label: "L/P" },
+  { key: "rkt_posisi", label: "Posisi" },
+  { key: "Alamat", label: "Alamat" },
+] as const;
+type RekrutKey = (typeof rekrutKolom)[number]["key"];
+
+const rekrutSortKey = ref<RekrutKey | null>(null);
+const rekrutSortDir = ref<SortDir | null>(null);
+const rekrutFilters = ref<Record<string, string[]>>({});
+const rekrutOpenFilter = ref<RekrutKey | null>(null);
+const rekrutFilterAnchor = ref<HTMLElement | null>(null);
+const rekrutFilterAktif = computed(() => Object.values(rekrutFilters.value).some((v) => v.length > 0));
+
+/** Tampilan satu sel — dipakai untuk isi tabel sekaligus daftar nilai filter. */
+function rekrutTeks(r: Record<string, any>, key: RekrutKey): string {
+  if (key === "Tanggal") return formatTanggal(r.Tanggal);
+  const v = r[key];
+  return v === null || v === undefined ? "" : String(v);
+}
+
+/** Nilai urut: tanggal memakai ISO asli supaya urutannya benar (bukan DD/MM/YYYY). */
+function rekrutUrut(r: Record<string, any>, key: RekrutKey): unknown {
+  return key === "Tanggal" ? String(r.Tanggal ?? "") : rekrutTeks(r, key);
+}
+
+function klikSortRekrut(key: RekrutKey) {
+  const next = nextSort(rekrutSortKey.value, rekrutSortDir.value, key);
+  rekrutSortKey.value = next.key as RekrutKey | null;
+  rekrutSortDir.value = next.dir;
+}
+
+function toggleFilterRekrut(key: RekrutKey, ev: MouseEvent) {
+  rekrutFilterAnchor.value = ev.currentTarget as HTMLElement;
+  rekrutOpenFilter.value = rekrutOpenFilter.value === key ? null : key;
+}
+
+function applyFilterRekrut(key: RekrutKey, values: string[]) {
+  rekrutFilters.value = { ...rekrutFilters.value, [key]: values };
+  rekrutOpenFilter.value = null;
+}
+
+function bersihkanRekrut() {
+  rekrutFilters.value = {};
+  rekrutOpenFilter.value = null;
+  rekrutSortKey.value = null;
+  rekrutSortDir.value = null;
+}
+
+/** Daftar nilai filter = nilai unik kolom pada hasil pencarian yang sedang tampil. */
+function rekrutNilaiKolom(key: RekrutKey): Promise<string[]> {
+  return Promise.resolve(
+    distinctValues(hasilRekrut.value, key, (r, k) => rekrutTeks(r, k as RekrutKey))
+  );
+}
+
+/** Hasil akhir tabel: hasil pencarian server → filter kolom → urutan sort.
+ *  Nilai dari ColumnFilterPopup berupa key JSON (`JSON.stringify(teks)`),
+ *  jadi pembandingnya juga harus lewat `filterKey` — seperti halaman
+ *  "PKWT Akan Habis". */
+const rekrutTampil = computed(() => {
+  let rows = hasilRekrut.value;
+  const aktif = rekrutKolom.filter((c) => (rekrutFilters.value[c.key]?.length ?? 0) > 0);
+  if (aktif.length) {
+    rows = rows.filter((r) =>
+      aktif.every((c) => rekrutFilters.value[c.key]!.includes(filterKey(rekrutTeks(r, c.key))))
+    );
+  }
+  if (rekrutSortKey.value && rekrutSortDir.value) {
+    rows = sortByKey(rows, rekrutSortKey.value, rekrutSortDir.value, (r, k) =>
+      rekrutUrut(r, k as RekrutKey)
+    );
+  }
+  return rows;
+});
+
 function bukaRekrutmen() {
   kataRekrut.value = noRekrutmen.value;
+  bersihkanRekrut();
   rekrutOpen.value = true;
   cariRekrutmen();
 }
@@ -975,23 +1062,72 @@ onUnmounted(() => {
       </v-card-title>
       <v-card-text class="dlg-body">
         <div class="cari-bar">
-          <input v-model="kataRekrut" placeholder="Nomor / nama / posisi / alamat..." @input="liveRekrutmen.schedule" @keyup.enter="liveRekrutmen.run" />
-          <button class="btn-mini primary" type="button" :disabled="rekrutLoading" @click="liveRekrutmen.run">
+          <input v-model="kataRekrut" placeholder="Nomor / nama / posisi / alamat..." aria-label="Cari pelamar diterima"
+            @input="liveRekrutmen.schedule" @keyup.enter="liveRekrutmen.run" />
+          <button class="btn-mini primary cari-btn" type="button" :disabled="rekrutLoading" @click="liveRekrutmen.run">
+            <MsIcon name="search" :size="14" />
             {{ rekrutLoading ? "Mencari..." : "Cari" }}
           </button>
         </div>
+        <div class="rekrut-meta" aria-live="polite">
+          <span>Menampilkan {{ rekrutTampil.length }} dari {{ hasilRekrut.length }} pelamar</span>
+          <button v-if="rekrutFilterAktif || rekrutSortKey" type="button" class="link-reset"
+            title="Kembalikan urutan & filter ke semula" @click="bersihkanRekrut">
+            <MsIcon name="filter_alt_off" :size="13" /> Bersihkan filter & urutan
+          </button>
+        </div>
         <table class="mini">
-          <thead><tr><th>Nomor</th><th>Tanggal</th><th>Nama</th><th>L/P</th><th>Posisi</th><th>Alamat</th></tr></thead>
+          <thead>
+            <tr>
+              <th v-for="c in rekrutKolom" :key="c.key" :class="{ sorted: rekrutSortKey === c.key }">
+                <div class="th-in">
+                  <!-- Label di kiri; ikon sort & filter berdampingan di kanan. -->
+                  <span class="th-label" role="button" tabindex="0"
+                    :title="rekrutSortKey === c.key ? (rekrutSortDir === 'asc' ? `Urutkan ${c.label}: turun (klik lagi → netral)` : `Hapus urutan ${c.label}`) : `Urutkan ${c.label}: naik`"
+                    @click="klikSortRekrut(c.key)"
+                    @keydown.enter.prevent="klikSortRekrut(c.key)"
+                    @keydown.space.prevent="klikSortRekrut(c.key)">{{ c.label }}</span>
+                  <span class="th-controls">
+                    <button type="button" class="th-sort"
+                      :title="rekrutSortKey === c.key ? (rekrutSortDir === 'asc' ? `Urutkan ${c.label}: turun (klik lagi → netral)` : `Hapus urutan ${c.label}`) : `Urutkan ${c.label}: naik`"
+                      :aria-label="`Urutkan ${c.label}`" @click="klikSortRekrut(c.key)">
+                      <MsIcon :name="sortIconName(c.key, rekrutSortKey, rekrutSortDir)" :size="13"
+                        :class="['sort-ic', { on: rekrutSortKey === c.key }]" />
+                    </button>
+                    <button type="button" class="th-filter"
+                      :class="{ active: (rekrutFilters[c.key]?.length ?? 0) > 0 }"
+                      :aria-label="`Filter ${c.label}`" :aria-expanded="rekrutOpenFilter === c.key"
+                      aria-haspopup="dialog" @click="toggleFilterRekrut(c.key, $event)">
+                      <MsIcon :name="(rekrutFilters[c.key]?.length ?? 0) ? 'filter_alt' : 'filter_list'" :size="13" />
+                    </button>
+                    <ColumnFilterPopup
+                      v-if="rekrutOpenFilter === c.key && rekrutFilterAnchor"
+                      :anchor="rekrutFilterAnchor"
+                      :col-label="c.label"
+                      :selected="rekrutFilters[c.key] ?? []"
+                      :fetch-values="() => rekrutNilaiKolom(c.key)"
+                      @apply="(values: string[]) => applyFilterRekrut(c.key, values)"
+                      @close="rekrutOpenFilter = null"
+                    />
+                  </span>
+                </div>
+              </th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="(r, i) in hasilRekrut" :key="i" class="klik" @click="ambilRekrutmen(r)">
+            <tr v-for="(r, i) in rekrutTampil" :key="String(r.Nomor || i)" class="klik" @click="ambilRekrutmen(r)">
               <td>{{ r.Nomor }}</td>
-              <td>{{ formatTanggal(r.Tanggal) }}</td>
+              <td class="nowrap">{{ formatTanggal(r.Tanggal) }}</td>
               <td>{{ r.Nama }}</td>
               <td>{{ r.Jenis_Kelamin }}</td>
               <td>{{ r.rkt_posisi }}</td>
               <td>{{ r.Alamat }}</td>
             </tr>
-            <tr v-if="!hasilRekrut.length"><td colspan="6" class="empty">Tidak ditemukan</td></tr>
+            <tr v-if="!rekrutTampil.length">
+              <td colspan="6" class="empty">
+                {{ rekrutLoading ? "Mencari..." : (hasilRekrut.length ? "Tidak ada pelamar yang cocok dengan pencarian atau filter." : "Tidak ditemukan") }}
+              </td>
+            </tr>
           </tbody>
         </table>
         <p class="note">Hanya pelamar berstatus Diterima. Biodata ditarik ke form (tidak disimpan otomatis).</p>
@@ -1024,7 +1160,7 @@ onUnmounted(() => {
 .nik-value { width: 100%; min-width: 0; height: 30px; box-sizing: border-box; line-height: 28px; padding: 0 8px; border: 1px solid var(--ds-border, #b0b8c4); background: var(--ds-surface-inset, var(--ds-surface)); font-size: 12px; color: var(--ds-text-muted, var(--ds-text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; cursor: default; }
 .nik-value { border-radius: 8px; }
 .rekrut-field label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--ds-primary, #3b5998); }
-.rekrut-row { display: flex; gap: 6px; }
+.rekrut-row { display: flex; align-items: center; gap: 6px; }
 .rekrut-row input { flex: 1; min-width: 0; height: 30px; padding: 4px 8px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; font-size: 12px; }
 .rekrut-row .btn-mini { height: 30px; flex-shrink: 0; }
 .btn-mini { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; background: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ds-on-surface, #1b2d4a); }
@@ -1032,13 +1168,35 @@ onUnmounted(() => {
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
 .dlg-body { background: #fff; padding: 12px 14px; }
-.cari-bar { display: flex; gap: 6px; margin-bottom: 10px; }
-.cari-bar input { flex: 1; height: 28px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; padding: 0 8px; font-size: 12px; font-family: "Plus Jakarta Sans", sans-serif; }
+/* Baris cari dialog: input & tombol Cari tingginya sama (28px) dan sejajar. */
+.cari-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.cari-bar input { flex: 1; min-width: 0; height: 28px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; padding: 0 8px; font-size: 12px; font-family: "Plus Jakarta Sans", sans-serif; }
+.cari-bar .cari-btn { height: 28px; flex-shrink: 0; }
+
+/* Ringkasan hasil + tautan bersihkan filter (muncul hanya bila ada yang aktif). */
+.rekrut-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #64748b; margin-bottom: 6px; }
+.link-reset { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: transparent; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--ds-primary, #3b5998); cursor: pointer; }
+.link-reset:hover { text-decoration: underline; }
+
 table.mini { width: 100%; border-collapse: collapse; font-size: 11px; }
 table.mini th { background: var(--ds-surface-variant, #e0e4ea); border: 1px solid var(--ds-border, #b0b8c4); padding: 5px 7px; text-align: left; font-weight: 800; }
 table.mini td { border: 1px solid #d5dbe3; padding: 4px 7px; }
+table.mini td.nowrap { white-space: nowrap; }
 table.mini tr.klik:hover { background: var(--ds-primary-lighten-1, #dbe4f3); cursor: pointer; }
 table.mini .empty { text-align: center; color: #8995a6; padding: 10px; }
+
+/* Header tabel: klik label = urut (naik → turun → netral), tombol = filter kolom. */
+table.mini th .th-in { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+table.mini th .th-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+table.mini th.sorted { background: var(--ds-primary-lighten-1, #dbe4f3); color: var(--ds-primary-dark, #243656); }
+table.mini th .th-controls { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+table.mini .th-sort { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #8a94a3; cursor: pointer; }
+table.mini .th-sort:hover { border-color: var(--ds-border, #b0b8c4); background: #fff; }
+table.mini .th-sort .sort-ic { color: #8a94a3; flex-shrink: 0; }
+table.mini .th-sort .sort-ic.on { color: var(--ds-primary, #3b5998); }
+table.mini .th-filter { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #8a94a3; cursor: pointer; }
+table.mini .th-filter:hover { border-color: var(--ds-border, #b0b8c4); background: #fff; }
+table.mini .th-filter.active { background: var(--ds-primary, #3b5998); border-color: var(--ds-primary, #3b5998); color: #fff; }
 .note { font-size: 11px; color: #64748b; margin: 8px 0 0; }
 .form-tabs { position: sticky; top: 0; z-index: 5; display: flex; overflow-x: auto; background: var(--ds-surface, #f0f3f8); border-bottom: 2px solid var(--ds-primary, #3b5998); }
 .form-tabs button { padding: 6px 14px; border: 1px solid var(--ds-border, #b0b8c4); border-bottom: none; background: var(--ds-surface-variant, #e0e4ea); color: var(--ds-on-surface, #1b2d4a); font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }

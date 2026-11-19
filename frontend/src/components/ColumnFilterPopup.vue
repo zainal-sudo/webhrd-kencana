@@ -20,9 +20,21 @@ const emit = defineEmits<{
 }>();
 
 const root = ref<HTMLElement | null>(null);
-const position = ref({ left: "12px", top: "12px", maxHeight: "380px", visibility: "hidden" as "hidden" | "visible" });
+const position = ref({ left: "12px", top: "12px", maxHeight: "380px", zIndex: "3000", visibility: "hidden" as "hidden" | "visible" });
 let resizeObserver: ResizeObserver | undefined;
 let frame = 0;
+
+/** Z-index dinamis: selalu di atas v-dialog yang memuat tombol filter. */
+function resolveZIndex(): string {
+  // v-dialog Vuetify memakai z-index dinamis: default 2000, lalu +10 untuk
+  // tiap overlay yang sedang aktif di global stack-nya (mis. dropdown
+  // FSelect/VMenu yang baru saja ditutup). Karena itu z-index tetap 2000
+  // bisa kalah dan jatuh di BELAKANG dialog. Baca nilai runtime dari
+  // overlay terdekat, lalu sendiri 100 lapis di atasnya (lantai 3000).
+  const overlay = props.anchor.closest(".v-overlay") as HTMLElement | null;
+  const overlayZ = overlay ? Number.parseFloat(getComputedStyle(overlay).zIndex) || 0 : 0;
+  return String(Math.max(3000, overlayZ + 100));
+}
 
 function updatePosition() {
   const popup = root.value;
@@ -44,7 +56,7 @@ function updatePosition() {
     openAbove ? anchor.top - height - 4 : anchor.bottom + 4,
     viewportHeight - height - margin
   ));
-  position.value = { left: `${left}px`, top: `${top}px`, maxHeight: `${Math.min(380, available)}px`, visibility: "visible" };
+  position.value = { left: `${left}px`, top: `${top}px`, maxHeight: `${Math.min(380, available)}px`, zIndex: resolveZIndex(), visibility: "visible" };
 }
 
 function schedulePosition(event?: Event) {
@@ -197,7 +209,10 @@ onDeactivated(() => emit("close"));
   background: #fff;
   border: 1px solid #9aa5b5;
   box-shadow: 0 8px 22px rgba(15, 26, 46, 0.28);
-  z-index: 1000;
+  /* Fallback statis; nilai sebenarnya dihitung dinamis di updatePosition()
+   * (z-index v-dialog Vuetify default 2000 + 10 per overlay aktif, jadi
+   * z-index tetap mudah kalah dan jatuh di BELAKANG dialog). */
+  z-index: 3000;
   font-family: "Plus Jakarta Sans", sans-serif;
   text-align: left;
   font-weight: 400;
