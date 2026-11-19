@@ -12,8 +12,8 @@ function fixture() {
         CREATE TABLE tpkwt (kar_nik TEXT, sk_id INTEGER, tgl1 TEXT, tgl2 TEXT);
         CREATE TABLE web_penilaian_access_token (id INTEGER PRIMARY KEY, token_hash TEXT UNIQUE, kar_nik TEXT, form_type TEXT, created_by TEXT, created_at TEXT, expires_at TEXT, revoked_at TEXT);
         INSERT INTO tjabatan VALUES ('OPR','OPERATOR'),('STF','STAF'),('L','LEADER');
-        INSERT INTO tstatuskaryawan VALUES (2,'PKWT 1');
-        INSERT INTO tkaryawan VALUES ('001','Budi','OPR','JAHIT A','P04',2,1,'2026-11-01','RAHASIA','010'),('002','Sinta','L','PPIC','HO',2,1,'2026-11-02','RAHASIA',NULL),('003','Nonaktif','STF','QC','P04',2,0,'2026-11-01','RAHASIA',NULL),('004','Jauh','STF','QC','P04',2,1,'2027-01-01','RAHASIA',NULL),('010','Rudi Atasan','L','PPIC','HO',2,1,'2026-11-01','RAHASIA',NULL);`)
+        INSERT INTO tstatuskaryawan VALUES (2,'PKWT 1'),(7,'Tetap');
+        INSERT INTO tkaryawan VALUES ('001','Budi','OPR','JAHIT A','P04',2,1,'2026-11-01','RAHASIA','010'),('002','Sinta','L','PPIC','HO',2,1,'2026-11-02','RAHASIA',NULL),('003','Nonaktif','STF','QC','P04',2,0,'2026-11-01','RAHASIA',NULL),('004','Jauh','STF','QC','P04',2,1,'2027-01-01','RAHASIA',NULL),('010','Rudi Atasan','L','PPIC','HO',2,1,'2026-11-01','RAHASIA',NULL),('005','Tetap Baru','OPR','JAHIT A','P04',7,1,'2026-11-01','RAHASIA',NULL);`)
     let time = new Date('2026-10-21T03:00:00Z')
     const queries = []
     const db = { async query(sql, params = []) {
@@ -105,6 +105,24 @@ test('Card ambil kondisi terbaru dari semua tabel: riwayat lebih baru menang ata
         // Riwayat lebih baru TAPI masih dalam jendela → tetap tersedia, dan
         // tanggal efektifnya kini milik riwayat.
         f.sqlite.exec("UPDATE tpkwt SET tgl1 = '2026-11-02', tgl2 = '2026-12-05'")
+        const link = await f.service.issue('001', 'HR01')
+        assert.match(link.path, /^\/penilaian\/tanpa-bawahan\?t=[a-f0-9]{64}$/)
+    } finally { f.sqlite.close() }
+})
+
+test('Karyawan yang di master sudah non-PKWT tidak dihidupkan lagi oleh riwayat', async () => {
+    const f = fixture()
+    try {
+        // 005 = Tetap (sk 7) di master, tanggal master masih di dalam jendela.
+        // Tanpa gerbang status master, riwayat sk 3 yang lebih baru akan
+        // memenangkan status & tanggal sehingga link penilaian PKWT terbit.
+        f.sqlite.exec("INSERT INTO tpkwt (kar_nik, sk_id, tgl1, tgl2) VALUES ('005', 3, '2025-09-09', '2027-06-01')")
+        await assert.rejects(f.service.issue('005', 'HR01'), { status: 404 }, 'riwayat lebih baru tidak menghidupkan status Tetap')
+        // Tetap ditolak walau tanggal riwayat masuk jendela "< 2 bulan".
+        f.sqlite.exec("UPDATE tpkwt SET tgl1 = '2026-11-02', tgl2 = '2026-12-05'")
+        await assert.rejects(f.service.issue('005', 'HR01'), { status: 404 }, 'tanggal riwayat di jendela pun tidak cukup')
+        // Karyawan yang masternya MASIH PKWT tetap terpengaruh riwayat
+        // (lihat test sebelumnya) — gerbang bukan pengecualian umum.
         const link = await f.service.issue('001', 'HR01')
         assert.match(link.path, /^\/penilaian\/tanpa-bawahan\?t=[a-f0-9]{64}$/)
     } finally { f.sqlite.close() }

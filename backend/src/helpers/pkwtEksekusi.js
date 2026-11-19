@@ -19,13 +19,24 @@
  * baris riwayat terbaru (`tpkwt`, sk 2..6). Card mengambil kondisi TERBARU di
  * antara keduanya — status, Tgl Mulai, Tgl Berakhir, dan label semuanya ikut
  * sumber yang lebih baru; riwayat yang setara/lebih lama tidak berpengaruh.
+ *
+ * Pengecualian penting: penimpaan riwayat hanya berlaku selama status master
+ * MASIH PKWT (sk 2..6). Riwayat `tpkwt` adalah arsip kontrak yang tidak pernah
+ * dihapus saat karyawan jadi Tetap/DLL, dan tanggal akhirnya sering MELEBIHI
+ * tanggal konversi di master — kalau ikut menang, karyawan tetap (mis. NIK
+ * 009231286, master sk 7 dengan riwayat sk 3 berakhir 2026-03-08 vs master
+ * 2026-03-04) muncul lagi sebagai "PKWT akan habis". Status non-PKWT di master
+ * karena itu selalu menang; jalur resmi yang mengubah status tetap
+ * Transaksi → Perubahan Status (dia menulis master + riwayat sekaligus).
  * Semua subquery sengaja portabel (CASE-WHEN/`||`-less, ORDER+LIMIT) agar
  * berlaku di MySQL maupun SQLite (pembandingan unit test).
  */
-/** Baris riwayat sk 2..6 yang tanggal-akhirnya MELAMPAUI master — terbaru menang. */
+/** Baris riwayat sk 2..6 yang tanggal-akhirnya MELAMPAUI master — terbaru menang,
+ *  tapi hanya bila master sendiri masih berstatus kontrak (PKWT 1..5). */
 const barisTerbaru = (kolom) =>
     `(SELECT t.${kolom} FROM tpkwt t
       WHERE t.kar_nik = k.kar_Nik AND t.sk_id IN (2, 3, 4, 5, 6)
+        AND k.kar_status_kerja IN (2, 3, 4, 5, 6)
         AND t.tgl2 > COALESCE(k.kar_tglpkwt2, '1000-01-01')
       ORDER BY t.tgl2 DESC, t.sk_id DESC LIMIT 1)`
 

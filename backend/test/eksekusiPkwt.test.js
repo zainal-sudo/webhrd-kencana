@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
-import { PKWT_HABIS_WHERE, PKWT_HABIS_SELECT, EKSEKUSI_SELECT, EKSEKUSI_MONITORING_SELECT, PKWT_HABIS_ORDER } from '../src/helpers/pkwtEksekusi.js'
+import { PKWT_HABIS_WHERE, PKWT_HABIS_SELECT, EKSEKUSI_SELECT, EKSEKUSI_MONITORING_SELECT, PKWT_HABIS_ORDER, PKWT_EFF_TGL1, PKWT_EFF_TGL2, PKWT_EFF_SK } from '../src/helpers/pkwtEksekusi.js'
 
 // VM harness sama seperti dashboardPeringatan.test.js — konstanta helper
 // di-import controller, sehingga disuntikkan manual ke scope VM.
@@ -50,6 +50,22 @@ test('Halaman Eksekusi memakai sumber tunggal card + identitas penuh + sisa hari
 test('Rule Eksekusi identik dengan query card Dashboard', () => {
     assert.ok(EKSEKUSI_SELECT.includes(PKWT_HABIS_WHERE), 'Eksekusi memakai WHERE yang sama persis dengan card')
     assert.ok(PKWT_HABIS_SELECT.includes(PKWT_HABIS_WHERE), 'Card juga memakai WHERE sumber tunggal')
+})
+
+test('Riwayat tpkwt hanya menang bila status master masih PKWT (sk 2..6)', () => {
+    // Gerbang di dalam subquery: karyawan yang di master sudah non-PKWT
+    // (Tetap/DLL) tidak boleh dihidupkan lagi oleh arsip kontrak lamanya.
+    // Gerbang ditanam di ketiga kolom efektif supaya status, tgl mulai, dan
+    // tgl berakhir selalu jatuh ke SATU sumber yang sama.
+    for (const [nama, sql] of [['TGL1', PKWT_EFF_TGL1], ['TGL2', PKWT_EFF_TGL2], ['SK', PKWT_EFF_SK]]) {
+        assert.match(sql, /AND k\.kar_status_kerja IN \(2, 3, 4, 5, 6\)\s+AND t\.tgl2 > COALESCE\(k\.kar_tglpkwt2/, `kolom ${nama} bergerbang`)
+        assert.match(sql, /sk_id IN \(2, 3, 4, 5, 6\)\s+AND k\.kar_status_kerja IN \(2, 3, 4, 5, 6\)/, `kolom ${nama} tetap memakai sk riwayat 2..6`)
+    }
+    // Filter status card tidak berubah: tetap COALESCE(riwayat, master) IN 2..6,
+    // jadi karyawan yang master-nya masih PKWT tetap terbaca apa adanya.
+    assert.match(PKWT_HABIS_WHERE, /COALESCE\(\(SELECT t\.sk_id FROM tpkwt t[\s\S]*?, k\.kar_status_kerja\) IN \(2, 3, 4, 5, 6\)/)
+    assert.match(PKWT_HABIS_WHERE, /COALESCE\(\(SELECT t\.tgl2 FROM tpkwt t[\s\S]*?, k\.kar_tglpkwt2\) < DATE_ADD\(CURDATE\(\), INTERVAL 2 MONTH\)/)
+    assert.match(PKWT_HABIS_WHERE, /k\.kar_status_aktif = 1/)
 })
 
 test('Cakupan semua memuat PKWT aktif di atas 60 hari tanpa mengubah default Dashboard', async () => {
