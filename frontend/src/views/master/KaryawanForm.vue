@@ -1168,10 +1168,12 @@ onUnmounted(() => {
 .btn-mini:disabled { opacity: 0.6; cursor: not-allowed; }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; padding: 8px 12px; background: var(--ds-surface-variant, #e0e4ea); }
 .dlg-body { background: #fff; padding: 12px 14px; }
-/* Baris cari dialog: input & tombol Cari tingginya sama (28px) dan sejajar. */
-.cari-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.cari-bar input { flex: 1; min-width: 0; height: 28px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; padding: 0 8px; font-size: 12px; font-family: "Plus Jakarta Sans", sans-serif; }
-.cari-bar .cari-btn { height: 28px; flex-shrink: 0; }
+/* Baris cari dialog: input & tombol Cari tingginya sama (28px) dan sejajar.
+   Selector diprefix .v-dialog supaya mengalahkan dialogs.css (height/min-height 36px)
+   yang berlaku untuk semua .cari-bar di dalam .v-dialog. */
+.v-dialog .cari-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.v-dialog .cari-bar input { flex: 1; min-width: 0; height: 28px; min-height: 28px; border: 1px solid var(--ds-border, #b0b8c4); border-radius: 8px; padding: 0 8px; font-size: 12px; font-family: "Plus Jakarta Sans", sans-serif; }
+.v-dialog .cari-bar .cari-btn { height: 28px; min-height: 28px; flex-shrink: 0; }
 
 /* Ringkasan hasil + tautan bersihkan filter (muncul hanya bila ada yang aktif). */
 .rekrut-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #64748b; margin-bottom: 6px; }
