@@ -79,6 +79,16 @@ const routes = [
     meta: { requiresAuth: true, title: "MoU Sewa Berakhir" },
   },
 
+  /* Halaman Eksekusi Tidak Masuk (dari card "Tidak Masuk 3–4 Hari Berturut-
+   * turut") — daftar calon Surat Panggilan Karyawan + unduh PDF (jsPDF),
+   * tanpa riwayat di database. */
+  {
+    path: "/dashboard/eksekusi-tidak-masuk",
+    name: "eksekusi-tidak-masuk",
+    component: () => import("@/views/dashboard/TidakMasukEksekusiView.vue"),
+    meta: { requiresAuth: true, title: "Eksekusi Tidak Masuk" },
+  },
+
   /* ── Master ── */
   { path: "/master/sandi-bpjs", component: () => import("@/views/master/SandiBpjsView.vue"), meta: { requiresAuth: true, title: "Sandi", form: "frmSandiBPJS" } },
   { path: "/master/sandi-bpjs/form", component: () => import("@/views/master/SandiBpjsForm.vue"), meta: { requiresAuth: true, title: "Form Sandi", form: "frmSandiBPJS" } },

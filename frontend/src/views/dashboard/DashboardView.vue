@@ -836,7 +836,7 @@ interface Peringatan {
   mou_sewa: PeringatanBagian;
 }
 
-interface PanelKolom { key: string; label: string; date?: boolean }
+interface PanelKolom { key: string; label: string; date?: boolean; fmt?: (v: any, row: Record<string, any>) => string }
 interface Panel {
   key: keyof Peringatan;
   title: string;
@@ -845,7 +845,7 @@ interface Panel {
   tone: string;
   route: string;
   routeLabel: string;
-  eksekusi?: { route: string; label: string };
+  eksekusi?: { route: string; label: string; hint?: string };
   columns: PanelKolom[];
   /** Jumlah baris default yang tampil sebelum "Lihat semua" (default 11). */
   barisTampil?: number;
@@ -886,18 +886,28 @@ const panels: Panel[] = [
   },
   {
     key: "mangkir_2hari",
-    title: "Tidak Masuk 3 Hari Berturut-turut",
-    desc: "Status 0 tanpa ijin pada 3 hari kerja terakhir",
+    title: "Tidak Masuk 3–4 Hari Berturut-turut",
+    desc: "3 hari → Surat Panggilan 1 · 4 hari → Surat Panggilan 2 (MANGKIR), tanpa ijin sah",
     icon: "person_off",
     tone: "red",
     route: "/laporan/tidak-masuk",
     routeLabel: "Tidak Masuk",
+    eksekusi: {
+      route: "/dashboard/eksekusi-tidak-masuk",
+      label: "Eksekusi Tidak Masuk",
+      hint: "Buka halaman pembuatan Surat Panggilan Karyawan (PDF) per karyawan",
+    },
     barisTampil: 5,
     columns: [
       { key: "Nik", label: "NIK" },
       { key: "Nama", label: "Nama" },
       { key: "Pabrik", label: "Pabrik" },
       { key: "Bagian", label: "Bagian" },
+      {
+        key: "Hari",
+        label: "Tahap",
+        fmt: (v) => (Number(v) === 4 ? "4 hari · Panggilan 2" : "3 hari · Panggilan 1"),
+      },
     ],
   },
   {
@@ -1048,6 +1058,7 @@ function bukaKpi(status: KaryawanBrowseStatus) {
 }
 function cellText(row: Record<string, any>, col: PanelKolom): string {
   const v = row[col.key];
+  if (col.fmt) return col.fmt(v, row);
   if (v === null || v === undefined || v === "") return "-";
   if (col.date) return formatTanggalSederhana(v);
   return String(v);
@@ -1234,7 +1245,7 @@ onActivated(() => {
       Memuat daftar peringatan...
     </div>
     <div v-else-if="bolehAnalisis" class="alert-grid">
-      <section v-for="p in panels" :key="p.key" class="task-card alert-card" :class="[accentClass(p), expanded[p.key] ? 'terbuka' : '']">
+      <section v-for="p in panels" :key="p.key" class="task-card alert-card" :class="[accentClass(p), expanded[p.key] ? 'terbuka' : '', p.key === 'mangkir_2hari' && bagian(p.key).tanggal?.length ? 'ada-note' : '']">
         <div class="task-top">
           <div class="task-icon-wrap" :class="chipClass(p)">
             <MsIcon :name="p.icon" :size="20" />
@@ -1254,7 +1265,11 @@ onActivated(() => {
         <div class="task-label">{{ p.title }}</div>
         <div class="task-sub">{{ p.desc }}</div>
         <div v-if="p.key === 'mangkir_2hari' && bagian(p.key).tanggal?.length" class="alert-note">
-          <div>Acuan 3 hari kerja terakhir: {{ selTanggal(p) }}</div>
+          <div>Acuan 4 tanggal kerja terakhir: {{ selTanggal(p) }} (tahap 3 hari = 3 terbaru)</div>
+          <div>
+            Tahap 3 hari → Surat Panggilan 1; tahap 4 hari → Surat Panggilan 2 (anggap MANGKIR).
+            Ijin sah/Sakit/Lain-lain pada tanggal acuan mengeluarkan karyawan dari daftar; Alpha tidak.
+          </div>
           <div v-if="usiaDataAbsensi(p).teks" :class="{ 'alert-note-tua': dataAbsensiTua(p) }">
             Data absensi terakhir: {{ teksKeteranganData(p) }}
           </div>
@@ -1309,7 +1324,7 @@ onActivated(() => {
           <button
             v-if="p.eksekusi"
             class="link-btn"
-            :title="`Buka halaman ${p.eksekusi.label} (Kirim WA per karyawan)`"
+            :title="p.eksekusi.hint ?? `Buka halaman ${p.eksekusi.label} (Kirim WA per karyawan)`"
             @click="bukaRoute(p.eksekusi.route, p.eksekusi.label)"
           >
             <MsIcon name="send" :size="13" />
@@ -2513,6 +2528,14 @@ onActivated(() => {
 }
 .alert-card.terbuka .alert-table-wrap {
   overflow-y: auto;
+}
+/* Card beralasan kuning (alert-note mangkir, ±3 baris): tinggi IKUT ISI.
+ * Dengan tinggi tetap 380px + overflow:hidden terukur isi 432px sehingga
+ * footer — tempat tombol Eksekusi — terpotong seluruhnya (tombol ada di DOM
+ * tapi tak terlihat). min-height menjaga tinggi awal tetap 380px. */
+.alert-card.ada-note {
+  height: auto;
+  min-height: 380px;
 }
 .task-card::before {
   content: "";

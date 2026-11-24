@@ -1,5 +1,6 @@
 import { Router } from 'express'
-import { getPeringatan, getEksekusiPkwt, getMouSewaBerakhir } from '../controllers/dashboardController.js'
+import { getPeringatan, getEksekusiPkwt, getMouSewaBerakhir, getTidakMasukBerurut } from '../controllers/dashboardController.js'
+import { lihatNomorSurat, ambilNomorSurat } from '../controllers/suratPanggilanController.js'
 import { getAnalisisAbsensi, getSpTerakhir, getSpRekam, getDaftarPabrik, getDaftarDepartemen } from '../controllers/dashboard/analisisController.js'
 import { issuePenilaianLink } from '../controllers/penilaianController.js'
 
@@ -40,5 +41,19 @@ r.post('/eksekusi-pkwt/:nik/link-penilaian', hanyaHrSuper, issuePenilaianLink)
 /* Halaman MoU Sewa Berakhir (dari card "MoU Sewa") — daftar MoU yang sudah
  * 2 bulan sejak tgl berakhir; aksi Eksekusi dilakukan dari halaman ini. */
 r.get('/mou-sewa-berakhir', hanyaHrSuper, getMouSewaBerakhir)
+
+/* Halaman Eksekusi Tidak Masuk (dari card "Tidak Masuk 3–4 Hari Berturut-turut")
+ * — daftar calon Surat Panggilan Karyawan (tahap 3 hari = Panggilan 1,
+ * 4 hari = Panggilan 2 / MANGKIR); PDF dibuat di sisi klien. */
+r.get('/tidak-masuk-berurut', hanyaHrSuper, getTidakMasukBerurut)
+
+/* Nomor urut Surat Panggilan Karyawan — disimpan di DATABASE:
+ *  · counter per bulan `tnomor_surat_panggilan` (nomor unik lintas komputer);
+ *  · `tsurat_panggilan_terbit` — nomor MELEKAT pada nik + nama + rentang
+ *    tanggal tidak masuk (data sama → nomor sama, data lain → nomor baru).
+ *  GET  → nomor data ini bila sudah terbit, atau urut berikutnya (peek);
+ *  POST → kunci nomor: pakai nomor lama / ambil urut baru / simpan nomor HR. */
+r.get('/surat-panggilan/nomor', hanyaHrSuper, lihatNomorSurat)
+r.post('/surat-panggilan/nomor', hanyaHrSuper, ambilNomorSurat)
 
 export default r

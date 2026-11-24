@@ -56,7 +56,7 @@ test('Empat daftar popup login Delphi dikembalikan sekaligus dengan total', asyn
         ['COUNT(*) AS c', [{ c: 7 }]],
         ['SELECT tanggal FROM', [{ tanggal: '2026-10-08' }, { tanggal: '2026-10-09' }]],
         ['kar_status_BPJS = 0', [{ Nik: 'K001', Nama: 'Budi' }]],
-        ['HAVING COUNT(DISTINCT tanggal) = 3', [{ Nik: 'K002', Nama: 'Ani' }]],
+        ['HAVING COUNT(DISTINCT CASE', [{ Nik: 'K002', Nama: 'Ani' }]],
         ['kar_status_aktif = 0 AND kar_status_BPJS = 1', [{ Nik: 'K003', Nama: 'Cici' }]],
         ['INTERVAL 2 MONTH', [{ Nik: 'K004', Nama: 'Dedi' }]],
     ])
@@ -77,13 +77,20 @@ test('SQL setia pada query popup UfrmLogin Delphi', async () => {
     // 1. Belum setting BPJS: aktif, > 30 hari, BPJS 0.
     assert.match(all, /kar_status_aktif = 1 AND kar_status_BPJS = 0/)
     assert.match(all, /DATE_ADD\(CURDATE\(\), INTERVAL -30 DAY\) > kar_tgl_masuk/)
-    // 2. Mangkir: status 0 pada KETIGA tanggal kerja terakhir (3 hari
-    //    berturut-turut, di luar hari libur), belum keluar, ijin memutus.
+    // 2. Tidak masuk 3–4 hari: status 0 pada TIGA tanggal kerja terakhir
+    //    (di luar hari libur) — jendela 4 tanggal menentukan tahap, belum
+    //    keluar. Ijin sah memutus rentetan, Alpha (ij_keterangan = 2) tidak.
+    assert.match(all, /ORDER BY tanggal DESC LIMIT 4/)
     assert.match(all, /ORDER BY tanggal DESC LIMIT 3/)
     assert.match(all, /NOT IN \(SELECT hl_tanggal FROM tharilibur\)/)
     assert.match(all, /kar_tgl_keluar IS NULL/)
-    assert.match(all, /HAVING COUNT\(DISTINCT tanggal\) = 3/)
-    assert.match(all, /NOT IN \(\s*SELECT DISTINCT ij_nik FROM tijin/)
+    assert.match(all, /HAVING COUNT\(DISTINCT CASE WHEN tanggal IN \(/)
+    assert.match(all, /ij_keterangan <> 2/)
+    assert.match(all, /AS Hari/)
+    // Tahap 4 hanya bila absen ke-4 juga status 0 DAN tanpa ijin (ijin di
+    // tanggal ke-4 menurunkan tahap kembali ke 3, bukan mengeluarkan).
+    assert.match(all, /IF\(b\.Absen4 = 1 AND i4\.n IS NULL, 4, 3\)/)
+    assert.match(all, /WHERE i3\.n IS NULL/)
     // 3. Tidak aktif tapi BPJS masih perusahaan.
     assert.match(all, /kar_status_aktif = 0 AND kar_status_BPJS = 1/)
     // 4. PKWT habis: kondisi TERBARU dari semua tabel (master vs riwayat
@@ -101,9 +108,11 @@ test('Route dashboard terdaftar di /dashboard/peringatan', async () => {
     assert.match(routes, /'\/dashboard'/)
     const dash = readFileSync(new URL('../src/routes/dashboardRoutes.js', import.meta.url), 'utf8')
     assert.match(dash, /\/peringatan/)
+    assert.match(dash, /\/tidak-masuk-berurut/)
     const view = readFileSync(new URL('../../frontend/src/views/dashboard/DashboardView.vue', import.meta.url), 'utf8')
     assert.match(view, /\/dashboard\/peringatan/)
-    for (const title of ['Belum Setting BPJS', 'Tidak Masuk 3 Hari', 'Tidak Aktif, BPJS Masih Perusahaan', 'Masa PKWT Akan Habis']) {
+    assert.match(view, /\/dashboard\/eksekusi-tidak-masuk/)
+    for (const title of ['Belum Setting BPJS', 'Tidak Masuk 3–4 Hari', 'Tidak Aktif, BPJS Masih Perusahaan', 'Masa PKWT Akan Habis']) {
         assert.ok(view.includes(title), `panel "${title}" ada di dashboard`)
     }
 })

@@ -12,10 +12,14 @@ import { PKWT_HABIS_SELECT, EKSEKUSI_SELECT, EKSEKUSI_MONITORING_SELECT, PKWT_HA
  *
  *   1. Karyawan aktif > 30 hari yang belum di-setting BPJS
  *      (`kar_status_aktif = 1 AND kar_status_BPJS = 0`).
- *   2. Karyawan tidak masuk 3 hari berturut-turut: status absensi 0 pada
- *      KETIGA tanggal kerja terakhir (di luar Master Hari Libur) — ijin di
- *      salah satu tanggal itu memutus rentetan (karyawan dieluarkan dari
- *      daftar), dan belum keluar (`kar_tgl_keluar` null).
+ *   2. Karyawan tidak masuk 3 ATAU 4 hari kerja berturut-turut: status
+ *      absensi 0 pada 3 tanggal kerja terakhir (di luar Master Hari Libur) —
+ *      ijin di salah satu tanggal itu memutus rentetan (karyawan dieluarkan
+ *      dari daftar), dan belum keluar (`kar_tgl_keluar` null). Bila tanggal
+ *      ke-4 ikut absen tanpa ijin, karyawan naik ke tahap 4 hari.
+ *      Tiap baris membawa `Hari` (3/4) → tahap Surat Panggilan Karyawan
+ *      (template `SURAT PANGGILAN KARYAWAN develop.docx`):
+ *      3 hari = Panggilan 1, 4 hari = Panggilan 2 (dianggap MANGKIR).
  *   3. Karyawan tidak aktif tetapi BPJS masih perusahaan
  *      (`kar_status_aktif = 0 AND kar_status_BPJS = 1`).
  *   4. Karyawan aktif yang masa PKWT berakhir < 2 bulan dari hari ini
@@ -31,26 +35,62 @@ const Q_BPJS_BELUM = `SELECT kar_Nik AS Nik, kar_nama AS Nama,
     AND DATE_ADD(CURDATE(), INTERVAL -30 DAY) > kar_tgl_masuk
     ORDER BY kar_tgl_masuk`
 
-// 3 tanggal absensi terakhir di luar Master Hari Libur (hari kerja acuan).
+// 4 tanggal absensi terakhir di luar Master Hari Libur — jendela acuan card
+// "Tidak Masuk" (tahap 1 = 3 hari, tahap 2 = 4 hari).
+const EMPAT_HARI_KERJA = `SELECT * FROM (
+        SELECT DISTINCT tanggal FROM tabsensi
+        WHERE tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
+        ORDER BY tanggal DESC LIMIT 4) d`
+
+// 3 tanggal kerja TERBARU — bentuk DATAR (turunan bersarang ber-LIMIT di dalam
+// `IN (...)` ditolak MariaDB: "LIMIT & IN/ALL/ANY/SOME subquery"; sudah diuji).
+// Jendelanya sama dengan 3 teratas EMPAT_HARI_KERJA.
 const TIGA_HARI_KERJA = `SELECT * FROM (
         SELECT DISTINCT tanggal FROM tabsensi
         WHERE tanggal NOT IN (SELECT hl_tanggal FROM tharilibur)
         ORDER BY tanggal DESC LIMIT 3) d`
 
-/* "Tidak masuk 3 hari berturut-turut" = status 0 pada KETIGA tanggal kerja
-   terakhir (di luar Master Hari Libur) — kartu hanya melihat maksimal 3 hari
-   ke belakang. Ijin di salah satu tanggal itu memutus rentetan → karyawan
-   dieluarkan dari daftar (ketentuan pemberi hak, 2026-11-05). */
-const Q_MANGKIR_2HARI = `SELECT * FROM (
-        SELECT nik AS Kode_Absensi, kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
-            kar_bagian AS Bagian, kar_pab_kode AS Pabrik
+/* "Tidak Masuk 3–4 Hari Berturut-turut" — dua tahap Surat Panggilan Karyawan
+   (template SURAT PANGGILAN KARYAWAN develop.docx):
+     · Hari = 3 → Surat Panggilan 1 (3 tanggal kerja terakhir status 0)
+     · Hari = 4 → Surat Panggilan 2 (keempat tanggal itu juga status 0)
+   Ijin pada tanggal yang dihitung memutus rentetan → karyawan dikeluarkan
+   (ketentuan pemberi hak, 2026-11-05). Ijin HANYA pada tanggal ke-4 tidak
+   mengeluarkan: rentetan 3 hari terakhir tetap utuh sehingga tahapnya kembali
+   3 hari. Belum keluar, kode absensi wajib terisi.
+
+   Pengecualian Alpha: `ij_keterangan = 2` (Alpha, umumnya buatan aksi massal
+   "Alpha Otomatis" di Laporan Tidak Masuk, alasan 'Otomatis') BUKAN ijin —
+   justru penanda ketidakhadiran tanpa izin, jadi TIDAK memutus rentetan.
+   Sakit/Ijin/Lain-lain (ket 0/1/3, termasuk "Jadwal Libur Otomatis") tetap
+   memutus. Tanpa pengecualian ini kartu selalu 0: setiap ketidakhadiran
+   selalu diikuti baris tijin (Alpha Otomatis) oleh alur kerja HRD. */
+const Q_MANGKIR_2HARI = `SELECT b.Kode_Absensi, b.Nik, b.Nama, b.Bagian, b.Pabrik,
+        b.Alamat, b.Nama_Pabrik, b.Induk_Pabrik,
+        IF(b.Absen4 = 1 AND i4.n IS NULL, 4, 3) AS Hari
+    FROM (
+        SELECT nik AS Kode_Absensi, kar_Nik AS Nik, kar_nama AS Nama,
+            kar_bagian AS Bagian, kar_pab_kode AS Pabrik, kar_alamat AS Alamat,
+            p.pab_nama AS Nama_Pabrik, p.pab_pabrik AS Induk_Pabrik,
+            IF(COUNT(DISTINCT tanggal) = 4, 1, 0) AS Absen4
         FROM tabsensi INNER JOIN tkaryawan ON nik = kar_kode_absensi
-        WHERE status = 0 AND tanggal IN (${TIGA_HARI_KERJA})
+        LEFT JOIN tpabrik p ON p.pab_kode = kar_pab_kode
+        WHERE status = 0 AND tanggal IN (${EMPAT_HARI_KERJA})
         AND kar_tgl_keluar IS NULL
         AND kar_kode_absensi IS NOT NULL AND kar_kode_absensi <> ''
-        GROUP BY nik HAVING COUNT(DISTINCT tanggal) = 3
-    ) a WHERE Nik NOT IN (
-        SELECT DISTINCT ij_nik FROM tijin WHERE ij_tanggal IN (${TIGA_HARI_KERJA}))`
+        GROUP BY nik
+        HAVING COUNT(DISTINCT CASE WHEN tanggal IN (${TIGA_HARI_KERJA}) THEN tanggal END) = 3
+    ) b
+    /* ijin di 3 tanggal terbaru → keluarkan dari daftar (Alpha dikecualikan). */
+    LEFT JOIN (SELECT DISTINCT ij_nik AS n FROM tijin
+               WHERE ij_tanggal IN (${TIGA_HARI_KERJA}) AND ij_keterangan <> 2) i3
+        ON i3.n = b.Nik
+    /* ijin di keempat tanggal → menurunkan tahap 4 kembali ke tahap 3. */
+    LEFT JOIN (SELECT DISTINCT ij_nik AS n FROM tijin
+               WHERE ij_tanggal IN (${EMPAT_HARI_KERJA}) AND ij_keterangan <> 2) i4
+        ON i4.n = b.Nik
+    WHERE i3.n IS NULL
+    ORDER BY Hari DESC, Nama`
 
 const Q_NONAKTIF_BPJS = `SELECT kar_Nik AS Nik, LEFT(kar_nama, 50) AS Nama,
         kar_bagian AS Bagian, kar_pab_kode AS Pabrik, kar_tgl_keluar AS Tgl_Keluar
@@ -90,8 +130,8 @@ const BAGIAN_EXPORT = {
     },
     mangkir_2hari: {
         query: Q_MANGKIR_2HARI,
-        judul: 'Tidak-Masuk-3-Hari',
-        kolom: ['Kode_Absensi', 'Nik', 'Nama', 'Pabrik', 'Bagian'],
+        judul: 'Tidak-Masuk-3-4-Hari',
+        kolom: ['Kode_Absensi', 'Nik', 'Nama', 'Pabrik', 'Bagian', 'Hari'],
     },
     nonaktif_bpjs: {
         query: Q_NONAKTIF_BPJS,
@@ -137,7 +177,7 @@ export const getPeringatan = async (req, res, next) => {
             pool.query(`${Q_BPJS_BELUM} LIMIT ${MAKS_BARIS}`),
             pool.query(hitung(Q_MANGKIR_2HARI)),
             pool.query(`${Q_MANGKIR_2HARI} LIMIT ${MAKS_BARIS}`),
-            pool.query(`SELECT tanggal FROM (${TIGA_HARI_KERJA}) t ORDER BY tanggal`),
+            pool.query(`SELECT tanggal FROM (${EMPAT_HARI_KERJA}) t ORDER BY tanggal`),
             pool.query(hitung(Q_NONAKTIF_BPJS)),
             pool.query(`${Q_NONAKTIF_BPJS} LIMIT ${MAKS_BARIS}`),
             pool.query(hitung(Q_PKWT_HABIS)),
@@ -156,6 +196,23 @@ export const getPeringatan = async (req, res, next) => {
             pkwt_habis: { total: Number(cPkwt[0].c), rows: rPkwt },
             mou_sewa: { total: Number(cMou[0].c), rows: rMou },
         })
+    } catch (err) { next(err) }
+}
+
+/**
+ * Halaman Eksekusi Tidak Masuk (dibuka tombol Eksekusi pada card Dashboard
+ * "Tidak Masuk 3–4 Hari Berturut-turut") — daftar penuh calon Surat Panggilan
+ * Karyawan. Sumber tunggal Q_MANGKIR_2HARI (aturan & tahap sama dengan card),
+ * plus jendela 4 tanggal kerja acuan untuk keterangan halaman. Hanya membaca
+ * data; PDF surat dibuat di sisi klien (frontend/src/utils/suratPanggilan.ts).
+ */
+export const getTidakMasukBerurut = async (req, res, next) => {
+    try {
+        const [[rows], [tglKerja]] = await Promise.all([
+            pool.query(`${Q_MANGKIR_2HARI} LIMIT 50000`),
+            pool.query(`SELECT tanggal FROM (${EMPAT_HARI_KERJA}) t ORDER BY tanggal`),
+        ])
+        success(res, { rows, tanggal: tglKerja.map((t) => t.tanggal) })
     } catch (err) { next(err) }
 }
 
