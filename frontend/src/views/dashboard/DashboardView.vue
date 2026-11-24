@@ -1266,10 +1266,6 @@ onActivated(() => {
         <div class="task-sub">{{ p.desc }}</div>
         <div v-if="p.key === 'mangkir_2hari' && bagian(p.key).tanggal?.length" class="alert-note">
           <div>Acuan 4 tanggal kerja terakhir: {{ selTanggal(p) }} (tahap 3 hari = 3 terbaru)</div>
-          <div>
-            Tahap 3 hari → Surat Panggilan 1; tahap 4 hari → Surat Panggilan 2 (anggap MANGKIR).
-            Ijin sah/Sakit/Lain-lain pada tanggal acuan mengeluarkan karyawan dari daftar; Alpha tidak.
-          </div>
           <div v-if="usiaDataAbsensi(p).teks" :class="{ 'alert-note-tua': dataAbsensiTua(p) }">
             Data absensi terakhir: {{ teksKeteranganData(p) }}
           </div>

@@ -334,6 +334,14 @@ onMounted(load);
       </template>
     </div>
 
+    <div class="aturan-note">
+      <MsIcon name="info" :size="14" />
+      <span>
+        Tahap 3 hari &rarr; Surat Panggilan 1; tahap 4 hari &rarr; Surat Panggilan 2 (anggap MANGKIR).
+        Ijin sah/Sakit/Lain-lain pada tanggal acuan mengeluarkan karyawan dari daftar; Alpha tidak.
+      </span>
+    </div>
+
     <div class="list-card">
       <div class="card-tool">
         <form class="search-field" role="search" @submit.prevent>
@@ -539,6 +547,25 @@ onMounted(load);
   color: var(--ds-text-secondary, #5a6a7e);
 }
 .summary-info .dot { margin: 0 6px; }
+.aturan-note {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+:global(:root[data-theme="dark"] .aturan-note) {
+  border-color: #7c5a12;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
 .list-card {
   flex: 1 0 auto;
   min-width: 0;
