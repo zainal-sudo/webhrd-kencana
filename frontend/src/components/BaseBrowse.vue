@@ -10,7 +10,7 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { formatTanggal, formatTanggalWaktu, todaySql } from "@/utils/format";
 import { fotoUrl } from "@/utils/foto";
 import type { BrowseColumn } from "@/types";
-import { columnFilterParams } from "@/utils/columnFilter";
+import { columnFilterParams, columnExcludeParams } from "@/utils/columnFilter";
 import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const props = withDefaults(
@@ -216,11 +216,15 @@ const sortDir = ref<"asc" | "desc" | null>(null);
 const filterSets = reactive<Record<string, string[]>>(
   Object.fromEntries(Object.entries(props.initialFilters || {}).map(([key, values]) => [key, [...values]]))
 );
+/** Kolom yang memakai filter invers: simpan hanya nilai yang disembunyikan. */
+const excludedSets = reactive<Record<string, string[]>>({});
 const openFilterKey = ref<string | null>(null);
 const filterAnchor = shallowRef<HTMLElement | null>(null);
 
 const hasActiveFilters = computed(() =>
-  Object.values(filterSets).some((arr) => Array.isArray(arr) && arr.length > 0)
+  [filterSets, excludedSets].some((sets) =>
+    Object.values(sets).some((arr) => Array.isArray(arr) && arr.length > 0)
+  )
 );
 
 function isSortable(col: BrowseColumn): boolean {
@@ -255,6 +259,9 @@ function clearFilters() {
   for (const k of Object.keys(filterSets)) {
     delete filterSets[k];
   }
+  for (const k of Object.keys(excludedSets)) {
+    delete excludedSets[k];
+  }
   page.value = 1;
   emit("filters-change", { ...filterSets });
   fetchData();
@@ -267,7 +274,7 @@ function toggleFilterPopup(col: BrowseColumn, event: MouseEvent) {
 }
 
 function isFilterActive(col: BrowseColumn): boolean {
-  return !!filterSets[col.key] && filterSets[col.key].length > 0;
+  return (filterSets[col.key]?.length ?? 0) > 0 || (excludedSets[col.key]?.length ?? 0) > 0;
 }
 
 async function fetchDistinct(col: BrowseColumn): Promise<(string | number | null)[]> {
@@ -285,15 +292,27 @@ async function fetchDistinct(col: BrowseColumn): Promise<(string | number | null
       Object.assign(params, columnFilterParams(k, arr));
     }
   }
+  for (const [k, arr] of Object.entries(excludedSets)) {
+    if (k !== col.key && Array.isArray(arr) && arr.length > 0) {
+      Object.assign(params, columnExcludeParams(k, arr));
+    }
+  }
   const { data } = await api.get(props.endpoint, { params });
   return (data.data || []) as (string | number | null)[];
 }
 
-function applyFilterSet(col: BrowseColumn, values: string[]) {
-  if (values.length === 0) {
+function applyFilterSet(col: BrowseColumn, values: string[], hidden?: string[]) {
+  // Pakai filter invers hanya bila nilai yang disembunyikan lebih sedikit.
+  // Ini mencegah URL berisi ratusan/ribuan nilai yang memutus koneksi
+  // (axios menampilkan "Network Error") saat menyembunyikan Blank / "-".
+  if (hidden && hidden.length > 0 &&
+      (hidden.length < values.length || values.length > 200)) {
     delete filterSets[col.key];
+    excludedSets[col.key] = [...hidden];
   } else {
-    filterSets[col.key] = values;
+    delete excludedSets[col.key];
+    if (values.length === 0) delete filterSets[col.key];
+    else filterSets[col.key] = values;
   }
   openFilterKey.value = null;
   page.value = 1;
@@ -412,6 +431,9 @@ function buildParams(includePaging: boolean): Record<string, any> {
   }
   for (const [k, arr] of Object.entries(filterSets)) {
     if (Array.isArray(arr) && arr.length > 0) Object.assign(params, columnFilterParams(k, arr));
+  }
+  for (const [k, arr] of Object.entries(excludedSets)) {
+    if (Array.isArray(arr) && arr.length > 0) Object.assign(params, columnExcludeParams(k, arr));
   }
   if (props.hasPeriod && startDate.value && endDate.value) {
     params[props.periodStartKey] = startDate.value;
@@ -788,8 +810,9 @@ onActivated(() => {
                 :combine-blank-values="combineBlankValues"
                 :filter-value-type="col.filterValueType || (col.type === 'date' || col.type === 'datetime' ? 'date' : col.type === 'number' || col.type === 'align-right' ? 'number' : 'string')"
                 :selected="filterSets[col.key] || []"
+                :excluded="excludedSets[col.key] || []"
                 :fetch-values="() => fetchDistinct(col)"
-                @apply="(vals) => applyFilterSet(col, vals)"
+                @apply="(vals, hidden) => applyFilterSet(col, vals, hidden)"
                 @close="openFilterKey = null"
                 @click.stop
               />

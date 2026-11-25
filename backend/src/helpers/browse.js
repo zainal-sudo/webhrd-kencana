@@ -69,9 +69,52 @@ export function applyColumnFilterSets(whereClause, params, query, allowedMap, ex
     return { clause, params: out }
 }
 
+/**
+ * Inverse of applyColumnFilterSets: hide only the values the user unchecked.
+ * The browse popup falls back to this when hiding a couple of choices out of a
+ * long list — sending every other value as `IN (?)` would make the GET URL
+ * exceed the server header limit and the request would die before a response
+ * (surfaced in the UI as `Network Error`).
+ *
+ * Semantics match an Excel-style checklist: rows with NULL stay visible unless
+ * Blank itself is hidden; hiding Blank on a string column also removes empty
+ * strings because both share one popup choice.
+ */
+export function applyColumnExcludes(whereClause, params, query, allowedMap, except = null, options = {}) {
+    let clause = whereClause
+    const out = [...params]
+    if (!query) return { clause, params: out }
+    for (const [alias, col] of Object.entries(allowedMap)) {
+        if (alias === except) continue
+        let raw = query[`filterNotSet_${alias}`]
+        if (raw === undefined) raw = query[`filterNotSet_${alias}[]`]
+        const excludeNull = query[`filterNotNull_${alias}`] === '1'
+        const stringColumn = options.stringColumns?.has(alias)
+        const numberColumn = options.numberColumns?.has(alias)
+        const excludeEmpty = query[`filterNotEmpty_${alias}`] === '1'
+            && (!options.stringColumns || stringColumn)
+        if (raw === undefined && !excludeNull && !excludeEmpty) continue
+        const arr = (raw === undefined || raw === null ? [] : Array.isArray(raw) ? raw : [raw])
+            .map((v) => String(v))
+            .filter((v) => v !== '')
+            .map((v) => numberColumn && Number.isFinite(Number(v)) ? Number(v) : v)
+        const alternatives = []
+        // NULL is not matched by NOT IN; keep those rows unless Blank was hidden.
+        if (arr.length) alternatives.push(`(${col} IS NULL OR ${col} NOT IN (${arr.map(() => '?').join(',')}))`)
+        if (excludeNull) alternatives.push(`${col} IS NOT NULL`)
+        // OCTET_LENGTH(NULL) is NULL, so this also removes NULL rows when Blank is hidden.
+        if (excludeEmpty) alternatives.push(`OCTET_LENGTH(${col}) > 0`)
+        if (!alternatives.length) continue
+        clause += ` AND ${alternatives.length === 1 ? alternatives[0] : `(${alternatives.join(' AND ')})`}`
+        out.push(...arr)
+    }
+    return { clause, params: out }
+}
+
 export function applyAllColumnFilters(whereClause, params, query, allowedMap, except = null, options = {}) {
     const f1 = applyColumnFilters(whereClause, params, query, allowedMap, except)
-    return applyColumnFilterSets(f1.clause, f1.params, query, allowedMap, except, options)
+    const f2 = applyColumnFilterSets(f1.clause, f1.params, query, allowedMap, except, options)
+    return applyColumnExcludes(f2.clause, f2.params, query, allowedMap, except, options)
 }
 
 /**

@@ -11,11 +11,13 @@ const props = defineProps<{
   combineBlankValues?: boolean;
   filterValueType?: "string" | "number" | "date";
   selected: string[];
+  /** Set by the browse when this column uses the inverse (exclude) protocol. */
+  excluded?: string[];
   fetchValues: () => Promise<(string | number | null)[]>;
 }>();
 
 const emit = defineEmits<{
-  (e: "apply", values: string[]): void;
+  (e: "apply", values: string[], hidden?: string[]): void;
   (e: "close"): void;
 }>();
 
@@ -112,8 +114,19 @@ function clearAll() {
 }
 
 function onOk() {
-  const values = isAllSelected.value ? [] : [...checked.value];
-  emit("apply", props.combineBlankValues ? expandBlankKeys(values, props.filterValueType) : values);
+  if (isAllSelected.value) {
+    emit("apply", [], []);
+    return;
+  }
+  const values = [...checked.value];
+  // Kirim juga nilai yang disembunyikan agar browse bisa memakai filter
+  // invers (NOT IN) saat yang disembunyikan jauh lebih sedikit. Mengirim
+  // semua nilai yang tersisa dalam URL memicu "Network Error" pada kolom
+  // dengan ratusan/ribuan nilai unik (mis. Master Karyawan).
+  const hidden = allValues.value.filter((key) => !checked.value.includes(key));
+  const expand = (keys: string[]) => props.combineBlankValues
+    ? expandBlankKeys(keys, props.filterValueType) : keys;
+  emit("apply", expand(values), expand(hidden));
 }
 
 function onDocClick(e: MouseEvent) {
@@ -141,8 +154,12 @@ onMounted(async () => {
     const normalize = (keys: string[]) => props.combineBlankValues
       ? combineBlankKeys(keys, props.filterValueType) : [...new Set(keys)];
     allValues.value = normalize((list || []).map(filterKey));
+    const hidden = normalize((props.excluded || []).map(String));
     checked.value = props.selected.length > 0
-      ? normalize(props.selected.map(String)) : [...allValues.value];
+      ? normalize(props.selected.map(String))
+      : hidden.length > 0
+        ? allValues.value.filter((key) => !hidden.includes(key))
+        : [...allValues.value];
   } catch {
     loadError.value = "Gagal memuat daftar nilai";
   } finally {
