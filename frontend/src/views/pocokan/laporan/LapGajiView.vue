@@ -296,21 +296,21 @@ const cashCount = computed(
     ).length
 );
 
-// Cetak slip gaji khusus yang tidak punya rekening (cash) dan THP > 0,
-// dibuka di tab baru dengan ukuran kertas 152mm x 90mm.
+// Cetak slip gaji khusus yang tidak punya rekening (cash) dan THP > 0.
+// Dibuka di tab yang sama lewat router (SPA), bukan window.open: menghindari
+// full load ke `/pocokan/*` yang dilayani dist FE Pocokan standalone.
 const printSlipCash = () => {
   if (cashCount.value === 0) {
     toast.warning("Tidak ada karyawan cash dengan pembayaran > 0 untuk dicetak.");
     return;
   }
-  const url = router.resolve({
+  void router.push({
     name: "SlipGajiPrint",
     query: {
       periode1: periode1.value,
       periode2: periode2.value,
     },
-  }).href;
-  window.open(url, "_blank");
+  });
 };
 </script>
 

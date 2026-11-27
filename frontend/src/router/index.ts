@@ -50,7 +50,11 @@ const routes = [
   { path: "/pocokan/transaksi/proses-gaji", component: () => import("@/views/pocokan/transaksi/ProsesGajiView.vue"), meta: { requiresAuth: true, title: "Pocokan Proses Gaji", pocokanModul: true, form: "pocokanM65" } },
   { path: "/pocokan/laporan/lap-gaji", component: () => import("@/views/pocokan/laporan/LapGajiView.vue"), meta: { requiresAuth: true, title: "Pocokan Lap. Gaji", pocokanModul: true, form: "pocokanM65" } },
   { path: "/pocokan/laporan/lap-absensi", component: () => import("@/views/pocokan/laporan/LapAbsensiView.vue"), meta: { requiresAuth: true, title: "Pocokan Lap. Absensi", pocokanModul: true, form: "pocokanM66" } },
-  { name: "SlipGajiPrint", path: "/pocokan/laporan/gaji/slip", component: () => import("@/views/pocokan/laporan/SlipGajiPrintView.vue"), meta: { requiresAuth: true, title: "Cetak Slip Gaji", pocokanModul: true, form: "pocokanM65" } },
+  /* Path sengaja sama dengan rute FE Pocokan standalone (`/laporan/lap-gaji/slip`
+   * di bawah base `/pocokan/`). Tombol cetak navigasi via router di tab yang
+   * sama, tapi URL langsung/bookmark tetap harus membuka halaman yang sama,
+   * baik `/pocokan/*` dilayani SPA HRIS maupun dist FE Pocokan. */
+  { name: "SlipGajiPrint", path: "/pocokan/laporan/lap-gaji/slip", alias: "/pocokan/laporan/gaji/slip", component: () => import("@/views/pocokan/laporan/SlipGajiPrintView.vue"), meta: { layout: "BlankLayout", requiresAuth: true, title: "Cetak Slip Gaji", pocokanModul: true, form: "pocokanM65" } },
   { path: "/pocokan/tools/users/create", component: () => import("@/views/pocokan/tools/MasterUserFormView.vue"), meta: { requiresAuth: true, title: "Pocokan User Baru", pocokanModul: true, form: "pocokanM56" } },
   { path: "/pocokan/tools/users/edit/:kode", component: () => import("@/views/pocokan/tools/MasterUserFormView.vue"), meta: { requiresAuth: true, title: "Ubah Pocokan User", pocokanModul: true, form: "pocokanM56" } },
   /* Halaman Eksekusi PKWT (tombol Eksekusi di card "Masa PKWT Akan Habis"). */

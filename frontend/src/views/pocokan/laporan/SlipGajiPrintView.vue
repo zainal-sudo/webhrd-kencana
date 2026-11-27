@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import { IconPrinter } from "@tabler/icons-vue";
+import { IconArrowLeft, IconPrinter } from "@tabler/icons-vue";
 import { lapGajiApi, type LapGajiItem } from "@/views/pocokan/_lib/api/laporan/lapGajiApi";
 import { formatTerbilangGaji, roundTHPGaji } from "@/views/pocokan/_lib/utils/terbilang";
 import LogoImg from "@/views/pocokan/_lib/assets/logo2.png";
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 
 const periode1 = String(route.query.periode1 ?? "");
@@ -101,6 +102,13 @@ const cetak = () => {
   window.print();
 };
 
+const kembali = () => {
+  void router.push({
+    path: "/pocokan/laporan/lap-gaji",
+    query: { periode1, periode2 },
+  });
+};
+
 onMounted(() => {
   void loadData();
 });
@@ -113,6 +121,14 @@ onMounted(() => {
       <span class="slip-toolbar-info">
         Slip Gaji Cash — {{ periodeText }} ({{ items.length }} slip)
       </span>
+      <v-btn
+        variant="text"
+        size="small"
+        @click="kembali"
+      >
+        <IconArrowLeft :size="16" class="mr-1" />
+        Kembali
+      </v-btn>
       <v-btn
         color="primary"
         variant="flat"

@@ -17,4 +17,16 @@ import { useAuthStore } from "@/stores/authStore";
   justify-content: center;
   padding: 24px;
 }
+
+/* Halaman cetak (mis. slip gaji) memakai layout ini supaya bebas dari shell
+ * HRIS. Saat print, hilangkan padding/background wrapper supaya ukuran kertas
+ * dan margin di @page tidak bergeser. */
+@media print {
+  .blank-layout {
+    min-height: auto;
+    padding: 0 !important;
+    background: #fff !important;
+    display: block;
+  }
+}
 </style>
