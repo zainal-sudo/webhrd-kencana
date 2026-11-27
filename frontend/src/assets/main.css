@@ -29,6 +29,18 @@ body {
   background-color: var(--ds-bg, #E8ECF1);
 }
 
+/* ── Print ── */
+@media print {
+  /* Shell HRIS mengunci html/body/#app dengan overflow:hidden. Tanpa reset ini
+   * printer hanya menerima isi viewport pertama (slip gaji cuma 1 halaman). */
+  html,
+  body,
+  #app {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
 /* ── Scrollbar ── */
 :root {
   --ds-horizontal-scrollbar-size: 14px;

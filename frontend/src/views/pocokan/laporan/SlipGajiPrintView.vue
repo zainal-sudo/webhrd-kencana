@@ -361,11 +361,14 @@ onMounted(() => {
   }
   .slip-screen {
     background: #fff !important;
-    min-height: auto;
+    min-height: auto !important;
     padding: 0 !important;
     margin: 0 !important;
   }
+  /* Chrome sering mengabaikan page-break pada flex item: semua slip bisa
+   * terkapal di halaman pertama. Saat print dipaksa menjadi block. */
   .slip-pages {
+    display: block;
     gap: 0;
     align-items: stretch;
   }
@@ -375,13 +378,15 @@ onMounted(() => {
     box-shadow: none !important;
     background: #fff !important;
     box-sizing: border-box;
-    /* Margin fisik: kiri 15 mm, kanan 10 mm (termasuk margin halaman 3 mm). */
-    width: 146mm;
-    height: 84mm;
-    min-height: auto;
+    /* Area cetak @page: 152-2*3 = 146mm lebar, 90-2*3 = 84mm tinggi.
+     * tinggi auto + overflow visible mencegah slip terpotong bila isi sedikit
+     * lebih panjang dari 84mm. */
+    width: auto;
+    height: auto;
+    min-height: 84mm;
     padding: 3mm 7mm 1mm 12mm;
     margin: 0;
-    overflow: hidden;
+    overflow: visible;
     page-break-after: always;
     break-after: page;
     break-inside: avoid;
@@ -390,9 +395,13 @@ onMounted(() => {
     page-break-after: auto;
     break-after: auto;
   }
-  @page {
-    size: 152mm 90mm;
-    margin: 3mm;
-  }
+}
+</style>
+
+<style>
+/* @page tidak boleh disuntik atribut scoped, jadi ditaruh di blok global. */
+@page {
+  size: 152mm 90mm;
+  margin: 3mm;
 }
 </style>
