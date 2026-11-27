@@ -13,7 +13,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("finance_token");
+  /* Saat di-embed di HRIS, token login HRIS yang dipakai (same-origin).
+   * `finance_token` hanya fallback untuk mode standalone; prioritas lama
+   * membuat token stand-alone yang expired mengalahkan token HRIS yang baru. */
+  const token =
+    localStorage.getItem("kencana_hrd_token") ?? localStorage.getItem("finance_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

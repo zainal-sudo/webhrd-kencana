@@ -13,7 +13,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("finance_token") ?? localStorage.getItem("kencana_hrd_token");
+  /* Modul pocokan di dalam HRIS memakai token login HRIS. Token legacy
+   * `finance_token` (login standalone pocokan) boleh jadi tersisa di browser
+   * dan sudah expired — kalau diprioritaskan, backend menolak dengan 403
+   * "Token tidak valid atau sudah expired" dan memicu dialog sesi berakhir
+   * walaupun user baru saja login. */
+  const token =
+    localStorage.getItem("kencana_hrd_token") ?? localStorage.getItem("finance_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

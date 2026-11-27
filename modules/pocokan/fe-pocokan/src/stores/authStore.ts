@@ -7,7 +7,11 @@ const USER_KEY = "finance_user";
 
 export const useAuthStore = defineStore("auth", () => {
   // ── State ────────────────────────────────────────────────────────────────
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
+  // Saat di-embed di HRIS, token HRIS lebih otoritatif daripada token
+  // standalone (`finance_token`) yang mungkin sudah expired.
+  const token = ref<string | null>(
+    localStorage.getItem("kencana_hrd_token") ?? localStorage.getItem(TOKEN_KEY),
+  );
   const user = ref<AuthUser | null>(
     (() => {
       try {
@@ -86,6 +90,9 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("kencana_hrd_token");
+    localStorage.removeItem("kencana_hrd_user");
+    localStorage.removeItem("kencana_hrd_menus");
   };
 
   // Refresh data user dari server (misalnya setelah update profil)

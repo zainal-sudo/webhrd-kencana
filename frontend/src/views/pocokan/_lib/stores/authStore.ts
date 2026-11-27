@@ -7,7 +7,9 @@ const USER_KEY = "finance_user";
 
 export const useAuthStore = defineStore("pocokanAuth", () => {
   // ── State ────────────────────────────────────────────────────────────────
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem("kencana_hrd_token"));
+  // Token HRIS lebih otoritatif saat modul di-embed: `finance_token` bisa
+  // berisi token standalone lama yang sudah expired.
+  const token = ref<string | null>(localStorage.getItem("kencana_hrd_token") ?? localStorage.getItem(TOKEN_KEY));
   const user = ref<AuthUser | null>(
     (() => {
       try {
@@ -94,6 +96,9 @@ export const useAuthStore = defineStore("pocokanAuth", () => {
     user.value = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("kencana_hrd_token");
+    localStorage.removeItem("kencana_hrd_user");
+    localStorage.removeItem("kencana_hrd_menus");
   };
 
   // Refresh data user dari server (misalnya setelah update profil)

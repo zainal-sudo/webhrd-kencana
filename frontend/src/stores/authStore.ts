@@ -85,6 +85,11 @@ export const useAuthStore = defineStore("auth", {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(MENUS_KEY);
+      /* Bersihkan juga kredensial legacy pocokan: kalau ditinggalkan, modul
+       * pocokan akan memakai token standalone yang sudah expired setelah
+       * user login ulang lewat HRIS. */
+      localStorage.removeItem("finance_token");
+      localStorage.removeItem("finance_user");
     },
   },
 });
